@@ -261,7 +261,7 @@ async fn test_receipt_metadata_completeness() -> Result<()> {
 async fn test_claude_wrapper_stream_json_success() -> Result<()> {
     // Test Claude wrapper directly with stream-json format
     let wrapper = ClaudeWrapper::new(
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         Runner::native(),
     )?;
 
@@ -282,7 +282,7 @@ async fn test_claude_wrapper_stream_json_success() -> Result<()> {
         "\n",
         r#"{"type": "content_block_stop", "index": 0}"#,
         "\n",
-        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-5-sonnet-20241022", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
+        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
     );
 
     let (content, metadata) = wrapper.parse_stream_json(sample_stream_json)?;
@@ -300,7 +300,7 @@ async fn test_claude_wrapper_stream_json_success() -> Result<()> {
     );
     assert_eq!(
         metadata.model,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should parse model"
     );
     assert_eq!(
@@ -374,24 +374,24 @@ async fn test_model_resolution_and_version_capture() -> Result<()> {
         "Should preserve model alias"
     );
     assert_eq!(
-        full_name, "claude-3-5-sonnet-20241022",
+        full_name, "haiku",
         "Should resolve alias to full name"
     );
 
     // Test full model name (no alias)
     let wrapper_with_full = ClaudeWrapper::new(
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         Runner::native(),
     )?;
     let (alias2, full_name2) = wrapper_with_full.get_model_info();
 
     assert_eq!(
         alias2,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should preserve full name as alias"
     );
     assert_eq!(
-        full_name2, "claude-3-5-sonnet-20241022",
+        full_name2, "haiku",
         "Should use full name as-is"
     );
 

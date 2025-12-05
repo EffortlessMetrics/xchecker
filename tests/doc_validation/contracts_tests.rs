@@ -126,7 +126,7 @@ mod tests {
             outputs1,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet.clone(),
@@ -151,7 +151,7 @@ mod tests {
             outputs2,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -211,7 +211,7 @@ mod tests {
         config1.insert(
             "model".to_string(),
             xchecker::types::ConfigValue {
-                value: serde_json::Value::String("claude-3-5-sonnet-20241022".to_string()),
+                value: serde_json::Value::String("haiku".to_string()),
                 source: xchecker::types::ConfigSource::Default,
             },
         );
@@ -234,7 +234,7 @@ mod tests {
         config2.insert(
             "model".to_string(),
             xchecker::types::ConfigValue {
-                value: serde_json::Value::String("claude-3-5-sonnet-20241022".to_string()),
+                value: serde_json::Value::String("haiku".to_string()),
                 source: xchecker::types::ConfigSource::Default,
             },
         );
@@ -467,7 +467,7 @@ mod tests {
             outputs,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,

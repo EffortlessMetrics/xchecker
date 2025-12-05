@@ -181,7 +181,7 @@ async fn test_m1_gate_requirements_phase_integration() -> Result<()> {
 #[ignore = "requires_claude_stub"]
 async fn test_m1_gate_claude_wrapper_parsing() -> Result<()> {
     let wrapper = ClaudeWrapper::new(
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         Runner::native(),
     )?;
 
@@ -199,7 +199,7 @@ async fn test_m1_gate_claude_wrapper_parsing() -> Result<()> {
         "\n",
         r#"{"type": "content_block_stop", "index": 0}"#,
         "\n",
-        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-5-sonnet-20241022", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
+        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
     );
 
     let (content, metadata) = wrapper.parse_stream_json(sample_json)?;
@@ -214,7 +214,7 @@ async fn test_m1_gate_claude_wrapper_parsing() -> Result<()> {
     );
     assert_eq!(
         metadata.model,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should parse model"
     );
     assert_eq!(
@@ -242,7 +242,7 @@ async fn test_m1_gate_model_resolution() -> Result<()> {
         "Should preserve model alias"
     );
     assert_eq!(
-        full_name, "claude-3-5-sonnet-20241022",
+        full_name, "haiku",
         "Should resolve alias to full name"
     );
 

@@ -415,7 +415,7 @@ async fn test_various_exit_codes_and_stderr_patterns() -> Result<()> {
 #[ignore = "requires_claude_stub"]
 async fn test_claude_wrapper_parsing_capabilities() -> Result<()> {
     let runner = Runner::new(RunnerMode::Native, WslOptions::default());
-    let wrapper = ClaudeWrapper::new(Some("claude-3-5-sonnet-20241022".to_string()), runner)?;
+    let wrapper = ClaudeWrapper::new(Some("haiku".to_string()), runner)?;
 
     // Test 1: Valid stream-json parsing
     let valid_stream_json = concat!(
@@ -431,7 +431,7 @@ async fn test_claude_wrapper_parsing_capabilities() -> Result<()> {
         "\n",
         r#"{"type": "content_block_stop", "index": 0}"#,
         "\n",
-        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-5-sonnet-20241022", "stop_reason": "end_turn", "usage": {"input_tokens": 100, "output_tokens": 25}}}"#
+        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 100, "output_tokens": 25}}}"#
     );
 
     let (content, metadata) = wrapper.parse_stream_json(valid_stream_json)?;
@@ -452,7 +452,7 @@ async fn test_claude_wrapper_parsing_capabilities() -> Result<()> {
     );
     assert_eq!(
         metadata.model,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should parse model"
     );
     assert_eq!(

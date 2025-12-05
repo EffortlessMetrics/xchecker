@@ -404,7 +404,7 @@ fn test_doctor_anthropic_checks_env_var_only() {
 provider = "anthropic"
 
 [llm.anthropic]
-model = "claude-3-5-sonnet-20241022"
+model = "haiku"
 "#;
         
         let config_path = write_config(workspace, config_content);
@@ -424,7 +424,7 @@ model = "claude-3-5-sonnet-20241022"
         assert_eq!(llm_check.status, CheckStatus::Pass);
         assert!(llm_check.details.contains("anthropic"));
         assert!(llm_check.details.contains("ANTHROPIC_API_KEY"));
-        assert!(llm_check.details.contains("claude-3-5-sonnet-20241022"));
+        assert!(llm_check.details.contains("haiku"));
         
         // Cleanup
         unsafe {
@@ -448,7 +448,7 @@ fn test_doctor_anthropic_fails_without_api_key() {
 provider = "anthropic"
 
 [llm.anthropic]
-model = "claude-3-5-sonnet-20241022"
+model = "haiku"
 "#;
         
         let config_path = write_config(workspace, config_content);

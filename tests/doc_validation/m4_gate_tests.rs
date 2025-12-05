@@ -81,7 +81,7 @@ mod tests {
             "phase": "requirements",
             "xchecker_version": "0.1.0",
             "claude_cli_version": "0.8.1",
-            "model_full_name": "claude-3-5-sonnet-20241022",
+            "model_full_name": "haiku",
             "canonicalization_version": "yaml-v1,md-v1",
             "canonicalization_backend": "jcs-rfc8785",
             "flags": {},
@@ -106,7 +106,7 @@ mod tests {
         
         let config_content = r#"
 [defaults]
-model = "claude-3-opus"
+model = "opus"
 max_turns = 10
 verbose = false
 

@@ -146,7 +146,7 @@ fn test_error_receipt_exit_code_alignment() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             xchecker::types::PacketEvidence {
@@ -436,7 +436,7 @@ fn test_receipt_schema_version() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         xchecker::types::PacketEvidence {
@@ -478,7 +478,7 @@ fn test_receipt_canonical_json_emission() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         xchecker::types::PacketEvidence {

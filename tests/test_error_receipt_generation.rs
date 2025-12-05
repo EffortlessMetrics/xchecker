@@ -53,7 +53,7 @@ fn test_cli_args_error_mapping() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -101,7 +101,7 @@ fn test_packet_overflow_error_mapping() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -148,7 +148,7 @@ fn test_secret_detected_error_mapping() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -204,7 +204,7 @@ fn test_lock_held_error_mapping() {
         &error1,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -249,7 +249,7 @@ fn test_phase_timeout_error_mapping() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -303,7 +303,7 @@ fn test_claude_failure_error_mapping() {
         &error1,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -349,7 +349,7 @@ fn test_unknown_error_mapping() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -416,7 +416,7 @@ fn test_error_receipts_contain_required_fields() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             PacketEvidence {
@@ -531,7 +531,7 @@ fn test_exit_code_matches_receipt_field() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             PacketEvidence {
@@ -576,7 +576,7 @@ fn test_receipt_written_on_error_path() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -625,7 +625,7 @@ fn test_error_receipts_have_no_outputs() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -669,7 +669,7 @@ fn test_invalid_transition_maps_to_cli_args() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -713,7 +713,7 @@ fn test_dependency_not_satisfied_maps_to_cli_args() {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         PacketEvidence {
@@ -753,7 +753,7 @@ fn test_error_receipts_include_standard_fields() {
         &error,
         "0.1.0",                      // xchecker_version
         "0.8.1",                      // claude_cli_version
-        "claude-3-5-sonnet-20241022", // model_full_name
+        "haiku", // model_full_name
         Some("sonnet".to_string()),   // model_alias
         HashMap::new(),               // flags
         PacketEvidence {
@@ -777,7 +777,7 @@ fn test_error_receipts_include_standard_fields() {
     assert_eq!(receipt.phase, "requirements");
     assert_eq!(receipt.xchecker_version, "0.1.0");
     assert_eq!(receipt.claude_cli_version, "0.8.1");
-    assert_eq!(receipt.model_full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(receipt.model_full_name, "haiku");
     assert_eq!(receipt.model_alias, Some("sonnet".to_string()));
     assert_eq!(receipt.canonicalization_backend, "jcs-rfc8785");
     assert_eq!(receipt.runner, "wsl");

@@ -231,8 +231,7 @@ pub mod utils {
                         ]
                     } else if key.contains("model") {
                         vec![
-                            "Specify a Claude model: --model claude-3-5-sonnet-20241022"
-                                .to_string(),
+                            "Specify a Claude model: --model haiku".to_string(),
                             "Check available models with: claude models".to_string(),
                             "Add model to config file [defaults] section".to_string(),
                         ]

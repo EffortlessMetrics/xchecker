@@ -154,7 +154,7 @@ async fn test_resume_with_failed_dependency_fails() -> Result<()> {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         xchecker::types::PacketEvidence {
@@ -363,7 +363,7 @@ async fn test_resume_after_timeout() -> Result<()> {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         xchecker::types::PacketEvidence {

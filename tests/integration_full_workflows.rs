@@ -342,7 +342,7 @@ async fn test_determinism_with_identical_inputs() -> Result<()> {
             let mut map = std::collections::HashMap::new();
             map.insert(
                 "model".to_string(),
-                "claude-3-5-sonnet-20241022".to_string(),
+                "haiku".to_string(),
             );
             map.insert("verbose".to_string(), "false".to_string());
             map

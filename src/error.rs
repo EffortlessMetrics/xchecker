@@ -217,8 +217,7 @@ impl UserFriendlyError for ConfigError {
             ],
             Self::InvalidValue { key, value: _ } => match key.as_str() {
                 "model" => vec![
-                    "Use a valid Claude model name (e.g., 'claude-3-5-sonnet-20241022')"
-                        .to_string(),
+                    "Use a valid Claude model name (e.g., 'haiku', 'sonnet', 'opus')".to_string(),
                     "Check available models with 'claude models'".to_string(),
                 ],
                 "packet_max_bytes" | "packet_max_lines" => vec![
@@ -865,21 +864,15 @@ impl UserFriendlyError for ClaudeError {
 
                 // Provide specific suggestions based on the model alias
                 if model.contains("sonnet") || model == "sonnet" {
-                    suggestions.push(
-                        "Try 'claude-3-5-sonnet-20241022' for the latest Sonnet model".to_string(),
-                    );
+                    suggestions.push("Try '--model sonnet' for the Sonnet model".to_string());
                 } else if model.contains("haiku") || model == "haiku" {
-                    suggestions.push(
-                        "Try 'claude-3-haiku-20240307' for the latest Haiku model".to_string(),
-                    );
+                    suggestions.push("Try '--model haiku' for the Haiku model".to_string());
                 } else if model.contains("opus") || model == "opus" {
-                    suggestions
-                        .push("Try 'claude-3-opus-20240229' for the latest Opus model".to_string());
+                    suggestions.push("Try '--model opus' for the Opus model".to_string());
                 } else {
                     suggestions.push(
                         "Try using a common alias like 'sonnet', 'haiku', or 'opus'".to_string(),
                     );
-                    suggestions.push("Use the full model name instead of an alias".to_string());
                 }
 
                 suggestions.push(

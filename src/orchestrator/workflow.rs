@@ -383,7 +383,7 @@ impl PhaseOrchestrator {
                 metadata.model_full_name.clone(),
             )
         } else {
-            (None, "claude-3-5-sonnet-20241022".to_string())
+            (None, "haiku".to_string())
         };
 
         // Create receipt using core outputs

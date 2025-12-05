@@ -281,7 +281,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -304,7 +304,7 @@ mod tests {
         effective_config.insert(
             "model".to_string(),
             (
-                "claude-3-5-sonnet-20241022".to_string(),
+                "haiku".to_string(),
                 "defaults".to_string(),
             ),
         );
@@ -352,7 +352,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -375,7 +375,7 @@ mod tests {
         effective_config.insert(
             "model".to_string(),
             (
-                "claude-3-5-sonnet-20241022".to_string(),
+                "haiku".to_string(),
                 "defaults".to_string(),
             ),
         );
@@ -426,7 +426,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -449,7 +449,7 @@ mod tests {
         effective_config.insert(
             "model".to_string(),
             (
-                "claude-3-5-sonnet-20241022".to_string(),
+                "haiku".to_string(),
                 "defaults".to_string(),
             ),
         );
@@ -461,8 +461,8 @@ mod tests {
         // Create lock drift
         let lock_drift = Some(LockDrift {
             model_full_name: Some(DriftPair {
-                locked: "claude-3-5-sonnet-20241022".to_string(),
-                current: "claude-3-5-sonnet-20250101".to_string(),
+                locked: "haiku".to_string(),
+                current: "sonnet".to_string(),
             }),
             claude_cli_version: None,
             schema_version: None,
@@ -483,8 +483,8 @@ mod tests {
         assert!(drift.model_full_name.is_some());
 
         let model_drift = drift.model_full_name.unwrap();
-        assert_eq!(model_drift.locked, "claude-3-5-sonnet-20241022");
-        assert_eq!(model_drift.current, "claude-3-5-sonnet-20250101");
+        assert_eq!(model_drift.locked, "haiku");
+        assert_eq!(model_drift.current, "sonnet");
     }
 
     #[test]
@@ -548,7 +548,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -600,7 +600,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -623,8 +623,8 @@ mod tests {
         // Create drift for all fields
         let lock_drift = Some(LockDrift {
             model_full_name: Some(DriftPair {
-                locked: "claude-3-5-sonnet-20241022".to_string(),
-                current: "claude-3-5-sonnet-20250101".to_string(),
+                locked: "haiku".to_string(),
+                current: "sonnet".to_string(),
             }),
             claude_cli_version: Some(DriftPair {
                 locked: "0.8.1".to_string(),
@@ -671,7 +671,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -731,7 +731,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -784,7 +784,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -864,7 +864,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -925,7 +925,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -1037,7 +1037,7 @@ mod tests {
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -1059,7 +1059,7 @@ mod tests {
         effective_config.insert(
             "model".to_string(),
             (
-                "claude-3-5-sonnet-20241022".to_string(),
+                "haiku".to_string(),
                 "defaults".to_string(),
             ),
         );

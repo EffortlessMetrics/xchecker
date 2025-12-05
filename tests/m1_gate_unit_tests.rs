@@ -15,8 +15,8 @@ async fn test_m1_gate_stream_json_parsing() -> Result<()> {
 
     // Create wrapper with mock version to avoid CLI validation
     let wrapper = ClaudeWrapper {
-        model_alias: Some("claude-3-5-sonnet-20241022".to_string()),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_alias: Some("haiku".to_string()),
+        model_full_name: "haiku".to_string(),
         max_turns: 10,
         allowed_tools: Vec::new(),
         disallowed_tools: Vec::new(),
@@ -39,7 +39,7 @@ async fn test_m1_gate_stream_json_parsing() -> Result<()> {
         "\n",
         r#"{"type": "content_block_stop", "index": 0}"#,
         "\n",
-        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-5-sonnet-20241022", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
+        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
     );
 
     let (content, metadata) = wrapper.parse_stream_json(sample_json)?;
@@ -54,7 +54,7 @@ async fn test_m1_gate_stream_json_parsing() -> Result<()> {
     );
     assert_eq!(
         metadata.model,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should parse model"
     );
     assert_eq!(
@@ -76,7 +76,7 @@ async fn test_m1_gate_fallback_behavior() -> Result<()> {
 
     let wrapper = ClaudeWrapper {
         model_alias: None,
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         max_turns: 10,
         allowed_tools: Vec::new(),
         disallowed_tools: Vec::new(),
@@ -110,7 +110,7 @@ async fn test_m1_gate_model_resolution() -> Result<()> {
 
     let wrapper_with_alias = ClaudeWrapper {
         model_alias: Some("sonnet".to_string()),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         max_turns: 10,
         allowed_tools: Vec::new(),
         disallowed_tools: Vec::new(),
@@ -127,14 +127,14 @@ async fn test_m1_gate_model_resolution() -> Result<()> {
         "Should preserve model alias"
     );
     assert_eq!(
-        full_name, "claude-3-5-sonnet-20241022",
+        full_name, "haiku",
         "Should resolve alias to full name"
     );
 
     // Test full model name (no alias)
     let wrapper_with_full = ClaudeWrapper {
-        model_alias: Some("claude-3-5-sonnet-20241022".to_string()),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_alias: Some("haiku".to_string()),
+        model_full_name: "haiku".to_string(),
         max_turns: 10,
         allowed_tools: Vec::new(),
         disallowed_tools: Vec::new(),
@@ -147,11 +147,11 @@ async fn test_m1_gate_model_resolution() -> Result<()> {
 
     assert_eq!(
         alias2,
-        Some("claude-3-5-sonnet-20241022".to_string()),
+        Some("haiku".to_string()),
         "Should preserve full name as alias"
     );
     assert_eq!(
-        full_name2, "claude-3-5-sonnet-20241022",
+        full_name2, "haiku",
         "Should use full name as-is"
     );
 
@@ -226,7 +226,7 @@ async fn test_m1_gate_receipt_structure() -> Result<()> {
         phase: "requirements".to_string(),
         xchecker_version: "0.1.0+abc123".to_string(),
         claude_cli_version: "0.8.1".to_string(),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         model_alias: Some("sonnet".to_string()),
         canonicalization_version: "yaml-v1,md-v1".to_string(),
         flags: {

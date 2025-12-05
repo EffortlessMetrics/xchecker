@@ -27,7 +27,7 @@ fn create_typical_receipt_json() -> serde_json::Value {
         "phase": "requirements",
         "xchecker_version": "0.1.0",
         "claude_cli_version": "0.8.5",
-        "model_full_name": "claude-3-5-sonnet-20241022",
+        "model_full_name": "haiku",
         "model_alias": null,
         "canonicalization_version": "yaml-v1,md-v1",
         "canonicalization_backend": "jcs-rfc8785",

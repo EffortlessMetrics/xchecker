@@ -84,14 +84,14 @@ mod llm_tests {
         let inv = LlmInvocation::new(
             "test-spec",
             "requirements",
-            "claude-3-5-sonnet",
+            "sonnet",
             Duration::from_secs(300),
             messages.clone(),
         );
 
         assert_eq!(inv.spec_id, "test-spec");
         assert_eq!(inv.phase_id, "requirements");
-        assert_eq!(inv.model, "claude-3-5-sonnet");
+        assert_eq!(inv.model, "sonnet");
         assert_eq!(inv.timeout, Duration::from_secs(300));
         assert_eq!(inv.messages.len(), 2);
         assert!(inv.metadata.is_empty());
@@ -125,12 +125,12 @@ mod llm_tests {
         let result = LlmResult::new(
             "This is the response",
             "claude-cli",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
         );
 
         assert_eq!(result.raw_response, "This is the response");
         assert_eq!(result.provider, "claude-cli");
-        assert_eq!(result.model_used, "claude-3-5-sonnet-20241022");
+        assert_eq!(result.model_used, "haiku");
         assert!(result.tokens_input.is_none());
         assert!(result.tokens_output.is_none());
         assert!(result.timed_out.is_none());
@@ -148,14 +148,14 @@ mod llm_tests {
     #[test]
     fn test_llm_result_with_timeout() {
         let result =
-            LlmResult::new("Partial response", "anthropic", "claude-3-opus").with_timeout(true);
+            LlmResult::new("Partial response", "anthropic", "opus").with_timeout(true);
 
         assert_eq!(result.timed_out, Some(true));
     }
 
     #[test]
     fn test_llm_result_with_timeout_seconds() {
-        let result = LlmResult::new("Partial response", "anthropic", "claude-3-opus")
+        let result = LlmResult::new("Partial response", "anthropic", "opus")
             .with_timeout(true)
             .with_timeout_seconds(300);
 

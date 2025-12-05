@@ -111,12 +111,14 @@ impl PhaseOrchestrator {
         prompt: &str,
         config: &OrchestratorConfig,
     ) -> LlmInvocation {
-        // Get model from config (default to claude-3-5-sonnet-20241022)
+        // Get model from config.
+        // Default: haiku (fast, cost-effective for testing/development).
+        // For production, configure model = "sonnet" or "default" in xchecker.toml.
         let model = config
             .config
             .get("model")
             .cloned()
-            .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string());
+            .unwrap_or_else(|| "haiku".to_string());
 
         // Get timeout from config (default 600 seconds)
         let timeout_secs = config

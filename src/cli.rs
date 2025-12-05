@@ -382,7 +382,7 @@ pub enum Commands {
     /// EXAMPLES:
     ///   xchecker init my-spec
     ///   xchecker init my-spec --create-lock
-    ///   xchecker init my-spec --create-lock --model claude-3-5-sonnet-20241022
+    ///   xchecker init my-spec --create-lock --model haiku
     Init {
         /// Spec ID to initialize
         id: String,
@@ -1000,7 +1000,7 @@ async fn execute_spec_command(
         .defaults
         .model
         .as_deref()
-        .unwrap_or("claude-3-5-sonnet-20241022");
+        .unwrap_or("haiku");
     let claude_cli_version = detect_claude_cli_version().unwrap_or_else(|_| "unknown".to_string());
     let _lock_drift =
         check_lockfile_drift(spec_id, strict_lock, model_full_name, &claude_cli_version)?;
@@ -2009,7 +2009,7 @@ async fn execute_resume_command(
         .defaults
         .model
         .as_deref()
-        .unwrap_or("claude-3-5-sonnet-20241022");
+        .unwrap_or("haiku");
     let claude_cli_version = detect_claude_cli_version().unwrap_or_else(|_| "unknown".to_string());
     let _lock_drift =
         check_lockfile_drift(spec_id, strict_lock, model_full_name, &claude_cli_version)?;
@@ -2754,7 +2754,7 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
             .defaults
             .model
             .as_deref()
-            .unwrap_or("claude-3-5-sonnet-20241022");
+            .unwrap_or("haiku");
 
         // Get Claude CLI version (we'll need to detect this - for now use a placeholder)
         // In a real implementation, this would call `claude --version` and parse the output
@@ -3586,7 +3586,7 @@ packet_max_lines = 5000
         effective_config.insert(
             "model".to_string(),
             ConfigValue {
-                value: serde_json::Value::String("claude-3-5-sonnet".to_string()),
+                value: serde_json::Value::String("haiku".to_string()),
                 source: ConfigSource::Config,
             },
         );
@@ -3981,7 +3981,7 @@ packet_max_lines = 5000
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -4035,7 +4035,7 @@ packet_max_lines = 5000
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -4089,7 +4089,7 @@ packet_max_lines = 5000
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet.clone(),
@@ -4117,7 +4117,7 @@ packet_max_lines = 5000
             vec![],
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,
@@ -4467,7 +4467,7 @@ packet_max_lines = 5000
                     tokens_input: Some(1000),
                     tokens_output: Some(500),
                     fixup_count: None,
-                    model: Some("claude-3-5-sonnet".to_string()),
+                    model: Some("haiku".to_string()),
                     provider: Some("claude-cli".to_string()),
                 },
             ],
@@ -4512,7 +4512,7 @@ packet_max_lines = 5000
                     tokens_input: Some(1000),
                     tokens_output: Some(500),
                     fixup_count: None,
-                    model: Some("claude-3-5-sonnet".to_string()),
+                    model: Some("haiku".to_string()),
                     provider: None,
                 },
                 HistoryEntry {
@@ -4523,7 +4523,7 @@ packet_max_lines = 5000
                     tokens_input: Some(2000),
                     tokens_output: Some(100),
                     fixup_count: None,
-                    model: Some("claude-3-5-sonnet".to_string()),
+                    model: Some("haiku".to_string()),
                     provider: None,
                 },
             ],
@@ -4630,7 +4630,7 @@ packet_max_lines = 5000
             tokens_input: Some(1000),
             tokens_output: Some(500),
             fixup_count: Some(3),
-            model: Some("claude-3-5-sonnet".to_string()),
+            model: Some("haiku".to_string()),
             provider: Some("openrouter".to_string()),
         };
 
@@ -4643,7 +4643,7 @@ packet_max_lines = 5000
         assert_eq!(json_value["tokens_input"], 1000);
         assert_eq!(json_value["tokens_output"], 500);
         assert_eq!(json_value["fixup_count"], 3);
-        assert_eq!(json_value["model"], "claude-3-5-sonnet");
+        assert_eq!(json_value["model"], "haiku");
         assert_eq!(json_value["provider"], "openrouter");
     }
 

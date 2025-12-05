@@ -43,7 +43,7 @@ pub struct XCheckerLock {
     pub schema_version: String,
     /// RFC3339 UTC timestamp when the lockfile was created
     pub created_at: DateTime<Utc>,
-    /// Full model name that was used (e.g., "claude-3-5-sonnet-20241022")
+    /// Full model name that was used (e.g., "haiku")
     pub model_full_name: String,
     /// Claude CLI version that was used
     pub claude_cli_version: String,
@@ -871,24 +871,24 @@ mod tests {
     #[test]
     fn test_xchecker_lock_creation() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         assert_eq!(lock.schema_version, "1");
-        assert_eq!(lock.model_full_name, "claude-3-5-sonnet-20241022");
+        assert_eq!(lock.model_full_name, "haiku");
         assert_eq!(lock.claude_cli_version, "0.8.1");
     }
 
     #[test]
     fn test_xchecker_lock_no_drift() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+            model_full_name: "haiku".to_string(),
             claude_cli_version: "0.8.1".to_string(),
             schema_version: "1".to_string(),
         };
@@ -900,12 +900,12 @@ mod tests {
     #[test]
     fn test_xchecker_lock_model_drift() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20250101".to_string(),
+            model_full_name: "sonnet".to_string(),
             claude_cli_version: "0.8.1".to_string(),
             schema_version: "1".to_string(),
         };
@@ -943,12 +943,12 @@ mod tests {
     #[test]
     fn test_xchecker_lock_cli_version_drift() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+            model_full_name: "haiku".to_string(),
             claude_cli_version: "0.9.0".to_string(),
             schema_version: "1".to_string(),
         };
@@ -966,12 +966,12 @@ mod tests {
     #[test]
     fn test_xchecker_lock_schema_version_drift() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+            model_full_name: "haiku".to_string(),
             claude_cli_version: "0.8.1".to_string(),
             schema_version: "2".to_string(),
         };
@@ -989,12 +989,12 @@ mod tests {
     #[test]
     fn test_xchecker_lock_multiple_drift() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20250101".to_string(),
+            model_full_name: "sonnet".to_string(),
             claude_cli_version: "0.9.0".to_string(),
             schema_version: "2".to_string(),
         };
@@ -1011,7 +1011,7 @@ mod tests {
 
         let spec_id = "test-spec-lockfile";
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
@@ -1106,33 +1106,33 @@ mod tests {
 
         // Create first lockfile
         let lock1 = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
         lock1.save(spec_id).unwrap();
 
         // Create second lockfile with different values
         let lock2 = XCheckerLock::new(
-            "claude-3-5-sonnet-20250101".to_string(),
+            "sonnet".to_string(),
             "0.9.0".to_string(),
         );
         lock2.save(spec_id).unwrap();
 
         // Load and verify it has the second lockfile's values
         let loaded = XCheckerLock::load(spec_id).unwrap().unwrap();
-        assert_eq!(loaded.model_full_name, "claude-3-5-sonnet-20250101");
+        assert_eq!(loaded.model_full_name, "sonnet");
         assert_eq!(loaded.claude_cli_version, "0.9.0");
     }
 
     #[test]
     fn test_xchecker_lock_drift_all_fields_match() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+            model_full_name: "haiku".to_string(),
             claude_cli_version: "0.8.1".to_string(),
             schema_version: "1".to_string(),
         };
@@ -1147,7 +1147,7 @@ mod tests {
     #[test]
     fn test_xchecker_lock_drift_case_sensitive() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
@@ -1166,13 +1166,13 @@ mod tests {
     #[test]
     fn test_xchecker_lock_drift_whitespace_sensitive() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
         // Test with extra whitespace
         let context = RunContext {
-            model_full_name: "claude-3-5-sonnet-20241022 ".to_string(),
+            model_full_name: "haiku ".to_string(),
             claude_cli_version: "0.8.1".to_string(),
             schema_version: "1".to_string(),
         };
@@ -1191,7 +1191,7 @@ mod tests {
 
         let spec_id = "test-spec-new-dir";
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
@@ -1213,7 +1213,7 @@ mod tests {
 
         let spec_id = "test-spec-json-format";
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 
@@ -1234,14 +1234,14 @@ mod tests {
 
         // Verify values
         assert_eq!(parsed["schema_version"], "1");
-        assert_eq!(parsed["model_full_name"], "claude-3-5-sonnet-20241022");
+        assert_eq!(parsed["model_full_name"], "haiku");
         assert_eq!(parsed["claude_cli_version"], "0.8.1");
     }
 
     #[test]
     fn test_xchecker_lock_timestamp_format() {
         let lock = XCheckerLock::new(
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "0.8.1".to_string(),
         );
 

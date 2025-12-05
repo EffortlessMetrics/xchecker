@@ -208,7 +208,7 @@ fn test_blake3_receipts_match_on_disk_artifacts() -> Result<()> {
         outputs,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,

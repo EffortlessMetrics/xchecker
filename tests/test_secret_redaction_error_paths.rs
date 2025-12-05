@@ -44,7 +44,7 @@ fn test_at_sec_003_secret_in_error_reason() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -100,7 +100,7 @@ fn test_secret_in_stderr_tail() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -159,7 +159,7 @@ fn test_secret_in_warning_messages() {
         vec![],                       // outputs
         "0.1.0",                      // xchecker_version
         "0.8.1",                      // claude_cli_version
-        "claude-3-5-sonnet-20241022", // model_full_name
+        "haiku", // model_full_name
         None,                         // model_alias
         HashMap::new(),               // flags
         packet,                       // packet
@@ -220,7 +220,7 @@ fn test_multiple_secrets_in_error_reason() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -274,7 +274,7 @@ fn test_secret_in_bearer_token_error() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -326,7 +326,7 @@ fn test_secret_in_slack_token_warning() {
         vec![],                       // outputs
         "0.1.0",                      // xchecker_version
         "0.8.1",                      // claude_cli_version
-        "claude-3-5-sonnet-20241022", // model_full_name
+        "haiku", // model_full_name
         None,                         // model_alias
         HashMap::new(),               // flags
         packet,                       // packet
@@ -376,7 +376,7 @@ fn test_aws_secret_key_in_stderr() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -433,7 +433,7 @@ fn test_no_secrets_no_redaction() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -483,7 +483,7 @@ fn test_receipt_write_persists_redacted_content() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -545,7 +545,7 @@ fn test_error_receipt_creation_with_secrets() {
         &error,
         "0.1.0",                              // xchecker_version
         "0.8.1",                              // claude_cli_version
-        "claude-3-5-sonnet-20241022",         // model_full_name
+        "haiku",         // model_full_name
         None,                                 // model_alias
         HashMap::new(),                       // flags
         packet,                               // packet
@@ -634,7 +634,7 @@ fn test_context_lines_redaction() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -689,7 +689,7 @@ fn test_all_error_fields_redacted_together() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,

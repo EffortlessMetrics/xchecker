@@ -150,7 +150,7 @@ distro = "Ubuntu-22.04"
 
     // Test 2: CLI overrides config file
     let cli_args_override = CliArgs {
-        model: Some("claude-3-opus".to_string()), // CLI override
+        model: Some("opus".to_string()), // CLI override
         max_turns: Some(12),                      // CLI override
         output_format: Some("text".to_string()),  // CLI override
         verbose: Some(true),                      // CLI override
@@ -164,7 +164,7 @@ distro = "Ubuntu-22.04"
     // Verify CLI overrides take precedence
     assert_eq!(
         config_cli_override.defaults.model,
-        Some("claude-3-opus".to_string())
+        Some("opus".to_string())
     );
     assert_eq!(config_cli_override.defaults.max_turns, Some(12));
     assert_eq!(
@@ -246,7 +246,7 @@ distro = "Ubuntu-22.04"
     let effective_config = config_cli_override.effective_config();
 
     // Verify effective config contains values and sources
-    assert_eq!(effective_config.get("model").unwrap().0, "claude-3-opus");
+    assert_eq!(effective_config.get("model").unwrap().0, "opus");
     assert_eq!(effective_config.get("model").unwrap().1, "CLI");
 
     assert_eq!(effective_config.get("max_turns").unwrap().0, "12");
@@ -408,23 +408,18 @@ fn test_model_alias_resolution() -> Result<()> {
     let runner = Runner::new(RunnerMode::Native, WslOptions::default());
 
     // Test 1: Basic alias resolution
+    // Note: Model aliases now resolve to simple names (sonnet, haiku, opus)
+    // Claude CLI handles the actual model resolution
     let test_cases = vec![
-        // Claude 3.5 Sonnet aliases
-        ("sonnet", "claude-3-5-sonnet-20241022"),
-        ("claude-3-5-sonnet", "claude-3-5-sonnet-20241022"),
-        ("sonnet-latest", "claude-3-5-sonnet-20241022"),
-        // Claude 3 Haiku aliases
-        ("haiku", "claude-3-haiku-20240307"),
-        ("claude-3-haiku", "claude-3-haiku-20240307"),
-        ("haiku-latest", "claude-3-haiku-20240307"),
-        // Claude 3 Opus aliases
-        ("opus", "claude-3-opus-20240229"),
-        ("claude-3-opus", "claude-3-opus-20240229"),
-        ("opus-latest", "claude-3-opus-20240229"),
-        // Full model names (should pass through)
-        ("claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20241022"),
-        ("claude-3-haiku-20240307", "claude-3-haiku-20240307"),
-        ("claude-3-opus-20240229", "claude-3-opus-20240229"),
+        // Sonnet aliases
+        ("sonnet", "sonnet"),
+        ("sonnet-latest", "sonnet"),
+        // Haiku aliases (default)
+        ("haiku", "haiku"),
+        ("haiku-latest", "haiku"),
+        // Opus aliases
+        ("opus", "opus"),
+        ("opus-latest", "opus"),
     ];
 
     for (alias, expected_full_name) in test_cases {
@@ -476,16 +471,16 @@ fn test_model_alias_resolution() -> Result<()> {
 
     // Test 3: Model info extraction for receipts
     // We'll test this with a mock wrapper since we can't create real ones in tests
-    let mock_wrapper = create_mock_claude_wrapper("sonnet", "claude-3-5-sonnet-20241022");
+    let mock_wrapper = create_mock_claude_wrapper("sonnet", "haiku");
 
     let (model_alias, model_full_name) = mock_wrapper.get_model_info();
     assert_eq!(model_alias, Some("sonnet".to_string()));
-    assert_eq!(model_full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(model_full_name, "haiku");
 
-    let mock_wrapper_no_alias = create_mock_claude_wrapper_no_alias("claude-3-haiku-20240307");
+    let mock_wrapper_no_alias = create_mock_claude_wrapper_no_alias("haiku");
     let (model_alias_none, model_full_name_haiku) = mock_wrapper_no_alias.get_model_info();
     assert_eq!(model_alias_none, None);
-    assert_eq!(model_full_name_haiku, "claude-3-haiku-20240307");
+    assert_eq!(model_full_name_haiku, "haiku");
 
     println!("✓ Model alias resolution test passed");
     println!("  Tested alias → full name mappings");
@@ -530,7 +525,7 @@ mode = "native"
     let effective = config.effective_config();
 
     // Verify precedence is correctly shown
-    assert_eq!(effective.get("model").unwrap().0, "claude-3-opus");
+    assert_eq!(effective.get("model").unwrap().0, "opus");
     assert_eq!(effective.get("model").unwrap().1, "CLI");
 
     // Check max_turns - CLI override should always be present

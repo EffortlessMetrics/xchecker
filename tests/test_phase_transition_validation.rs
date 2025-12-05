@@ -258,7 +258,7 @@ async fn test_failed_dependency_prevents_transition() -> Result<()> {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         std::collections::HashMap::new(),
         xchecker::types::PacketEvidence {

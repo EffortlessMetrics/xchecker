@@ -162,7 +162,7 @@ mod tests {
             "phase": "requirements",
             "xchecker_version": "0.1.0",
             "claude_cli_version": "0.8.1",
-            "model_full_name": "claude-3-5-sonnet-20241022",
+            "model_full_name": "haiku",
             "canonicalization_version": "yaml-v1,md-v1",
             "canonicalization_backend": "jcs-rfc8785",
             "flags": {},
@@ -187,7 +187,7 @@ mod tests {
         
         let config_content = r#"
 [defaults]
-model = "claude-3-opus"
+model = "opus"
 max_turns = 10
 verbose = false
 phase_timeout = 900
@@ -260,8 +260,8 @@ mode = "native"
             
             assert_eq!(source, "config", 
                 "model source should be 'config' (case-exact), got: {}", source);
-            assert_eq!(value, "claude-3-opus", 
-                "model value should be 'claude-3-opus' from config file");
+            assert_eq!(value, "opus", 
+                "model value should be 'opus' from config file");
         }
         
         // 3. max_turns: config file override should take precedence over defaults
@@ -348,7 +348,7 @@ mode = "native"
         // Extract documented defaults from the table
         // The table format is:
         // | Key | Type | Default | Description |
-        // | `model` | String | `"claude-3-5-sonnet-20241022"` | ... |
+        // | `model` | String | `"haiku"` | ... |
         
         let mut documented_defaults: std::collections::HashMap<String, String> = std::collections::HashMap::new();
         
@@ -393,7 +393,7 @@ mode = "native"
         // The documentation is showing a recommended value, not the actual default
         // The actual default is None, which means it must be provided
         if let Some(doc_model) = documented_defaults.get("model") {
-            // The documentation shows "claude-3-5-sonnet-20241022" as the default
+            // The documentation shows "haiku" as the default
             // But in the code, model is Option<String> with default None
             // This is actually correct - the documentation is showing the recommended/typical value
             // not the Rust default. We should verify this is intentional.

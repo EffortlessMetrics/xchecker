@@ -671,7 +671,7 @@ mod factory_tests {
         config.llm.anthropic = Some(crate::config::AnthropicConfig {
             base_url: Some("https://api.anthropic.com/v1/messages".to_string()),
             api_key_env: Some("ANTHROPIC_API_KEY".to_string()),
-            model: Some("claude-3-5-sonnet-20241022".to_string()),
+            model: Some("haiku".to_string()),
             max_tokens: Some(2048),
             temperature: Some(0.2),
         });

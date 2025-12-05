@@ -40,7 +40,7 @@ pub fn make_example_receipt_minimal() -> Receipt {
         phase: "requirements".to_string(),
         xchecker_version: "0.1.0".to_string(),
         claude_cli_version: "0.8.1".to_string(),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         model_alias: None,
         canonicalization_version: "yaml-v1,md-v1".to_string(),
         canonicalization_backend: "jcs-rfc8785".to_string(),
@@ -115,7 +115,7 @@ pub fn make_example_receipt_full() -> Receipt {
         phase: "design".to_string(),
         xchecker_version: "0.1.0".to_string(),
         claude_cli_version: "0.8.1".to_string(),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         model_alias: Some("sonnet".to_string()),
         canonicalization_version: "yaml-v1,md-v1".to_string(),
         canonicalization_backend: "jcs-rfc8785".to_string(),
@@ -189,7 +189,7 @@ pub fn make_example_status_full() -> StatusOutput {
     effective_config.insert(
         "model".to_string(),
         ConfigValue {
-            value: JsonValue::String("claude-3-5-sonnet-20241022".to_string()),
+            value: JsonValue::String("haiku".to_string()),
             source: ConfigSource::Config,
         },
     );
@@ -214,8 +214,8 @@ pub fn make_example_status_full() -> StatusOutput {
         effective_config,
         lock_drift: Some(LockDrift {
             model_full_name: Some(DriftPair {
-                locked: "claude-3-5-sonnet-20241022".to_string(),
-                current: "claude-3-5-sonnet-20250101".to_string(),
+                locked: "haiku".to_string(),
+                current: "sonnet".to_string(),
             }),
             claude_cli_version: Some(DriftPair {
                 locked: "0.8.1".to_string(),

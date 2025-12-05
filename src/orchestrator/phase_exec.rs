@@ -374,7 +374,7 @@ impl PhaseOrchestrator {
             vec![],                           // No successful outputs
             env!("CARGO_PKG_VERSION"),
             "0.8.1",                          // Default Claude CLI version
-            "claude-3-5-sonnet-20241022",     // Default model
+            "haiku",     // Default model
             None,                             // No model alias
             flags,
             packet_evidence,
@@ -564,7 +564,7 @@ impl PhaseOrchestrator {
             let simulated_llm = self.simulate_llm_result(phase_id);
             let simulated_metadata = super::llm::ClaudeExecutionMetadata {
                 model_alias: None,
-                model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+                model_full_name: "haiku".to_string(),
                 claude_cli_version: "0.8.1".to_string(),
                 fallback_used: false,
                 runner: "simulated".to_string(),
@@ -710,7 +710,7 @@ impl PhaseOrchestrator {
                 vec![],                             // No successful outputs
                 env!("CARGO_PKG_VERSION"),
                 "0.8.1",                            // Default Claude CLI version
-                "claude-3-5-sonnet-20241022",       // Default model
+                "haiku",       // Default model
                 None,                               // No model alias
                 flags,
                 packet_evidence,
@@ -776,7 +776,7 @@ impl PhaseOrchestrator {
             let simulated_llm = self.simulate_llm_result(phase_id);
             let simulated_metadata = super::llm::ClaudeExecutionMetadata {
                 model_alias: None,
-                model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+                model_full_name: "haiku".to_string(),
                 claude_cli_version: "0.8.1".to_string(),
                 fallback_used: false,
                 runner: "simulated".to_string(),
@@ -878,7 +878,7 @@ impl PhaseOrchestrator {
                     metadata.model_full_name.clone(),
                 )
             } else {
-                (None, "claude-3-5-sonnet-20241022".to_string())
+                (None, "haiku".to_string())
             };
 
             let receipt = self.receipt_manager().create_receipt(
@@ -1024,7 +1024,7 @@ impl PhaseOrchestrator {
                 metadata.model_full_name.clone(),
             )
         } else {
-            (None, "claude-3-5-sonnet-20241022".to_string())
+            (None, "haiku".to_string())
         };
 
         let mut receipt = self.receipt_manager().create_receipt(
@@ -1133,7 +1133,7 @@ impl PhaseOrchestrator {
         crate::llm::LlmResult::new(
             "simulated response".to_string(),
             "claude-cli-simulated".to_string(),
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
         )
         .with_tokens(1000, 2000)
         .with_timeout(false)

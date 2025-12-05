@@ -289,7 +289,7 @@ fn test_error_receipts_contain_required_fields() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             PacketEvidence {
@@ -400,7 +400,7 @@ fn test_exit_code_matches_receipt_field() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             PacketEvidence {
@@ -567,7 +567,7 @@ fn test_all_error_paths_write_receipts() {
             &error,
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             PacketEvidence {

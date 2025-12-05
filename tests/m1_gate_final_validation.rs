@@ -21,8 +21,8 @@ async fn test_m1_gate_validation_summary() -> Result<()> {
 
     let runner = Runner::new(RunnerMode::Native, WslOptions::default());
     let wrapper = ClaudeWrapper {
-        model_alias: Some("claude-3-5-sonnet-20241022".to_string()),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_alias: Some("haiku".to_string()),
+        model_full_name: "haiku".to_string(),
         max_turns: 10,
         allowed_tools: Vec::new(),
         disallowed_tools: Vec::new(),
@@ -44,7 +44,7 @@ async fn test_m1_gate_validation_summary() -> Result<()> {
         "\n",
         r#"{"type": "content_block_stop", "index": 0}"#,
         "\n",
-        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-5-sonnet-20241022", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
+        r#"{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#
     );
 
     let (content, metadata) = wrapper.parse_stream_json(sample_json)?;
@@ -67,8 +67,8 @@ async fn test_m1_gate_validation_summary() -> Result<()> {
     println!("\n3. Testing model resolution...");
 
     let (alias, full_name) = wrapper.get_model_info();
-    assert_eq!(alias, Some("claude-3-5-sonnet-20241022".to_string()));
-    assert_eq!(full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(alias, Some("haiku".to_string()));
+    assert_eq!(full_name, "haiku");
     assert_eq!(wrapper.get_version(), "0.8.1");
     println!("   ✓ Model resolution and version capture works");
 
@@ -100,7 +100,7 @@ async fn test_m1_gate_validation_summary() -> Result<()> {
         phase: "requirements".to_string(),
         xchecker_version: "0.1.0+abc123".to_string(),
         claude_cli_version: "0.8.1".to_string(),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         model_alias: Some("sonnet".to_string()),
         canonicalization_version: "yaml-v1,md-v1".to_string(),
         flags: {

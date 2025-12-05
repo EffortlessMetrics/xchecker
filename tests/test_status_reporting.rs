@@ -63,7 +63,7 @@ fn create_test_receipt(
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -102,7 +102,7 @@ fn test_status_generation_with_effective_config() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -153,7 +153,7 @@ fn test_source_attribution() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -194,7 +194,7 @@ fn test_source_attribution() -> Result<()> {
     // Verify values are correct types
     assert_eq!(
         model_config.value.as_str().unwrap(),
-        "claude-3-5-sonnet-20241022"
+        "haiku"
     );
     assert_eq!(max_turns_config.value.as_i64().unwrap(), 10);
     assert_eq!(timeout_config.value.as_i64().unwrap(), 600);
@@ -235,7 +235,7 @@ fn test_artifact_enumeration_with_blake3() -> Result<()> {
         outputs,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -267,7 +267,7 @@ fn test_artifact_enumeration_with_blake3() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -313,7 +313,7 @@ fn test_fresh_spec_no_receipts() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -368,7 +368,7 @@ fn test_lock_drift_reporting() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -376,8 +376,8 @@ fn test_lock_drift_reporting() -> Result<()> {
     // Create lock drift with all three fields
     let lock_drift = Some(LockDrift {
         model_full_name: Some(DriftPair {
-            locked: "claude-3-5-sonnet-20241022".to_string(),
-            current: "claude-3-5-sonnet-20250101".to_string(),
+            locked: "haiku".to_string(),
+            current: "sonnet-20250101".to_string(),
         }),
         claude_cli_version: Some(DriftPair {
             locked: "0.8.0".to_string(),
@@ -408,8 +408,8 @@ fn test_lock_drift_reporting() -> Result<()> {
     // Verify model drift
     assert!(drift.model_full_name.is_some());
     let model_drift = drift.model_full_name.unwrap();
-    assert_eq!(model_drift.locked, "claude-3-5-sonnet-20241022");
-    assert_eq!(model_drift.current, "claude-3-5-sonnet-20250101");
+    assert_eq!(model_drift.locked, "haiku");
+    assert_eq!(model_drift.current, "sonnet-20250101");
 
     // Verify CLI version drift
     assert!(drift.claude_cli_version.is_some());
@@ -446,7 +446,7 @@ fn test_status_jcs_emission() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -499,7 +499,7 @@ fn test_status_with_wsl_runner() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -535,7 +535,7 @@ fn test_status_no_lock_drift() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -589,7 +589,7 @@ fn test_status_artifacts_sorted() -> Result<()> {
         outputs,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -619,7 +619,7 @@ fn test_status_artifacts_sorted() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -688,7 +688,7 @@ fn test_pending_fixup_summary() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );
@@ -766,7 +766,7 @@ fn test_pending_fixups_omitted_when_none() -> Result<()> {
     effective_config.insert(
         "model".to_string(),
         (
-            "claude-3-5-sonnet-20241022".to_string(),
+            "haiku".to_string(),
             "defaults".to_string(),
         ),
     );

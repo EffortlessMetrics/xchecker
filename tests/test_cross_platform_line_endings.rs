@@ -179,7 +179,7 @@ fn test_json_receipt_written_with_lf() -> Result<()> {
         phase: PhaseId::Requirements.as_str().to_string(),
         xchecker_version: "0.1.0".to_string(),
         claude_cli_version: "1.0.0".to_string(),
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         model_alias: None,
         canonicalization_version: "1".to_string(),
         canonicalization_backend: "jcs-rfc8785".to_string(),

@@ -30,8 +30,18 @@ pub struct Config {
 }
 
 /// Default configuration values
+///
+/// # Model selection
+///
+/// - **Testing/Development**: Leave `model` unset to use `haiku` (fast, cost-effective)
+/// - **Production**: Set `model = "sonnet"` or `model = "default"` for best results
+/// - **Complex tasks**: Set `model = "opus"` for maximum capability
+///
+/// Specific model versions (e.g., `claude-sonnet-4-5-20250929`) can be used for
+/// reproducibility but simple aliases are recommended.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Defaults {
+    /// Model to use. Default: haiku (for testing). Use "sonnet" or "default" for production.
     pub model: Option<String>,
     pub max_turns: Option<u32>,
     pub packet_max_bytes: Option<usize>,
@@ -1152,7 +1162,7 @@ mode = "native"
         let config = Config::discover(&cli_args).unwrap();
 
         // CLI overrides should take precedence
-        assert_eq!(config.defaults.model, Some("claude-3-opus".to_string()));
+        assert_eq!(config.defaults.model, Some("opus".to_string()));
         assert_eq!(config.defaults.verbose, Some(true));
 
         // Config file values should be used where no CLI override

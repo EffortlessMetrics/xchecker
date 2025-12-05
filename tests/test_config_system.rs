@@ -165,7 +165,7 @@ mode = "native"
     // Test 2: CLI overrides config file
     let cli_args_override = CliArgs {
         config_path: Some(config_path),
-        model: Some("claude-3-opus".to_string()),
+        model: Some("opus".to_string()),
         verbose: Some(true),
         packet_max_lines: Some(2000),
         runner_mode: Some("wsl".to_string()),
@@ -173,7 +173,7 @@ mode = "native"
     };
     let config = Config::discover(&cli_args_override)?;
 
-    assert_eq!(config.defaults.model, Some("claude-3-opus".to_string())); // CLI
+    assert_eq!(config.defaults.model, Some("opus".to_string())); // CLI
     assert_eq!(config.defaults.max_turns, Some(10)); // Config
     assert_eq!(config.defaults.packet_max_bytes, Some(32768)); // Config
     assert_eq!(config.defaults.packet_max_lines, Some(2000)); // CLI
@@ -296,7 +296,7 @@ fn test_explicit_config_path() -> Result<()> {
         &custom_config_path,
         r#"
 [defaults]
-model = "claude-3-opus"
+model = "opus"
 max_turns = 15
 "#,
     )?;
@@ -319,7 +319,7 @@ max_turns = 10
     let config = Config::discover_from(root, &cli_args)?;
 
     // Should use explicit config path
-    assert_eq!(config.defaults.model, Some("claude-3-opus".to_string()));
+    assert_eq!(config.defaults.model, Some("opus".to_string()));
     assert_eq!(config.defaults.max_turns, Some(15));
 
     // Source attribution should point to explicit path
@@ -658,7 +658,7 @@ fn test_full_config_file() -> Result<()> {
         root,
         r#"
 [defaults]
-model = "claude-3-opus"
+model = "opus"
 max_turns = 12
 packet_max_bytes = 100000
 packet_max_lines = 2000
@@ -684,7 +684,7 @@ claude_path = "/usr/local/bin/claude"
     let config = Config::discover(&cli_args)?;
 
     // Verify all values
-    assert_eq!(config.defaults.model, Some("claude-3-opus".to_string()));
+    assert_eq!(config.defaults.model, Some("opus".to_string()));
     assert_eq!(config.defaults.max_turns, Some(12));
     assert_eq!(config.defaults.packet_max_bytes, Some(100000));
     assert_eq!(config.defaults.packet_max_lines, Some(2000));

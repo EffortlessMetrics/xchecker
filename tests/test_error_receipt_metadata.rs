@@ -176,7 +176,7 @@ fn test_error_receipt_packet_overflow() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -289,7 +289,7 @@ fn test_error_receipt_secret_detected() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -386,7 +386,7 @@ fn test_error_receipt_lock_held() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -472,7 +472,7 @@ fn test_error_receipt_claude_failure() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -533,7 +533,7 @@ fn test_error_receipt_claude_failure() -> Result<()> {
     assert!(error_receipt.emitted_at > chrono::Utc::now() - chrono::Duration::seconds(5));
     assert_eq!(error_receipt.xchecker_version, "0.1.0");
     assert_eq!(error_receipt.claude_cli_version, "0.8.1");
-    assert_eq!(error_receipt.model_full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(error_receipt.model_full_name, "haiku");
 
     Ok(())
 }
@@ -571,7 +571,7 @@ fn test_error_receipt_unknown_error() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -657,7 +657,7 @@ fn test_error_receipt_write_and_read() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         Some("sonnet".to_string()),
         HashMap::new(),
         packet,
@@ -755,7 +755,7 @@ fn test_error_receipt_preserves_packet_evidence() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet.clone(),
@@ -820,7 +820,7 @@ fn test_error_receipt_json_structure() -> Result<()> {
         &error,
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,

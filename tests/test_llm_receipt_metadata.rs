@@ -41,7 +41,7 @@ fn test_execution_strategy_in_receipt_controlled() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -89,7 +89,7 @@ fn test_execution_strategy_optional_for_backward_compat() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -132,7 +132,7 @@ fn test_llm_metadata_in_receipt() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -151,7 +151,7 @@ fn test_llm_metadata_in_receipt() {
     // Add LLM metadata
     receipt.llm = Some(xchecker::receipt::LlmInfo {
         provider: Some("claude-cli".to_string()),
-        model_used: Some("claude-3-5-sonnet-20241022".to_string()),
+        model_used: Some("haiku".to_string()),
         tokens_input: Some(1024),
         tokens_output: Some(512),
         timed_out: Some(false),
@@ -165,7 +165,7 @@ fn test_llm_metadata_in_receipt() {
     assert_eq!(llm_info.provider, Some("claude-cli".to_string()));
     assert_eq!(
         llm_info.model_used,
-        Some("claude-3-5-sonnet-20241022".to_string())
+        Some("haiku".to_string())
     );
     assert_eq!(llm_info.tokens_input, Some(1024));
     assert_eq!(llm_info.tokens_output, Some(512));
@@ -175,7 +175,7 @@ fn test_llm_metadata_in_receipt() {
     let json = serde_json::to_string_pretty(&receipt).unwrap();
     assert!(json.contains("\"llm\""));
     assert!(json.contains("\"provider\": \"claude-cli\""));
-    assert!(json.contains("\"model_used\": \"claude-3-5-sonnet-20241022\""));
+    assert!(json.contains("\"model_used\": \"haiku\""));
     assert!(json.contains("\"tokens_input\": 1024"));
     assert!(json.contains("\"tokens_output\": 512"));
 }
@@ -208,7 +208,7 @@ fn test_receipt_backward_compatibility() {
         "phase": "requirements",
         "xchecker_version": "0.1.0",
         "claude_cli_version": "0.8.1",
-        "model_full_name": "claude-3-5-sonnet-20241022",
+        "model_full_name": "haiku",
         "model_alias": null,
         "canonicalization_version": "yaml-v1,md-v1",
         "canonicalization_backend": "jcs-rfc8785",
@@ -448,7 +448,7 @@ fn test_successful_invocation_records_provider_and_model() {
 #[test]
 fn test_token_counts_recorded_when_available() {
     // Create an LlmResult with token counts
-    let llm_result = xchecker::llm::LlmResult::new("Response", "anthropic", "claude-3-5-sonnet")
+    let llm_result = xchecker::llm::LlmResult::new("Response", "anthropic", "sonnet")
         .with_tokens(1500, 750);
 
     // Convert to LlmInfo for receipt
@@ -473,7 +473,7 @@ fn test_token_counts_recorded_when_available() {
 fn test_token_counts_none_when_not_provided() {
     // Create an LlmResult without token counts
     let llm_result =
-        xchecker::llm::LlmResult::new("Response", "claude-cli", "claude-3-5-sonnet-20241022");
+        xchecker::llm::LlmResult::new("Response", "claude-cli", "haiku");
 
     // Convert to LlmInfo for receipt
     let llm_info = llm_result.into_llm_info();
@@ -559,7 +559,7 @@ fn test_complete_provider_metadata_in_receipt() {
         vec![],
         "0.1.0",
         "0.8.1",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
         None,
         HashMap::new(),
         packet,
@@ -581,7 +581,7 @@ fn test_complete_provider_metadata_in_receipt() {
     let llm_result = xchecker::llm::LlmResult::new(
         "Complete response",
         "anthropic",
-        "claude-3-5-sonnet-20241022",
+        "haiku",
     )
     .with_tokens(2048, 1024)
     .with_timeout(false)
@@ -595,7 +595,7 @@ fn test_complete_provider_metadata_in_receipt() {
     assert_eq!(llm_info.provider, Some("anthropic".to_string()));
     assert_eq!(
         llm_info.model_used,
-        Some("claude-3-5-sonnet-20241022".to_string())
+        Some("haiku".to_string())
     );
     assert_eq!(llm_info.tokens_input, Some(2048));
     assert_eq!(llm_info.tokens_output, Some(1024));
@@ -606,7 +606,7 @@ fn test_complete_provider_metadata_in_receipt() {
     // Verify serialization includes all fields
     let json = serde_json::to_string_pretty(&receipt).unwrap();
     assert!(json.contains("\"provider\": \"anthropic\""));
-    assert!(json.contains("\"model_used\": \"claude-3-5-sonnet-20241022\""));
+    assert!(json.contains("\"model_used\": \"haiku\""));
     assert!(json.contains("\"tokens_input\": 2048"));
     assert!(json.contains("\"tokens_output\": 1024"));
     assert!(json.contains("\"timed_out\": false"));
@@ -682,7 +682,7 @@ mod property_tests {
                 vec![],
                 "0.1.0",
                 "0.8.1",
-                "claude-3-5-sonnet-20241022",
+                "haiku",
                 None,
                 HashMap::new(),
                 packet,
@@ -758,7 +758,7 @@ mod property_tests {
             outputs.clone(),
             "0.1.0",
             "0.8.1",
-            "claude-3-5-sonnet-20241022",
+            "haiku",
             None,
             HashMap::new(),
             packet,

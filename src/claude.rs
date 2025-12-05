@@ -21,7 +21,7 @@ use std::time::Duration;
 pub struct ClaudeWrapper {
     /// Model alias as provided by user (e.g., "sonnet")
     pub model_alias: Option<String>,
-    /// Full model name resolved from alias (e.g., "claude-3-haiku-20240307")
+    /// Full model name resolved from alias (e.g., "haiku")
     pub model_full_name: String,
     /// Maximum number of conversation turns
     pub max_turns: u32,
@@ -97,7 +97,9 @@ impl ClaudeWrapper {
             let resolved = Self::resolve_model_alias(&model, &runner)?;
             (Some(model), resolved)
         } else {
-            // Use default model
+            // Use haiku as the default for testing/development (fast and cost-effective).
+            // For production use, specify --model sonnet or --model default.
+            // Note: "default" currently routes to opus but typically routes to sonnet.
             (None, "haiku".to_string())
         };
 
@@ -188,37 +190,38 @@ impl ClaudeWrapper {
         Ok(version)
     }
 
-    /// Resolve model alias to full model name using Claude CLI
+    /// Resolve model alias to a model name for Claude CLI
     ///
-    /// This function resolves common model aliases to their full names and provides
-    /// helpful error messages when models are not available. It follows requirement R7.1
-    /// for model alias resolution with proper error handling.
-    fn resolve_model_alias(alias: &str, runner: &Runner) -> Result<String, ClaudeError> {
-        // First try basic alias resolution for common cases
+    /// This function normalizes common model aliases. Claude CLI handles the actual
+    /// resolution to specific model versions (e.g., claude-sonnet-4-5-20250929).
+    ///
+    /// # Model recommendations
+    ///
+    /// - **Testing/Development**: Use `haiku` (fast, cost-effective) - this is the default
+    /// - **Production**: Use `sonnet` or `default` for best balance of intelligence and speed
+    /// - **Complex tasks**: Use `opus` for maximum capability
+    ///
+    /// # Specific versions
+    ///
+    /// Users can specify exact model versions (e.g., `claude-sonnet-4-5-20250929`) when
+    /// needed for reproducibility. These are passed through unchanged to Claude CLI.
+    /// Note: Claude 3.x models are legacy and should not be used.
+    fn resolve_model_alias(alias: &str, _runner: &Runner) -> Result<String, ClaudeError> {
+        // Resolve common aliases to simple model names
+        // Claude CLI handles the actual model resolution to current versions
         let resolved = match alias {
-            // Claude 3.5 Sonnet aliases
-            "sonnet" | "claude-3-5-sonnet" => "claude-3-5-sonnet-20241022",
-            "sonnet-latest" => "claude-3-5-sonnet-20241022",
+            // Sonnet - recommended for production (best balance of intelligence and speed)
+            "sonnet" | "sonnet-latest" => "sonnet",
 
-            // Claude 3 Haiku aliases
-            "haiku" | "claude-3-haiku" => "claude-3-haiku-20240307",
-            "haiku-latest" => "claude-3-haiku-20240307",
+            // Haiku - recommended for testing/development (fast and cost-effective)
+            "haiku" | "haiku-latest" => "haiku",
 
-            // Claude 3 Opus aliases
-            "opus" | "claude-3-opus" => "claude-3-opus-20240229",
-            "opus-latest" => "claude-3-opus-20240229",
+            // Opus - for complex tasks requiring maximum capability
+            "opus" | "opus-latest" => "opus",
 
-            // If it looks like a full model name, validate it exists
-            name if name.starts_with("claude-") => {
-                // For full model names, we'll validate them by attempting to query available models
-                Self::validate_model_name(name, runner)?;
-                name
-            }
-            _ => {
-                return Err(ClaudeError::ModelNotAvailable {
-                    model: alias.to_string(),
-                });
-            }
+            // Pass through any other name - let Claude CLI handle validation
+            // This allows specific versions like "claude-sonnet-4-5-20250929"
+            other => other,
         };
 
         Ok(resolved.to_string())
@@ -519,67 +522,47 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "Hangs when run in parallel with other tests - run with --ignored to test individually"]
     fn test_model_alias_resolution() {
         use crate::runner::{Runner, WslOptions};
         use crate::types::RunnerMode;
 
-        let _runner = Runner::new(RunnerMode::Native, WslOptions::default());
+        let runner = Runner::new(RunnerMode::Native, WslOptions::default());
 
-        // Test basic aliases
+        // Test sonnet aliases
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("sonnet", &_runner).unwrap(),
-            "claude-3-5-sonnet-20241022"
+            ClaudeWrapper::resolve_model_alias("sonnet", &runner).unwrap(),
+            "sonnet"
         );
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("claude-3-5-sonnet", &_runner).unwrap(),
-            "claude-3-5-sonnet-20241022"
-        );
-        assert_eq!(
-            ClaudeWrapper::resolve_model_alias("sonnet-latest", &_runner).unwrap(),
-            "claude-3-5-sonnet-20241022"
+            ClaudeWrapper::resolve_model_alias("sonnet-latest", &runner).unwrap(),
+            "sonnet"
         );
 
+        // Test haiku aliases (default model)
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("haiku", &_runner).unwrap(),
-            "claude-3-haiku-20240307"
+            ClaudeWrapper::resolve_model_alias("haiku", &runner).unwrap(),
+            "haiku"
         );
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("claude-3-haiku", &_runner).unwrap(),
-            "claude-3-haiku-20240307"
-        );
-        assert_eq!(
-            ClaudeWrapper::resolve_model_alias("haiku-latest", &_runner).unwrap(),
-            "claude-3-haiku-20240307"
+            ClaudeWrapper::resolve_model_alias("haiku-latest", &runner).unwrap(),
+            "haiku"
         );
 
+        // Test opus aliases
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("opus", &_runner).unwrap(),
-            "claude-3-opus-20240229"
+            ClaudeWrapper::resolve_model_alias("opus", &runner).unwrap(),
+            "opus"
         );
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("claude-3-opus", &_runner).unwrap(),
-            "claude-3-opus-20240229"
-        );
-        assert_eq!(
-            ClaudeWrapper::resolve_model_alias("opus-latest", &_runner).unwrap(),
-            "claude-3-opus-20240229"
+            ClaudeWrapper::resolve_model_alias("opus-latest", &runner).unwrap(),
+            "opus"
         );
 
-        // Test full model names (should pass through validation)
+        // Test passthrough for other model names (Claude CLI handles validation)
         assert_eq!(
-            ClaudeWrapper::resolve_model_alias("claude-3-5-sonnet-20241022", &_runner).unwrap(),
-            "claude-3-5-sonnet-20241022"
+            ClaudeWrapper::resolve_model_alias("custom-model", &runner).unwrap(),
+            "custom-model"
         );
-
-        // Test invalid model
-        let result = ClaudeWrapper::resolve_model_alias("invalid-model", &_runner);
-        assert!(result.is_err());
-        if let Err(ClaudeError::ModelNotAvailable { model }) = result {
-            assert_eq!(model, "invalid-model");
-        } else {
-            panic!("Expected ModelNotAvailable error");
-        }
     }
 
     #[test]
@@ -630,7 +613,7 @@ mod tests {
 {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello"}}
 {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": " world"}}
 {"type": "content_block_stop", "index": 0}
-{"type": "message_stop", "message": {"id": "msg_123", "model": "claude-3-haiku-20240307", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#;
+{"type": "message_stop", "message": {"id": "msg_123", "model": "haiku", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}}"#;
 
         let (content, metadata) = wrapper.parse_stream_json(sample_output).unwrap();
 
@@ -639,7 +622,7 @@ mod tests {
         assert_eq!(metadata.output_tokens, Some(5));
         assert_eq!(
             metadata.model,
-            Some("claude-3-haiku-20240307".to_string())
+            Some("haiku".to_string())
         );
         assert_eq!(metadata.stop_reason, Some("end_turn".to_string()));
     }
@@ -650,10 +633,10 @@ mod tests {
         use crate::types::RunnerMode;
 
         // Create a wrapper with mock version for testing
-        // Using haiku as the default model (alias: "haiku", full name: "claude-3-haiku-20240307")
+        // Using haiku as the default model
         let wrapper = ClaudeWrapper {
             model_alias: Some("haiku".to_string()),
-            model_full_name: "claude-3-haiku-20240307".to_string(),
+            model_full_name: "haiku".to_string(),
             max_turns: 10,
             allowed_tools: Vec::new(),
             disallowed_tools: Vec::new(),
@@ -665,7 +648,7 @@ mod tests {
         // Test that we can get model and runner info for receipts
         let (model_alias, model_full_name) = wrapper.get_model_info();
         assert_eq!(model_alias, Some("haiku".to_string()));
-        assert_eq!(model_full_name, "claude-3-haiku-20240307");
+        assert_eq!(model_full_name, "haiku");
 
         let (runner_mode, _runner_distro) = wrapper.get_runner_info();
         assert_eq!(runner_mode, RunnerMode::Native);
@@ -689,22 +672,22 @@ mod tests {
         if let Ok(wrapper) = wrapper {
             let (model_alias, model_full_name) = wrapper.get_model_info();
             assert_eq!(model_alias, Some("sonnet".to_string()));
-            assert_eq!(model_full_name, "claude-3-5-sonnet-20241022");
+            assert_eq!(model_full_name, "sonnet");
         } else {
             // Expected in test environment where Claude CLI may not be available
             // The important thing is that the resolution logic is tested above
         }
 
-        // Test with full model name
+        // Test with haiku model
         let wrapper = ClaudeWrapper::new(
-            Some("claude-3-haiku-20240307".to_string()),
+            Some("haiku".to_string()),
             Runner::new(RunnerMode::Native, WslOptions::default()),
         );
 
         if let Ok(wrapper) = wrapper {
             let (model_alias, model_full_name) = wrapper.get_model_info();
-            assert_eq!(model_alias, Some("claude-3-haiku-20240307".to_string()));
-            assert_eq!(model_full_name, "claude-3-haiku-20240307");
+            assert_eq!(model_alias, Some("haiku".to_string()));
+            assert_eq!(model_full_name, "haiku");
         } else {
             // Expected in test environment where Claude CLI may not be available
         }

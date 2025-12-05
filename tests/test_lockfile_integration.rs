@@ -25,7 +25,7 @@ fn test_lockfile_creation_with_init() -> Result<()> {
 
     // Create lockfile
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
 
@@ -40,7 +40,7 @@ fn test_lockfile_creation_with_init() -> Result<()> {
     // Verify lockfile content
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     assert_eq!(loaded.schema_version, "1");
-    assert_eq!(loaded.model_full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(loaded.model_full_name, "haiku");
     assert_eq!(loaded.claude_cli_version, "0.8.1");
 
     println!("✓ Lockfile creation test passed");
@@ -56,7 +56,7 @@ fn test_drift_detection_model_field() -> Result<()> {
 
     // Create lockfile with specific model
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -64,7 +64,7 @@ fn test_drift_detection_model_field() -> Result<()> {
     // Load and check drift with different model
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     let context = RunContext {
-        model_full_name: "claude-3-5-sonnet-20250101".to_string(),
+        model_full_name: "sonnet-20250101".to_string(),
         claude_cli_version: "0.8.1".to_string(),
         schema_version: "1".to_string(),
     };
@@ -84,8 +84,8 @@ fn test_drift_detection_model_field() -> Result<()> {
     assert!(drift.schema_version.is_none(), "Schema should not drift");
 
     let model_drift = drift.model_full_name.unwrap();
-    assert_eq!(model_drift.locked, "claude-3-5-sonnet-20241022");
-    assert_eq!(model_drift.current, "claude-3-5-sonnet-20250101");
+    assert_eq!(model_drift.locked, "haiku");
+    assert_eq!(model_drift.current, "sonnet-20250101");
 
     println!("✓ Model drift detection test passed");
     Ok(())
@@ -100,7 +100,7 @@ fn test_drift_detection_cli_version_field() -> Result<()> {
 
     // Create lockfile with specific CLI version
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -108,7 +108,7 @@ fn test_drift_detection_cli_version_field() -> Result<()> {
     // Load and check drift with different CLI version
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     let context = RunContext {
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         claude_cli_version: "0.9.0".to_string(),
         schema_version: "1".to_string(),
     };
@@ -141,7 +141,7 @@ fn test_drift_detection_schema_version_field() -> Result<()> {
 
     // Create lockfile with schema version 1
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -149,7 +149,7 @@ fn test_drift_detection_schema_version_field() -> Result<()> {
     // Load and check drift with different schema version
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     let context = RunContext {
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         claude_cli_version: "0.8.1".to_string(),
         schema_version: "2".to_string(),
     };
@@ -185,7 +185,7 @@ fn test_no_drift_when_values_match() -> Result<()> {
 
     // Create lockfile
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -193,7 +193,7 @@ fn test_no_drift_when_values_match() -> Result<()> {
     // Load and check drift with same values
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     let context = RunContext {
-        model_full_name: "claude-3-5-sonnet-20241022".to_string(),
+        model_full_name: "haiku".to_string(),
         claude_cli_version: "0.8.1".to_string(),
         schema_version: "1".to_string(),
     };
@@ -217,7 +217,7 @@ fn test_drift_detection_multiple_fields() -> Result<()> {
 
     // Create lockfile
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -225,7 +225,7 @@ fn test_drift_detection_multiple_fields() -> Result<()> {
     // Load and check drift with all fields different
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
     let context = RunContext {
-        model_full_name: "claude-3-5-sonnet-20250101".to_string(),
+        model_full_name: "sonnet-20250101".to_string(),
         claude_cli_version: "0.9.0".to_string(),
         schema_version: "2".to_string(),
     };
@@ -267,7 +267,7 @@ fn test_lockfile_loading_and_validation() -> Result<()> {
 
     // Test 2: Create and load valid lockfile
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;
@@ -277,7 +277,7 @@ fn test_lockfile_loading_and_validation() -> Result<()> {
 
     let loaded = loaded.unwrap();
     assert_eq!(loaded.schema_version, "1");
-    assert_eq!(loaded.model_full_name, "claude-3-5-sonnet-20241022");
+    assert_eq!(loaded.model_full_name, "haiku");
     assert_eq!(loaded.claude_cli_version, "0.8.1");
 
     // Test 3: Verify timestamp is valid
@@ -372,21 +372,21 @@ fn test_lockfile_overwrite() -> Result<()> {
 
     // Create first lockfile
     let lock1 = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock1.save(spec_id)?;
 
     // Create second lockfile with different values
     let lock2 = XCheckerLock::new(
-        "claude-3-5-sonnet-20250101".to_string(),
+        "sonnet-20250101".to_string(),
         "0.9.0".to_string(),
     );
     lock2.save(spec_id)?;
 
     // Load and verify it has the second lockfile's values
     let loaded = XCheckerLock::load(spec_id)?.expect("Lockfile should exist");
-    assert_eq!(loaded.model_full_name, "claude-3-5-sonnet-20250101");
+    assert_eq!(loaded.model_full_name, "sonnet-20250101");
     assert_eq!(loaded.claude_cli_version, "0.9.0");
 
     println!("✓ Lockfile overwrite test passed");
@@ -407,7 +407,7 @@ fn test_lockfile_directory_creation() -> Result<()> {
 
     // Create lockfile (should create directory)
     let lock = XCheckerLock::new(
-        "claude-3-5-sonnet-20241022".to_string(),
+        "haiku".to_string(),
         "0.8.1".to_string(),
     );
     lock.save(spec_id)?;

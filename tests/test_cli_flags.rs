@@ -260,7 +260,7 @@ fn test_cli_flags_override_config() -> Result<()> {
     // Create CLI args with overrides
     let cli_args = CliArgs {
         config_path: None,
-        model: Some("claude-3-opus-20240229".to_string()),
+        model: Some("opus".to_string()),
         max_turns: Some(10),
         packet_max_bytes: Some(100000),
         packet_max_lines: Some(2000),
@@ -292,7 +292,7 @@ fn test_cli_flags_override_config() -> Result<()> {
     // Verify CLI values took precedence
     assert_eq!(
         config.defaults.model,
-        Some("claude-3-opus-20240229".to_string())
+        Some("opus".to_string())
     );
     assert_eq!(config.defaults.max_turns, Some(10));
     assert_eq!(config.defaults.packet_max_bytes, Some(100000));
