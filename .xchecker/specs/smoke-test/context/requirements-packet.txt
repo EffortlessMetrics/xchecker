@@ -1,0 +1,20 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: smoke-test
+Phase: Requirements
+Base Directory: .xchecker\specs\smoke-test
+
+=== CONFIGURATION ===
+output_format: stream-json
+max_turns: 6
+packet_max_bytes: 65536
+packet_max_lines: 1200
+logger_enabled: false
+apply_fixups: false
+
+=== AVAILABLE ARTIFACTS ===
+- 00-requirements.core.yaml
+- 00-requirements.md
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

@@ -1,0 +1,10 @@
+version: "1"
+name: fullstack-nextjs-example
+specs:
+  - id: task-manager
+    tags:
+      - frontend
+      - backend
+      - nextjs
+      - typescript
+    added: "2024-12-01T00:00:00Z"

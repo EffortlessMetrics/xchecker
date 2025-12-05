@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/your-org/xchecker/schemas/status-json.v1.json",
+  "title": "xchecker Status JSON Output",
+  "description": "JSON output format for `xchecker status --json` command. Provides compact status summary for Claude Code integration without exposing full artifacts or packet contents. Per FR-Claude Code-CLI (Requirements 4.1.2).",
+  "type": "object",
+  "required": ["schema_version", "spec_id", "phase_statuses", "pending_fixups", "has_errors"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "status-json.v1",
+      "description": "Schema version identifier for this format"
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the spec"
+    },
+    "phase_statuses": {
+      "type": "array",
+      "description": "List of phase statuses with receipt IDs",
+      "items": {
+        "type": "object",
+        "required": ["phase_id", "status"],
+        "properties": {
+          "phase_id": {
+            "type": "string",
+            "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+            "description": "Phase identifier"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "failed", "not_started"],
+            "description": "Phase status based on latest receipt exit code"
+          },
+          "receipt_id": {
+            "type": "string",
+            "description": "Receipt ID for the latest run (format: phase-YYYYMMDD_HHMMSS)"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "pending_fixups": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of pending fixup targets (0 if none)"
+    },
+    "has_errors": {
+      "type": "boolean",
+      "description": "Whether any phase has failed (exit code != 0)"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,9 @@
+# CODEOWNERS file
+# These files require review before merging changes
+
+# Schema examples - generated from code, must stay in sync
+docs/schemas/*.json @*
+
+# Core documentation - describes public contracts and CLI interface
+README.md @*
+CONTRACTS.md @*

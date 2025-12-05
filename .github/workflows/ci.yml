@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        # TODO: Flip to `cargo clippy -D warnings` after M3 (contracts complete)
+        # Currently running without -D warnings to avoid churn during wiring.
+        # Module-scoped #[allow] must include TODO(M#) comments until wired.
+        run: cargo clippy --all-targets --all-features
+
+  test-serial:
+    name: Test (Serial - Required)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run tests (serial)
+        run: cargo test --all-features -- --test-threads=1
+
+      - name: WSL probe test (Windows only)
+        if: runner.os == 'Windows'
+        run: cargo test test_wsl_probe -- --ignored --nocapture
+        continue-on-error: true
+
+  test-parallel:
+    name: Test (Parallel - Non-blocking)
+    # PLAN: 
+    # 1. Keep as non-blocking (continue-on-error: true) initially to validate stability
+    # 2. After 3 consecutive green runs, flip to required (remove continue-on-error)
+    # 3. After 1 week of stable parallel runs, drop test-serial lane
+    # Currently non-blocking to validate parallel test stability
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run tests (parallel)
+        run: cargo test --all-features
+
+  schema-validation:
+    name: Schema Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run schema validation tests
+        run: cargo test test_generated_outputs_validate_against_schemas
+
+      - name: Run M3 gate contracts validation
+        run: cargo test --test m3_gate_contracts_validation
+
+      - name: Run comprehensive schema compliance tests
+        run: cargo test --test test_schema_compliance
+
+      - name: Verify schema examples validate
+        run: cargo test --test test_json_schema_validation
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run secret scanning tests with controls
+        run: cargo test test_secret_scanning_ci_validation
+
+      - name: Verify positive control fails scanner
+        run: cargo test test_positive_control_fake_secrets_detected
+
+      - name: Verify negative control passes scanner
+        run: cargo test test_negative_control_clean_file_passes
+
+      - name: Run redaction security tests
+        run: cargo test --test test_redaction_security
+
+  docs-conformance:
+    name: Documentation Conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run documentation validation tests
+        run: cargo test --test test_doc_validation -- --test-threads=1
+
+      - name: Verify generated schema examples are fresh
+        run: |
+          git diff --exit-code docs/schemas/ || {
+            echo "❌ Generated schema examples are out of sync!"
+            echo ""
+            echo "Run 'cargo test --test test_doc_validation doc_validation::schema_examples_tests -- --nocapture' to regenerate and commit updated files under docs/schemas/*"
+            echo ""
+            exit 1
+          }
+
+  gate-validation:
+    name: Gate Command Validation
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run gate unit tests
+        run: cargo test gate:: --lib
+
+      - name: Run gate JSON schema validation
+        run: cargo test --test test_json_schema_validation gate
+
+  test-real:
+    name: Test (Real - With Claude)
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes and when secret is available
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANTHROPIC_API_KEY != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run smoke tests
+        run: cargo test --test smoke -- --ignored
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

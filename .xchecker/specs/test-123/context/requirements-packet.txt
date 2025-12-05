@@ -1,0 +1,13 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-123
+Phase: Requirements
+Base Directory: .xchecker\specs\test-123
+
+=== CONFIGURATION ===
+packet_max_bytes: 65536
+packet_max_lines: 1200
+verbose: true
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

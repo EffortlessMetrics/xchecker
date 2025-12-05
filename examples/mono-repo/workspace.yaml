@@ -1,0 +1,21 @@
+version: "1"
+name: ecommerce-platform
+specs:
+  - id: user-service
+    tags:
+      - backend
+      - rust
+      - auth
+    added: "2024-12-01T00:00:00Z"
+  - id: product-catalog
+    tags:
+      - backend
+      - python
+      - core
+    added: "2024-12-01T00:00:00Z"
+  - id: order-api
+    tags:
+      - backend
+      - rust
+      - core
+    added: "2024-12-01T00:00:00Z"

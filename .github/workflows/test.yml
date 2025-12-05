@@ -1,0 +1,254 @@
+# Test Workflow - Fast and Full test lanes
+#
+# This workflow implements the test-fast and test-full lanes:
+# - test-fast: Runs on every PR for quick feedback (~30s)
+# - test-full: Runs nightly and on main branch for comprehensive coverage
+#
+# See docs/TESTING.md for test lane documentation.
+
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_lane:
+        description: 'Test lane to run'
+        required: true
+        default: 'fast'
+        type: choice
+        options:
+          - fast
+          - full
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # TEST-FAST: Quick feedback on every PR (~30s)
+  # ============================================================================
+  test-fast:
+    name: Test Fast (${{ matrix.os }})
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'fast')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run test-fast (lib + bins)
+        run: cargo test --lib --bins
+
+  # ============================================================================
+  # TEST-FULL: Comprehensive testing (nightly + main branch)
+  # ============================================================================
+  test-full:
+    name: Test Full (${{ matrix.os }})
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-full-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-full-
+            ${{ runner.os }}-cargo-
+
+      - name: Run test-full (all tests)
+        run: cargo test --all-features
+        env:
+          # Increase property test cases for nightly runs
+          PROPTEST_CASES: 128
+
+      - name: Run doc tests
+        run: cargo test --doc
+
+  # ============================================================================
+  # PROPERTY TESTS: Dedicated property-based testing job
+  # ============================================================================
+  property-tests:
+    name: Property Tests
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-pbt-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-pbt-
+            ubuntu-cargo-
+
+      - name: Run property-based tests
+        run: cargo test --test property_based_tests
+        env:
+          # Use higher case count for CI
+          PROPTEST_CASES: 256
+
+      - name: Run doctor HTTP provider property tests
+        run: cargo test --test test_doctor_http_provider_checks
+        env:
+          PROPTEST_CASES: 128
+
+  # ============================================================================
+  # STUB TESTS: Integration tests with claude-stub
+  # ============================================================================
+  stub-tests:
+    name: Stub Integration Tests
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-stub-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-stub-
+            ubuntu-cargo-
+
+      - name: Build claude-stub
+        run: cargo build --bin claude-stub
+
+      - name: Run stub integration tests
+        run: |
+          cargo test --tests -- \
+            --include-ignored \
+            --skip requires_real_claude \
+            --skip requires_xchecker_binary \
+            --skip requires_future_phase \
+            --skip requires_future_api \
+            --skip requires_refactoring \
+            --skip windows_ci_only
+
+  # ============================================================================
+  # EXAMPLE VALIDATION: Validate showcase examples
+  # ============================================================================
+  example-validation:
+    name: Example Validation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate fullstack-nextjs example (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x examples/fullstack-nextjs/scripts/validate.sh
+          ./examples/fullstack-nextjs/scripts/validate.sh
+
+      - name: Validate fullstack-nextjs example (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\examples\fullstack-nextjs\scripts\validate.ps1
+
+      - name: Validate mono-repo example (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x examples/mono-repo/scripts/validate.sh
+          ./examples/mono-repo/scripts/validate.sh
+
+      - name: Validate mono-repo example (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\examples\mono-repo\scripts\validate.ps1
+
+  # ============================================================================
+  # WALKTHROUGH VALIDATION: Validate walkthrough code snippets
+  # ============================================================================
+  walkthrough-validation:
+    name: Walkthrough Validation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate walkthrough snippets (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x scripts/validate_walkthrough_snippets.sh
+          ./scripts/validate_walkthrough_snippets.sh
+
+      - name: Validate walkthrough snippets (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\scripts\validate_walkthrough_snippets.ps1

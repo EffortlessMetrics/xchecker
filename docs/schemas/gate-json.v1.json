@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/effortlesssteven/xchecker/schemas/gate-json.v1.json",
+  "title": "xchecker Gate Output Schema v1",
+  "description": "JSON output schema for xchecker gate command (FR-GATE Requirements 4.5.4)",
+  "type": "object",
+  "required": ["schema_version", "spec_id", "passed", "conditions", "failure_reasons", "summary"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "gate-json.v1",
+      "description": "Schema version identifier"
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the spec that was evaluated"
+    },
+    "passed": {
+      "type": "boolean",
+      "description": "Whether the gate policy passed (true) or failed (false)"
+    },
+    "conditions": {
+      "type": "array",
+      "description": "List of evaluated policy conditions",
+      "items": {
+        "type": "object",
+        "required": ["name", "passed", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the condition (e.g., 'min_phase', 'pending_fixups', 'max_phase_age')"
+          },
+          "passed": {
+            "type": "boolean",
+            "description": "Whether this specific condition passed"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what was checked"
+          },
+          "actual": {
+            "type": "string",
+            "description": "Actual value found during evaluation (optional)"
+          },
+          "expected": {
+            "type": "string",
+            "description": "Expected value for the condition (optional)"
+          }
+        }
+      }
+    },
+    "failure_reasons": {
+      "type": "array",
+      "description": "List of reasons for policy failure (empty if passed)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary of the gate evaluation result"
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "gate-json.v1",
+      "spec_id": "feature-auth",
+      "passed": true,
+      "conditions": [
+        {
+          "name": "min_phase",
+          "passed": true,
+          "description": "Required phase 'tasks' is completed",
+          "actual": "tasks completed",
+          "expected": "tasks or later"
+        }
+      ],
+      "failure_reasons": [],
+      "summary": "Gate PASSED: Spec 'feature-auth' meets all policy requirements"
+    },
+    {
+      "schema_version": "gate-json.v1",
+      "spec_id": "feature-ui",
+      "passed": false,
+      "conditions": [
+        {
+          "name": "min_phase",
+          "passed": false,
+          "description": "Required phase 'tasks' not completed (latest: design)",
+          "actual": "latest: design",
+          "expected": "tasks or later"
+        },
+        {
+          "name": "max_phase_age",
+          "passed": false,
+          "description": "Phase 'tasks' is stale (age: 10d, max: 7d)",
+          "actual": "10d",
+          "expected": "<= 7d"
+        }
+      ],
+      "failure_reasons": [
+        "Required phase 'tasks' not completed (latest: design)",
+        "Phase 'tasks' is stale (age: 10d, max: 7d)"
+      ],
+      "summary": "Gate FAILED: Spec 'feature-ui' has 2 policy violation(s)"
+    }
+  ]
+}

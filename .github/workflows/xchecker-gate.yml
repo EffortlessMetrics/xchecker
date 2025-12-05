@@ -1,0 +1,212 @@
+# xchecker Gate Workflow
+#
+# This workflow demonstrates how to use xchecker gate as a PR check.
+# It evaluates spec status against configurable policies to gate merges.
+#
+# Requirements: FR-GATE-CI (4.6.1, 4.6.2, 4.6.3)
+#
+# Usage:
+#   1. Copy this file to your repository's .github/workflows/ directory
+#   2. Configure the SPEC_ID and policy parameters below
+#   3. Set up required status checks in GitHub repository settings
+#
+# See docs/ci/gitlab.md for GitLab CI equivalent.
+
+name: xchecker Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      spec_id:
+        description: 'Spec ID to evaluate'
+        required: true
+        default: 'my-spec'
+      min_phase:
+        description: 'Minimum required phase'
+        required: false
+        default: 'tasks'
+      fail_on_pending_fixups:
+        description: 'Fail if pending fixups exist'
+        required: false
+        default: 'false'
+        type: boolean
+      max_phase_age:
+        description: 'Maximum phase age (e.g., 7d, 24h)'
+        required: false
+        default: ''
+
+env:
+  # Default spec ID - override via workflow_dispatch or matrix
+  SPEC_ID: ${{ github.event.inputs.spec_id || 'my-spec' }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ============================================================================
+  # GATE CHECK: Evaluate spec against policy
+  # ============================================================================
+  gate:
+    name: Gate Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # Uncomment to run on all platforms:
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-gate-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gate-
+            ${{ runner.os }}-cargo-
+
+      - name: Build xchecker
+        run: cargo build --release
+
+      - name: Run gate check
+        id: gate
+        run: |
+          # Build gate command with configured policy
+          GATE_CMD="./target/release/xchecker gate ${{ env.SPEC_ID }}"
+          
+          # Add min-phase if specified (default: tasks)
+          MIN_PHASE="${{ github.event.inputs.min_phase || 'tasks' }}"
+          if [ -n "$MIN_PHASE" ]; then
+            GATE_CMD="$GATE_CMD --min-phase $MIN_PHASE"
+          fi
+          
+          # Add fail-on-pending-fixups if enabled
+          if [ "${{ github.event.inputs.fail_on_pending_fixups }}" = "true" ]; then
+            GATE_CMD="$GATE_CMD --fail-on-pending-fixups"
+          fi
+          
+          # Add max-phase-age if specified
+          MAX_AGE="${{ github.event.inputs.max_phase_age }}"
+          if [ -n "$MAX_AGE" ]; then
+            GATE_CMD="$GATE_CMD --max-phase-age $MAX_AGE"
+          fi
+          
+          # Run gate with JSON output for structured results
+          echo "Running: $GATE_CMD --json"
+          $GATE_CMD --json > gate-result.json || true
+          
+          # Display human-readable output
+          echo "=== Gate Result ==="
+          cat gate-result.json | jq .
+          
+          # Check if gate passed
+          PASSED=$(cat gate-result.json | jq -r '.passed')
+          if [ "$PASSED" = "true" ]; then
+            echo "✅ Gate PASSED"
+            echo "gate_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Gate FAILED"
+            echo "gate_passed=false" >> $GITHUB_OUTPUT
+            # Show failure reasons
+            echo "=== Failure Reasons ==="
+            cat gate-result.json | jq -r '.failure_reasons[]'
+            exit 1
+          fi
+        shell: bash
+
+      - name: Upload gate result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-result-${{ matrix.os }}
+          path: gate-result.json
+
+  # ============================================================================
+  # MULTI-SPEC GATE: Example for workspace with multiple specs
+  # ============================================================================
+  # Uncomment this job to gate multiple specs in a workspace
+  #
+  # gate-workspace:
+  #   name: Gate Workspace
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       spec:
+  #         - id: feature-auth
+  #           min_phase: tasks
+  #         - id: feature-ui
+  #           min_phase: design
+  #         - id: api-v2
+  #           min_phase: tasks
+  #           fail_on_pending_fixups: true
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Rust toolchain
+  #       uses: dtolnay/rust-toolchain@stable
+  #
+  #     - name: Build xchecker
+  #       run: cargo build --release
+  #
+  #     - name: Gate spec ${{ matrix.spec.id }}
+  #       run: |
+  #         GATE_CMD="./target/release/xchecker gate ${{ matrix.spec.id }}"
+  #         GATE_CMD="$GATE_CMD --min-phase ${{ matrix.spec.min_phase }}"
+  #         
+  #         if [ "${{ matrix.spec.fail_on_pending_fixups }}" = "true" ]; then
+  #           GATE_CMD="$GATE_CMD --fail-on-pending-fixups"
+  #         fi
+  #         
+  #         echo "Running: $GATE_CMD"
+  #         $GATE_CMD
+
+# ============================================================================
+# CONFIGURATION NOTES
+# ============================================================================
+#
+# Policy Parameters:
+#   --min-phase <phase>        Require at least this phase completed
+#                              Values: requirements, design, tasks, review, fixup, final
+#                              Default: tasks
+#
+#   --fail-on-pending-fixups   Fail if any pending fixups exist
+#                              Default: disabled
+#
+#   --max-phase-age <duration> Fail if latest success is older than threshold
+#                              Format: 7d (days), 24h (hours), 30m (minutes)
+#                              Default: no age check
+#
+#   --json                     Output structured JSON for CI parsing
+#
+# Exit Codes:
+#   0 - Policy passed (all conditions met)
+#   1 - Policy violation (one or more conditions not met)
+#   Other - Runtime error (config error, IO error, etc.)
+#
+# Setting up Required Status Checks:
+#   1. Go to repository Settings > Branches
+#   2. Add branch protection rule for 'main'
+#   3. Enable "Require status checks to pass before merging"
+#   4. Search for "Gate Check" and add it as required
+#   5. Optionally enable "Require branches to be up to date"
+#
+# See also:
+#   - docs/ci/gitlab.md for GitLab CI configuration
+#   - docs/schemas/gate-json.v1.json for JSON output schema
+#   - src/gate.rs for implementation details

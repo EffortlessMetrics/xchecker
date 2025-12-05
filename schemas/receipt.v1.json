@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xchecker.dev/schemas/receipt.v1.json",
+  "title": "XChecker Receipt Schema v1",
+  "description": "Receipt format for xchecker phase execution tracking",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "emitted_at",
+    "spec_id",
+    "phase",
+    "xchecker_version",
+    "claude_cli_version",
+    "model_full_name",
+    "canonicalization_version",
+    "canonicalization_backend",
+    "flags",
+    "runner",
+    "packet",
+    "outputs",
+    "exit_code",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version for this receipt format"
+    },
+    "emitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp when the receipt was emitted"
+    },
+    "spec_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the spec being processed"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+      "description": "Phase that was executed"
+    },
+    "xchecker_version": {
+      "type": "string",
+      "description": "Version of xchecker that generated this receipt"
+    },
+    "claude_cli_version": {
+      "type": "string",
+      "description": "Version of Claude CLI that was used"
+    },
+    "model_full_name": {
+      "type": "string",
+      "description": "Full model name that was actually used"
+    },
+    "model_alias": {
+      "type": ["string", "null"],
+      "description": "Model alias that was requested (if any)"
+    },
+    "canonicalization_version": {
+      "type": "string",
+      "description": "Version of the canonicalization algorithm used"
+    },
+    "canonicalization_backend": {
+      "type": "string",
+      "description": "Backend used for canonicalization (e.g., jcs-rfc8785)"
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "CLI flags and configuration used"
+    },
+    "runner": {
+      "type": "string",
+      "enum": ["native", "wsl"],
+      "description": "Runner mode used for Claude CLI execution"
+    },
+    "runner_distro": {
+      "type": ["string", "null"],
+      "description": "WSL distribution name if runner is wsl"
+    },
+    "packet": {
+      "type": "object",
+      "required": ["files", "max_bytes", "max_lines"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "blake3_pre_redaction", "priority"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path to the file relative to project root"
+              },
+              "range": {
+                "type": ["string", "null"],
+                "description": "Optional range of lines included (e.g., L1-L80)"
+              },
+              "blake3_pre_redaction": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "BLAKE3 hash of the file content before redaction"
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["Upstream", "High", "Medium", "Low"],
+                "description": "Priority level of this file"
+              }
+            },
+            "additionalProperties": true
+          },
+          "description": "List of files included in the packet"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum bytes allowed in packet"
+        },
+        "max_lines": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum lines allowed in packet"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Evidence of packet construction for auditability"
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "blake3_canonicalized"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file relative to the spec directory"
+          },
+          "blake3_canonicalized": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "BLAKE3 hash of the canonicalized content"
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "BLAKE3 hashes of canonicalized outputs (sorted by path)"
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "Exit code from the phase execution (0 = success)"
+    },
+    "error_kind": {
+      "type": ["string", "null"],
+      "enum": ["cli_args", "packet_overflow", "secret_detected", "lock_held", "phase_timeout", "claude_failure", "unknown", null],
+      "description": "Error kind for non-zero exits"
+    },
+    "error_reason": {
+      "type": ["string", "null"],
+      "description": "Brief error reason for non-zero exits"
+    },
+    "stderr_tail": {
+      "type": ["string", "null"],
+      "maxLength": 2048,
+      "description": "Standard error tail (limited to 2 KiB)"
+    },
+    "stderr_redacted": {
+      "type": ["string", "null"],
+      "maxLength": 2048,
+      "description": "Redacted standard error output (limited to 2 KiB)"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Warnings encountered during execution"
+    },
+    "fallback_used": {
+      "type": ["boolean", "null"],
+      "description": "Whether fallback to text format was used"
+    },
+    "diff_context": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Number of context lines for diff operations (0 when --unidiff-zero is enabled)"
+    }
+  },
+  "additionalProperties": true
+}

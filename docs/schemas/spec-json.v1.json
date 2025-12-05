@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/your-org/xchecker/schemas/spec-json.v1.json",
+  "title": "xchecker Spec JSON Output",
+  "description": "JSON output format for `xchecker spec --json` command. Provides high-level spec metadata for Claude Code integration without exposing full artifacts or packet contents.",
+  "type": "object",
+  "required": ["schema_version", "spec_id", "phases", "config_summary"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "spec-json.v1",
+      "description": "Schema version identifier for this format"
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the spec"
+    },
+    "phases": {
+      "type": "array",
+      "description": "List of phases with high-level metadata",
+      "items": {
+        "type": "object",
+        "required": ["phase_id", "status"],
+        "properties": {
+          "phase_id": {
+            "type": "string",
+            "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+            "description": "Phase identifier"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "pending", "not_started"],
+            "description": "Phase status"
+          },
+          "last_run": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp of last run (if any)"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "config_summary": {
+      "type": "object",
+      "description": "Configuration summary (excludes full artifacts and packet contents)",
+      "required": ["execution_strategy", "spec_path"],
+      "properties": {
+        "execution_strategy": {
+          "type": "string",
+          "enum": ["controlled", "external_tool"],
+          "description": "Execution strategy used"
+        },
+        "provider": {
+          "type": "string",
+          "description": "LLM provider configured (if any)"
+        },
+        "spec_path": {
+          "type": "string",
+          "description": "Path to the spec directory"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,28 @@
+# Negative Control - Clean Content for Testing
+# This file MUST pass the secret scanner
+
+# Project Configuration
+project_name: xchecker
+version: 0.1.0
+description: A tool for orchestrating spec generation workflows
+
+# Safe Configuration Values
+max_turns: 6
+packet_max_bytes: 65536
+timeout_seconds: 600
+
+# Documentation
+This is a test file with clean content.
+It contains no secrets or sensitive information.
+All values are safe and public.
+
+# Example Code
+def hello_world():
+    print("Hello, World!")
+    return True
+
+# Safe URLs
+homepage: https://github.com/example/xchecker
+documentation: https://docs.example.com
+
+# This file should pass all secret scanning checks

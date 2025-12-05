@@ -1,0 +1,17 @@
+{
+  "spec_id": "42",
+  "phase": "requirements",
+  "timestamp": "2025-10-02T05:05:39.711687400Z",
+  "exit_code": 0,
+  "canonicalization_version": "yaml-v1,md-v1",
+  "output_hashes": [
+    {
+      "path": "artifacts/00-requirements.md",
+      "blake3_canonicalized": "4468a7140f1334587299ab497c03207adfecd8ab3e797a1fa5a09fddf0107209"
+    },
+    {
+      "path": "artifacts/00-requirements.core.yaml",
+      "blake3_canonicalized": "874e997c1feb57d4adb6bc24ec9f9732ec6ba9ebf6c3318e8a015b66aae8e413"
+    }
+  ]
+}

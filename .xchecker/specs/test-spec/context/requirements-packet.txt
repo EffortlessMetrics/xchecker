@@ -1,0 +1,19 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-spec
+Phase: Requirements
+Base Directory: .xchecker\specs\test-spec
+
+=== CONFIGURATION ===
+packet_max_bytes: 65536
+apply_fixups: false
+packet_max_lines: 1200
+logger_enabled: true
+output_format: stream-json
+allowed_tools: file_*
+verbose: true
+max_turns: 6
+disallowed_tools: network_*
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

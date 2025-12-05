@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/your-org/xchecker/schemas/resume-json.v1.json",
+  "title": "xchecker Resume JSON Output",
+  "description": "JSON output format for `xchecker resume --json` command. Provides resume context for Claude Code integration without exposing full packet or raw artifacts. Per FR-Claude Code-CLI (Requirements 4.1.3).",
+  "type": "object",
+  "required": ["schema_version", "spec_id", "phase", "current_inputs", "next_steps"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "resume-json.v1",
+      "description": "Schema version identifier for this format"
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the spec"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+      "description": "Phase to resume from"
+    },
+    "current_inputs": {
+      "type": "object",
+      "description": "Current inputs available for the phase (high-level metadata only, no full contents)",
+      "required": ["spec_exists"],
+      "properties": {
+        "available_artifacts": {
+          "type": "array",
+          "description": "List of available artifact names (not full contents)",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "spec_exists": {
+          "type": "boolean",
+          "description": "Whether the spec directory exists"
+        },
+        "latest_completed_phase": {
+          "type": "string",
+          "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+          "description": "Latest completed phase (if any)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "next_steps": {
+      "type": "string",
+      "description": "Next steps hint for the user/agent"
+    }
+  },
+  "additionalProperties": false
+}

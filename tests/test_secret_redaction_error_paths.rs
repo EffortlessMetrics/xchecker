@@ -1,0 +1,722 @@
+use std::collections::HashMap;
+use xchecker::error::XCheckerError;
+/// Integration tests for secret redaction in error paths (AT-SEC-003)
+///
+/// These tests verify that secrets are redacted in all error-related fields
+/// before they are persisted to receipts:
+/// - error_reason
+/// - stderr_tail
+/// - context lines
+/// - warning messages
+///
+/// This ensures FR-SEC-005 and FR-SEC-006 compliance.
+use xchecker::receipt::ReceiptManager;
+use xchecker::redaction::{redact_user_optional, redact_user_string, redact_user_strings};
+use xchecker::types::{ErrorKind, PacketEvidence, PhaseId};
+
+#[test]
+fn test_at_sec_003_secret_in_error_reason() {
+    // AT-SEC-003: Secret appears in error_reason → receipt text is redacted
+
+    // Create a test spec directory
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-secret-error");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    // Create an error with a secret in the error message
+    let error_with_secret =
+        "Authentication failed with token ghp_1234567890123456789012345678901234567890";
+
+    // Create a receipt with the error
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-secret-error",
+        PhaseId::Requirements,
+        1, // Non-zero exit code for error
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        None,                                // stderr_tail
+        None,                                // stderr_redacted
+        vec![],                              // warnings
+        None,                                // fallback_used
+        "native",                            // runner
+        None,                                // runner_distro
+        Some(ErrorKind::ClaudeFailure),      // error_kind
+        Some(error_with_secret.to_string()), // error_reason
+        None,                                // diff_context,
+        None,                                // pipeline
+    );
+
+    // Verify the error_reason is redacted
+    assert!(receipt.error_reason.is_some());
+    let error_reason = receipt.error_reason.unwrap();
+
+    // Should contain the error message but not the secret
+    assert!(error_reason.contains("Authentication failed"));
+    assert!(error_reason.contains("***"));
+    assert!(!error_reason.contains("ghp_"));
+    assert!(!error_reason.contains("1234567890"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_secret_in_stderr_tail() {
+    // Test that secrets in stderr_tail are redacted before persistence
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-stderr-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    // Create stderr with a secret
+    let stderr_with_secret = "Error: Failed to connect\nToken: ghp_1234567890123456789012345678901234567890\nConnection refused";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-stderr-secret",
+        PhaseId::Design,
+        70, // Claude failure exit code
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        Some(stderr_with_secret.to_string()),  // stderr_redacted
+        None,                                  // stderr_redacted
+        vec![],                                // warnings
+        None,                                  // fallback_used
+        "native",                              // runner
+        None,                                  // runner_distro
+        Some(ErrorKind::ClaudeFailure),        // error_kind
+        Some("Claude CLI failed".to_string()), // error_reason
+        None,                                  // diff_context,
+        None,                                  // pipeline
+    );
+
+    // Verify stderr_tail is redacted
+    assert!(receipt.stderr_tail.is_some());
+    let stderr = receipt.stderr_tail.unwrap();
+
+    assert!(stderr.contains("Error: Failed to connect"));
+    assert!(stderr.contains("***"));
+    assert!(!stderr.contains("ghp_"));
+    assert!(stderr.contains("Connection refused"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_secret_in_warning_messages() {
+    // Test that secrets in warning messages are redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-warning-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    // Create warnings with secrets
+    let warnings_with_secrets = vec![
+        "Warning: Deprecated token ghp_1234567890123456789012345678901234567890 used".to_string(),
+        "Warning: Rate limit exceeded".to_string(),
+        "Warning: AWS key AKIA1234567890123456 is invalid".to_string(),
+    ];
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-warning-secret",
+        PhaseId::Tasks,
+        0,
+        vec![],                       // outputs
+        "0.1.0",                      // xchecker_version
+        "0.8.1",                      // claude_cli_version
+        "claude-3-5-sonnet-20241022", // model_full_name
+        None,                         // model_alias
+        HashMap::new(),               // flags
+        packet,                       // packet
+        None,                         // stderr_tail
+        None,                         // stderr_redacted
+        warnings_with_secrets,        // warnings
+        None,                         // fallback_used
+        "native",                     // runner
+        None,                         // runner_distro
+        None,                         // error_kind
+        None,                         // error_reason
+        None,                         // diff_context,
+        None,                         // pipeline
+    );
+
+    // Verify warnings are redacted
+    assert_eq!(receipt.warnings.len(), 3);
+
+    // First warning should have GitHub token redacted
+    assert!(receipt.warnings[0].contains("Warning: Deprecated token"));
+    assert!(receipt.warnings[0].contains("***"));
+    assert!(!receipt.warnings[0].contains("ghp_"));
+
+    // Second warning has no secrets, should be unchanged
+    assert_eq!(receipt.warnings[1], "Warning: Rate limit exceeded");
+
+    // Third warning should have AWS key redacted
+    assert!(receipt.warnings[2].contains("Warning: AWS key"));
+    assert!(receipt.warnings[2].contains("***"));
+    assert!(!receipt.warnings[2].contains("AKIA"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_multiple_secrets_in_error_reason() {
+    // Test that multiple different secrets in error_reason are all redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-multi-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let error_with_multiple_secrets = "Failed: GitHub token ghp_1234567890123456789012345678901234567890 and AWS key AKIA1234567890123456 both invalid";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-multi-secret",
+        PhaseId::Review,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        None,                                          // stderr_tail
+        None,                                          // stderr_redacted
+        vec![],                                        // warnings
+        None,                                          // fallback_used
+        "native",                                      // runner
+        None,                                          // runner_distro
+        Some(ErrorKind::Unknown),                      // error_kind
+        Some(error_with_multiple_secrets.to_string()), // error_reason
+        None,                                          // diff_context,
+        None,                                          // pipeline
+    );
+
+    let error_reason = receipt.error_reason.unwrap();
+
+    // Both secrets should be redacted
+    assert!(error_reason.contains("Failed:"));
+    assert!(error_reason.contains("***"));
+    assert!(!error_reason.contains("ghp_"));
+    assert!(!error_reason.contains("AKIA"));
+    assert!(error_reason.contains("both invalid"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_secret_in_bearer_token_error() {
+    // Test that Bearer tokens in errors are redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-bearer-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let error_with_bearer = "Authorization failed: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0 was rejected";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-bearer-secret",
+        PhaseId::Requirements,
+        8, // Secret detected exit code
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        None,                                // stderr_tail
+        None,                                // stderr_redacted
+        vec![],                              // warnings
+        None,                                // fallback_used
+        "native",                            // runner
+        None,                                // runner_distro
+        Some(ErrorKind::SecretDetected),     // error_kind
+        Some(error_with_bearer.to_string()), // error_reason
+        None,                                // diff_context,
+        None,                                // pipeline
+    );
+
+    let error_reason = receipt.error_reason.unwrap();
+
+    assert!(error_reason.contains("Authorization failed:"));
+    assert!(error_reason.contains("***"));
+    assert!(!error_reason.contains("Bearer eyJ"));
+    assert!(error_reason.contains("was rejected"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_secret_in_slack_token_warning() {
+    // Test that Slack tokens in warnings are redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-slack-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let warnings = vec!["Slack token xoxb-1234567890-abcdefghijklmnop found in config".to_string()];
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-slack-secret",
+        PhaseId::Design,
+        0,
+        vec![],                       // outputs
+        "0.1.0",                      // xchecker_version
+        "0.8.1",                      // claude_cli_version
+        "claude-3-5-sonnet-20241022", // model_full_name
+        None,                         // model_alias
+        HashMap::new(),               // flags
+        packet,                       // packet
+        None,                         // stderr_tail
+        None,                         // stderr_redacted
+        warnings,                     // warnings
+        None,                         // fallback_used
+        "native",                     // runner
+        None,                         // runner_distro
+        None,                         // error_kind
+        None,                         // error_reason
+        None,                         // diff_context,
+        None,                         // pipeline
+    );
+
+    assert_eq!(receipt.warnings.len(), 1);
+    assert!(receipt.warnings[0].contains("Slack token"));
+    assert!(receipt.warnings[0].contains("***"));
+    assert!(!receipt.warnings[0].contains("xoxb-"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_aws_secret_key_in_stderr() {
+    // Test that AWS_SECRET_ACCESS_KEY in stderr is redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-aws-stderr");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let stderr = "Configuration error\nAWS_SECRET_ACCESS_KEY=my_secret_key_value\nPlease check your environment";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-aws-stderr",
+        PhaseId::Requirements,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        Some(stderr.to_string()),                // stderr_redacted
+        None,                                    // stderr_redacted
+        vec![],                                  // warnings
+        None,                                    // fallback_used
+        "native",                                // runner
+        None,                                    // runner_distro
+        Some(ErrorKind::Unknown),                // error_kind
+        Some("Configuration error".to_string()), // error_reason
+        None,                                    // diff_context,
+        None,                                    // pipeline
+    );
+
+    let stderr_tail = receipt.stderr_tail.unwrap();
+
+    assert!(stderr_tail.contains("Configuration error"));
+    assert!(stderr_tail.contains("***"));
+    assert!(!stderr_tail.contains("AWS_SECRET_ACCESS_KEY="));
+    assert!(stderr_tail.contains("Please check your environment"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_no_secrets_no_redaction() {
+    // Test that text without secrets is not modified
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-no-secret");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let safe_error = "File not found: /path/to/file.txt";
+    let safe_stderr = "Error: Connection timeout\nRetry in 5 seconds";
+    let safe_warnings = vec![
+        "Warning: Deprecated API usage".to_string(),
+        "Warning: Large file detected".to_string(),
+    ];
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-no-secret",
+        PhaseId::Tasks,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        Some(safe_stderr.to_string()), // stderr_redacted
+        None,                          // stderr_redacted
+        safe_warnings.clone(),         // warnings
+        None,                          // fallback_used
+        "native",                      // runner
+        None,                          // runner_distro
+        Some(ErrorKind::Unknown),      // error_kind
+        Some(safe_error.to_string()),  // error_reason
+        None,                          // diff_context,
+        None,                          // pipeline
+    );
+
+    // Text without secrets should be unchanged
+    assert_eq!(receipt.error_reason.unwrap(), safe_error);
+    assert_eq!(receipt.stderr_tail.unwrap(), safe_stderr);
+    assert_eq!(receipt.warnings, safe_warnings);
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_receipt_write_persists_redacted_content() {
+    // Test that when a receipt is written to disk, redacted content is persisted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-persist-redacted");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let error_with_secret = "Failed with token ghp_1234567890123456789012345678901234567890";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-persist-redacted",
+        PhaseId::Requirements,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        None,                                // stderr_tail
+        None,                                // stderr_redacted
+        vec![],                              // warnings
+        None,                                // fallback_used
+        "native",                            // runner
+        None,                                // runner_distro
+        Some(ErrorKind::Unknown),            // error_kind
+        Some(error_with_secret.to_string()), // error_reason
+        None,                                // diff_context,
+        None,                                // pipeline
+    );
+
+    // Write receipt to disk
+    let receipt_path = manager.write_receipt(&receipt).unwrap();
+
+    // Read the file content directly
+    let file_content = std::fs::read_to_string(receipt_path.as_std_path()).unwrap();
+
+    // Verify the file content does not contain the secret
+    assert!(!file_content.contains("ghp_"));
+    assert!(!file_content.contains("1234567890"));
+    assert!(file_content.contains("***"));
+    assert!(file_content.contains("Failed with token"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_error_receipt_creation_with_secrets() {
+    // Test create_error_receipt method with secrets in error
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-error-receipt");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    // Create an error with a secret
+    let error = XCheckerError::SecretDetected {
+        pattern: "github_pat".to_string(),
+        location: "config.yaml:5:10".to_string(),
+    };
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let stderr_with_secret = "Found token: ghp_1234567890123456789012345678901234567890";
+
+    let receipt = manager.create_error_receipt(
+        "test-error-receipt",
+        PhaseId::Requirements,
+        &error,
+        "0.1.0",                              // xchecker_version
+        "0.8.1",                              // claude_cli_version
+        "claude-3-5-sonnet-20241022",         // model_full_name
+        None,                                 // model_alias
+        HashMap::new(),                       // flags
+        packet,                               // packet
+        Some(stderr_with_secret.to_string()), // stderr_tail
+        None,                                 // stderr_redacted
+        vec![],                               // warnings
+        None,                                 // fallback_used
+        "native",                             // runner
+        None,                                 // runner_distro
+        None,                                 // diff_context,
+        None,                                 // pipeline
+    );
+
+    // Verify error_reason is set and redacted (though this error doesn't contain a secret in the message)
+    assert!(receipt.error_reason.is_some());
+    assert_eq!(receipt.exit_code, 8); // Secret detected exit code
+    assert_eq!(receipt.error_kind, Some(ErrorKind::SecretDetected));
+
+    // Verify stderr is redacted
+    assert!(receipt.stderr_tail.is_some());
+    let stderr = receipt.stderr_tail.unwrap();
+    assert!(stderr.contains("***"));
+    assert!(!stderr.contains("ghp_"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_redaction_helper_functions() {
+    // Test the global redaction helper functions
+
+    // Test redact_user_string
+    let text_with_secret = "Error: ghp_1234567890123456789012345678901234567890 invalid";
+    let redacted = redact_user_string(text_with_secret);
+    assert!(redacted.contains("***"));
+    assert!(!redacted.contains("ghp_"));
+
+    // Test redact_user_optional with Some
+    let some_text = Some("Token AKIA1234567890123456 expired".to_string());
+    let redacted_some = redact_user_optional(&some_text);
+    assert!(redacted_some.is_some());
+    assert!(redacted_some.unwrap().contains("***"));
+
+    // Test redact_user_optional with None
+    let none_text: Option<String> = None;
+    let redacted_none = redact_user_optional(&none_text);
+    assert!(redacted_none.is_none());
+
+    // Test redact_user_strings
+    let strings = vec![
+        "Warning: ghp_1234567890123456789012345678901234567890".to_string(),
+        "Safe warning".to_string(),
+    ];
+    let redacted_strings = redact_user_strings(&strings);
+    assert_eq!(redacted_strings.len(), 2);
+    assert!(redacted_strings[0].contains("***"));
+    assert!(!redacted_strings[0].contains("ghp_"));
+    assert_eq!(redacted_strings[1], "Safe warning");
+}
+
+#[test]
+fn test_context_lines_redaction() {
+    // Test that context lines (error context) are redacted
+    // Context lines are typically part of error_reason or warnings
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-context-redact");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    // Simulate context lines with secrets
+    let context_with_secret = "Context: Failed at line 42\nToken used: ghp_1234567890123456789012345678901234567890\nRetry failed";
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-context-redact",
+        PhaseId::Design,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        None,                                  // stderr_tail
+        None,                                  // stderr_redacted
+        vec![],                                // warnings
+        None,                                  // fallback_used
+        "native",                              // runner
+        None,                                  // runner_distro
+        Some(ErrorKind::Unknown),              // error_kind
+        Some(context_with_secret.to_string()), // error_reason
+        None,                                  // diff_context,
+        None,                                  // pipeline
+    );
+
+    let error_reason = receipt.error_reason.unwrap();
+
+    // Context should be redacted
+    assert!(error_reason.contains("Context: Failed at line 42"));
+    assert!(error_reason.contains("***"));
+    assert!(!error_reason.contains("ghp_"));
+    assert!(error_reason.contains("Retry failed"));
+
+    drop(temp_dir);
+}
+
+#[test]
+fn test_all_error_fields_redacted_together() {
+    // Test that when all error fields contain secrets, they are all redacted
+
+    let temp_dir = xchecker::paths::with_isolated_home();
+    let spec_base_path = xchecker::paths::xchecker_home()
+        .join("specs")
+        .join("test-all-fields");
+
+    let manager = ReceiptManager::new(&spec_base_path);
+
+    let error_with_secret = "Error: ghp_1234567890123456789012345678901234567890";
+    let stderr_with_secret = "Stderr: AKIA1234567890123456";
+    let warnings_with_secrets = vec!["Warning: xoxb-test-token-here".to_string()];
+
+    let packet = PacketEvidence {
+        files: vec![],
+        max_bytes: 65536,
+        max_lines: 1200,
+    };
+
+    let receipt = manager.create_receipt(
+        "test-all-fields",
+        PhaseId::Tasks,
+        1,
+        vec![],
+        "0.1.0",
+        "0.8.1",
+        "claude-3-5-sonnet-20241022",
+        None,
+        HashMap::new(),
+        packet,
+        Some(stderr_with_secret.to_string()), // stderr_redacted
+        None,                                 // stderr_redacted
+        warnings_with_secrets,                // warnings
+        None,                                 // fallback_used
+        "native",                             // runner
+        None,                                 // runner_distro
+        Some(ErrorKind::Unknown),             // error_kind
+        Some(error_with_secret.to_string()),  // error_reason
+        None,                                 // diff_context,
+        None,                                 // pipeline
+    );
+
+    // All fields should be redacted
+    let error_reason = receipt.error_reason.unwrap();
+    assert!(error_reason.contains("***"));
+    assert!(!error_reason.contains("ghp_"));
+
+    let stderr = receipt.stderr_tail.unwrap();
+    assert!(stderr.contains("***"));
+    assert!(!stderr.contains("AKIA"));
+
+    assert_eq!(receipt.warnings.len(), 1);
+    assert!(receipt.warnings[0].contains("***"));
+    assert!(!receipt.warnings[0].contains("xoxb-"));
+
+    drop(temp_dir);
+}

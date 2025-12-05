@@ -1,0 +1,83 @@
+[package]
+name = "xchecker"
+version = "1.0.0"
+edition = "2024"
+description = "A CLI tool for orchestrating spec generation workflows using the Claude CLI"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/EffortlessMetrics/xchecker"
+
+[features]
+test-utils = ["dep:strum"]
+# Legacy Claude wrapper module - will be removed in V19+
+legacy_claude = []
+
+[lib]
+name = "xchecker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "xchecker"
+path = "src/main.rs"
+
+[[bin]]
+name = "claude-stub"
+path = "src/bin/claude-stub.rs"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+anyhow = "1.0"
+blake3 = { version = "1.5", features = ["rayon"] }
+tempfile = "3.8"
+camino = "1.1"
+serde_yaml_ng = "0.10"
+toml = "0.9"
+globset = "0.4"
+ignore = "0.4"
+fd-lock = "4.0"
+serde_json = "1.0"
+serde_json_canonicalizer = "0.3"
+regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }
+itertools = "0.14"
+once_cell = "1.19"
+thiserror = "2.0"
+sysinfo = "0.37"
+which = "8.0"
+unicode-normalization = "0.1"
+strum = { version = "0.27", features = ["derive"], optional = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+ratatui = "0.29"
+crossterm = "0.28"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = { version = "0.30", features = ["signal", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["processthreadsapi", "winnt", "handleapi", "psapi", "jobapi2"] }
+dunce = "1.0"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_Security",
+]
+
+[dev-dependencies]
+proptest = "1.4"
+criterion = { version = "0.8", features = ["html_reports"] }
+tokio-test = "0.4"
+serial_test = "3.0"
+jsonschema = "0.37"
+pulldown-cmark = "0.13"
+shell-words = "1.1"
+assert_cmd = "2.0"
+xchecker = { path = ".", features = ["test-utils", "legacy_claude"] }

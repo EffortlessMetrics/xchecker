@@ -1,0 +1,17 @@
+# xchecker configuration
+# See docs/CONFIGURATION.md for all options
+
+[defaults]
+model = "haiku"
+# max_turns = 5
+
+[packet]
+# packet_max_bytes = 65536
+# packet_max_lines = 1200
+
+[runner]
+# runner_mode = "auto"
+
+[llm]
+# provider = "claude-cli"
+# execution_strategy = "controlled"

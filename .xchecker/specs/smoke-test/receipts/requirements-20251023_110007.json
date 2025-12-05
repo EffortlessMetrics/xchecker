@@ -1,0 +1,35 @@
+{
+  "spec_id": "smoke-test",
+  "phase": "requirements",
+  "timestamp": "2025-10-23T11:00:07.607252100Z",
+  "xchecker_version": "0.1.0",
+  "claude_cli_version": "0.8.1",
+  "model_full_name": "claude-3-5-sonnet-20241022",
+  "model_alias": null,
+  "canonicalization_version": "yaml-v1,md-v1",
+  "canonicalization_backend": "jcs-rfc8785",
+  "flags": {
+    "phase": "requirements"
+  },
+  "runner": "native",
+  "runner_distro": null,
+  "packet": {
+    "files": [],
+    "max_bytes": 65536,
+    "max_lines": 1200
+  },
+  "outputs": [
+    {
+      "path": "artifacts/00-requirements.md",
+      "blake3_canonicalized": "1661f814c9efe4560a50d6ddb08f7697014480b42aa7e91775db848ca85a2201"
+    },
+    {
+      "path": "artifacts/00-requirements.core.yaml",
+      "blake3_canonicalized": "cfd91aa13143badf4aff3089f44adf9e4c10ec6195fcd8b04ccc46e1a5e13119"
+    }
+  ],
+  "exit_code": 0,
+  "stderr_tail": null,
+  "warnings": [],
+  "fallback_used": null
+}

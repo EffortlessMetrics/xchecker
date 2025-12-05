@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/your-org/xchecker/schemas/workspace-status-json.v1.json",
+  "title": "xchecker Workspace Status JSON Output",
+  "description": "JSON output format for `xchecker project status --json` command. Provides aggregated status for all specs in a workspace. Per FR-WORKSPACE (Requirements 4.3.4).",
+  "type": "object",
+  "required": ["schema_version", "workspace_name", "workspace_path", "specs", "summary"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "workspace-status-json.v1",
+      "description": "Schema version identifier for this format"
+    },
+    "workspace_name": {
+      "type": "string",
+      "description": "Name of the workspace"
+    },
+    "workspace_path": {
+      "type": "string",
+      "description": "Path to the workspace.yaml file"
+    },
+    "specs": {
+      "type": "array",
+      "description": "Per-spec phase summaries",
+      "items": {
+        "type": "object",
+        "required": ["spec_id", "status", "pending_fixups", "has_errors"],
+        "properties": {
+          "spec_id": {
+            "type": "string",
+            "description": "Unique identifier for the spec"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags associated with the spec"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "failed", "pending", "not_started", "stale"],
+            "description": "Overall spec status"
+          },
+          "latest_phase": {
+            "type": "string",
+            "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+            "description": "Latest completed phase (if any)"
+          },
+          "last_activity": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp of last activity"
+          },
+          "pending_fixups": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of pending fixup targets for this spec"
+          },
+          "has_errors": {
+            "type": "boolean",
+            "description": "Whether this spec has errors"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total_specs", "successful_specs", "failed_specs", "pending_specs", "not_started_specs", "stale_specs"],
+      "properties": {
+        "total_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of specs in the workspace"
+        },
+        "successful_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of specs with successful latest phase"
+        },
+        "failed_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of specs with failed latest phase"
+        },
+        "pending_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of specs with pending work"
+        },
+        "not_started_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of specs that haven't been started"
+        },
+        "stale_specs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of stale specs (no recent activity)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

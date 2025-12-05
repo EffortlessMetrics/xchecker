@@ -1,0 +1,1 @@
+{"checks":[{"details":"Found claude at /usr/local/bin/claude","name":"claude_path","status":"pass"},{"details":"Configuration parsed and validated successfully","name":"config_parse","status":"pass"}],"emitted_at":"2025-01-01T00:00:00Z","ok":true,"schema_version":"1"}

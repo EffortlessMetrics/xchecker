@@ -1,0 +1,13 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-m0-gate
+Phase: Requirements
+Base Directory: .xchecker\specs\test-m0-gate
+
+=== CONFIGURATION ===
+verbose: true
+packet_max_bytes: 65536
+packet_max_lines: 1200
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

@@ -1,0 +1,12 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-execution
+Phase: Requirements
+Base Directory: .xchecker\specs\test-execution
+
+=== AVAILABLE ARTIFACTS ===
+- 00-requirements.core.yaml
+- 00-requirements.md
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

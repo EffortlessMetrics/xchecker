@@ -1,0 +1,15 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-result
+Phase: Requirements
+Base Directory: .xchecker\specs\test-result
+
+=== CONFIGURATION ===
+test_param: test_value
+
+=== AVAILABLE ARTIFACTS ===
+- 00-requirements.core.yaml
+- 00-requirements.md
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

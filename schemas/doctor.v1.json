@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "xchecker Doctor Output Schema v1",
+  "description": "Schema for xchecker doctor command health check output",
+  "type": "object",
+  "required": ["schema_version", "emitted_at", "ok", "checks"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version for this doctor output format"
+    },
+    "emitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp when the doctor output was emitted"
+    },
+    "ok": {
+      "type": "boolean",
+      "description": "Overall health status (true if all checks pass or warn, false if any fail)"
+    },
+    "checks": {
+      "type": "array",
+      "description": "Health checks performed (sorted by name)",
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "details"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the check"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "warn", "fail"],
+            "description": "Status of the check"
+          },
+          "details": {
+            "type": "string",
+            "description": "Details about the check result"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: 42
+Phase: Requirements
+Base Directory: .xchecker\specs\42
+
+=== CONFIGURATION ===
+packet_max_bytes: 65536
+packet_max_lines: 1200
+verbose: true
+
+=== AVAILABLE ARTIFACTS ===
+- 00-requirements.core.yaml
+- 00-requirements.md
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

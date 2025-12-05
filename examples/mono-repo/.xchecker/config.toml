@@ -1,0 +1,48 @@
+# xchecker configuration for Mono-Repo Example
+# Shared configuration for all specs in the workspace
+# See docs/CONFIGURATION.md for all options
+
+[defaults]
+model = "haiku"
+max_turns = 6
+
+[packet]
+packet_max_bytes = 65536
+packet_max_lines = 1200
+
+[selectors]
+# Include patterns for multi-language mono-repo
+include = [
+    # Rust
+    "src/**/*.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    # Python
+    "src/**/*.py",
+    "pyproject.toml",
+    "requirements*.txt",
+    # Common
+    "*.yaml",
+    "*.yml",
+    "*.md",
+    "*.json"
+]
+exclude = [
+    # Rust
+    "target/**",
+    # Python
+    "__pycache__/**",
+    ".venv/**",
+    "*.pyc",
+    # Common
+    "node_modules/**",
+    ".git/**",
+    "*.log"
+]
+
+[runner]
+runner_mode = "auto"
+
+[llm]
+provider = "claude-cli"
+execution_strategy = "controlled"

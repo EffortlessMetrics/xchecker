@@ -1,0 +1,32 @@
+{
+  "spec_id": "test-result",
+  "phase": "requirements",
+  "timestamp": "2025-10-03T04:01:48.547406600Z",
+  "xchecker_version": "0.1.0",
+  "claude_cli_version": "0.8.1",
+  "model_full_name": "claude-3-5-sonnet-20241022",
+  "model_alias": null,
+  "canonicalization_version": "yaml-v1,md-v1",
+  "flags": {
+    "phase": "requirements"
+  },
+  "packet": {
+    "files": [],
+    "max_bytes": 65536,
+    "max_lines": 1200
+  },
+  "outputs": [
+    {
+      "path": "artifacts/00-requirements.md",
+      "blake3_canonicalized": "d7a7d971a135004c7f041b7a6019b1ae4ebaff2ef5bdfee21d91971623cfbd82"
+    },
+    {
+      "path": "artifacts/00-requirements.core.yaml",
+      "blake3_canonicalized": "ce514a7bd3ee33bbfce5511d040886170268a0f89b431fa03c331a2d3cabbc85"
+    }
+  ],
+  "exit_code": 0,
+  "stderr_tail": null,
+  "warnings": [],
+  "fallback_used": null
+}

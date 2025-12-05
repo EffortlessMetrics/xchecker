@@ -1,0 +1,32 @@
+# Test configuration for real LLM tests using Haiku
+# This config forces the cheapest model for integration testing
+#
+# Usage:
+#   XCHECKER_CONFIG=tests/config-haiku.toml cargo test --test test_end_to_end_workflows -- --ignored
+#
+# Or on Windows PowerShell:
+#   $env:XCHECKER_CONFIG = "tests/config-haiku.toml"
+#   cargo test --test test_end_to_end_workflows -- --ignored
+
+[defaults]
+# Force Haiku model for all LLM calls - cheapest option
+model = "haiku"
+
+# Reduce timeouts for faster test feedback
+phase_timeout = 60
+
+[llm]
+# Use Claude CLI provider (default)
+provider = "claude-cli"
+
+# Controlled execution strategy (recommended for tests)
+execution_strategy = "controlled"
+
+[packet]
+# Standard packet limits
+packet_max_bytes = 65536
+packet_max_lines = 1200
+
+[runner]
+# Auto-detect runner mode
+runner_mode = "auto"

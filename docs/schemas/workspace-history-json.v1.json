@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/your-org/xchecker/schemas/workspace-history-json.v1.json",
+  "title": "xchecker Workspace History JSON Output",
+  "description": "JSON output format for `xchecker project history <spec-id> --json` command. Provides timeline of phase progression, timestamps, and selected metrics. Per FR-WORKSPACE (Requirements 4.3.5).",
+  "type": "object",
+  "required": ["schema_version", "spec_id", "timeline", "metrics"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "workspace-history-json.v1",
+      "description": "Schema version identifier for this format"
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Unique identifier for the spec"
+    },
+    "timeline": {
+      "type": "array",
+      "description": "Timeline of phase executions, ordered by timestamp",
+      "items": {
+        "type": "object",
+        "required": ["phase", "timestamp", "exit_code", "success"],
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": ["requirements", "design", "tasks", "review", "fixup", "final"],
+            "description": "Phase that was executed"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp of execution"
+          },
+          "exit_code": {
+            "type": "integer",
+            "description": "Exit code of the execution (0 = success)"
+          },
+          "success": {
+            "type": "boolean",
+            "description": "Whether the execution was successful"
+          },
+          "tokens_input": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "LLM token usage for this execution (input tokens)"
+          },
+          "tokens_output": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "LLM token usage for this execution (output tokens)"
+          },
+          "fixup_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of fixups applied in this execution (if applicable)"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model used for this execution"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider used for this execution"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["total_executions", "successful_executions", "failed_executions", "total_tokens_input", "total_tokens_output", "total_fixups"],
+      "properties": {
+        "total_executions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of phase executions"
+        },
+        "successful_executions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of successful executions"
+        },
+        "failed_executions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of failed executions"
+        },
+        "total_tokens_input": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total LLM tokens consumed (input)"
+        },
+        "total_tokens_output": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total LLM tokens consumed (output)"
+        },
+        "total_fixups": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total fixups applied across all executions"
+        },
+        "first_execution": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp of first execution"
+        },
+        "last_execution": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC3339 UTC timestamp of last execution"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

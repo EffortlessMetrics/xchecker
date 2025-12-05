@@ -1,0 +1,37 @@
+# xchecker configuration for Full-Stack Next.js Example
+# See docs/CONFIGURATION.md for all options
+
+[defaults]
+model = "haiku"
+max_turns = 6
+
+[packet]
+packet_max_bytes = 65536
+packet_max_lines = 1200
+
+[selectors]
+include = [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "prisma/**/*.prisma",
+    "*.json",
+    "*.md"
+]
+exclude = [
+    "node_modules/**",
+    ".next/**",
+    "dist/**",
+    "coverage/**",
+    "*.log"
+]
+
+[runner]
+runner_mode = "auto"
+
+[llm]
+provider = "claude-cli"
+execution_strategy = "controlled"

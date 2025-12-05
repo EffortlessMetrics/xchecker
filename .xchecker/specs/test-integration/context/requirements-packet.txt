@@ -1,0 +1,21 @@
+=== SPEC GENERATION CONTEXT ===
+Spec ID: test-integration
+Phase: Requirements
+Base Directory: .xchecker\specs\test-integration
+
+=== CONFIGURATION ===
+apply_fixups: false
+packet_max_lines: 1200
+packet_max_bytes: 65536
+max_turns: 6
+verbose: true
+output_format: stream-json
+logger_enabled: true
+
+=== AVAILABLE ARTIFACTS ===
+- 00-requirements.core.yaml
+- 00-requirements.md
+
+=== PROBLEM STATEMENT ===
+(Problem statement would be provided via source resolution)
+

@@ -1,0 +1,25 @@
+# Core requirements data for spec smoke-test
+# This file contains structured data extracted from the requirements document
+
+spec_id: "smoke-test"
+phase: "requirements"
+version: "1.0"
+
+# Metadata about the requirements
+metadata:
+  total_requirements: 0  # Would be parsed from markdown
+  total_user_stories: 0  # Would be parsed from markdown
+  total_acceptance_criteria: 0  # Would be parsed from markdown
+  has_nfrs: false  # Would be detected from markdown
+
+# Structured requirements data (would be extracted from markdown)
+requirements: []
+
+# Non-functional requirements (would be extracted from markdown)  
+nfrs: []
+
+# Dependencies and relationships
+dependencies: []
+
+# Generated timestamp
+generated_at: "2025-10-23T11:00:07.603420400+00:00"
