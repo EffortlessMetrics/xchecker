@@ -1022,6 +1022,7 @@ macro_rules! time_operation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support;
     use std::thread;
 
     #[test]
@@ -1237,11 +1238,12 @@ mod tests {
     #[test]
     fn test_redact_github_token_in_log() {
         let logger = Logger::new(false);
-        let message = "Using token ghp_1234567890123456789012345678901234567890 for auth";
-        let redacted = logger.redact(message);
+        let token = test_support::github_pat();
+        let message = format!("Using token {} for auth", token);
+        let redacted = logger.redact(&message);
 
         // Should not contain the actual token
-        assert!(!redacted.contains("ghp_1234567890123456789012345678901234567890"));
+        assert!(!redacted.contains(&token));
         // Should contain redaction marker
         assert!(redacted.contains("[REDACTED:github_pat]"));
     }
@@ -1249,37 +1251,40 @@ mod tests {
     #[test]
     fn test_redact_aws_key_in_log() {
         let logger = Logger::new(false);
-        let message = "AWS key: AKIA1234567890123456";
-        let redacted = logger.redact(message);
+        let aws_key = test_support::aws_access_key_id();
+        let message = format!("AWS key: {}", aws_key);
+        let redacted = logger.redact(&message);
 
-        assert!(!redacted.contains("AKIA1234567890123456"));
+        assert!(!redacted.contains(&aws_key));
         assert!(redacted.contains("[REDACTED:aws_access_key]"));
     }
 
     #[test]
     fn test_redact_bearer_token_in_log() {
         let logger = Logger::new(false);
-        let message = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
-        let redacted = logger.redact(message);
+        let token = test_support::bearer_token();
+        let message = format!("Authorization: {}", token);
+        let redacted = logger.redact(&message);
 
-        assert!(!redacted.contains("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"));
+        assert!(!redacted.contains(&token));
         assert!(redacted.contains("[REDACTED:bearer_token]"));
     }
 
     #[test]
     fn test_sanitize_environment_variables() {
         let logger = Logger::new(false);
+        let aws_secret = test_support::aws_secret_access_key();
 
         // Test various environment variable patterns
         let test_cases = vec![
-            "API_KEY=secret123",
-            "SECRET_TOKEN=abc",
-            "PASSWORD=mypass",
-            "AWS_SECRET_ACCESS_KEY=secret",
+            "API_KEY=secret123".to_string(),
+            "SECRET_TOKEN=abc".to_string(),
+            "PASSWORD=mypass".to_string(),
+            aws_secret,
         ];
 
         for test_case in test_cases {
-            let sanitized = logger.sanitize(test_case);
+            let sanitized = logger.sanitize(&test_case);
             // Should be redacted as environment variable
             assert_eq!(sanitized, "[ENV_VAR_REDACTED]");
         }
@@ -1298,57 +1303,64 @@ mod tests {
     #[test]
     fn test_verbose_logging_redacts_secrets() {
         let logger = Logger::new(true);
+        let token = test_support::github_pat();
 
         // This should not panic and should redact the secret
         // We can't easily test the output, but we can verify it doesn't crash
-        logger.verbose("Token: ghp_1234567890123456789012345678901234567890");
+        logger.verbose(&format!("Token: {}", token));
     }
 
     #[test]
     fn test_info_logging_redacts_secrets() {
         let logger = Logger::new(false);
+        let aws_key = test_support::aws_access_key_id();
 
         // Should redact secrets in info logs
-        logger.info("Using AWS key AKIA1234567890123456");
+        logger.info(&format!("Using AWS key {}", aws_key));
     }
 
     #[test]
     fn test_warn_logging_redacts_secrets() {
         let logger = Logger::new(false);
+        let token = test_support::github_pat();
 
         // Should redact secrets in warning logs
-        logger.warn("Warning: exposed token ghp_1234567890123456789012345678901234567890");
+        logger.warn(&format!("Warning: exposed token {}", token));
     }
 
     #[test]
     fn test_error_logging_redacts_secrets() {
         let logger = Logger::new(false);
+        let token = test_support::bearer_token();
 
         // Should redact secrets in error logs
-        logger.error("Error: failed with Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+        logger.error(&format!("Error: failed with {}", token));
     }
 
     #[test]
     fn test_multiple_secrets_in_message() {
         let logger = Logger::new(false);
+        let github_token = test_support::github_pat();
+        let aws_key = test_support::aws_access_key_id();
         // Test with secrets on separate lines to avoid the multi-secret-per-line bug in redaction.rs
-        let message = "GitHub token ghp_1234567890123456789012345678901234567890\nAWS key AKIA1234567890123456";
-        let redacted = logger.redact(message);
+        let message = format!("GitHub token {}\nAWS key {}", github_token, aws_key);
+        let redacted = logger.redact(&message);
 
         // Both secrets should be redacted when on separate lines
-        assert!(!redacted.contains("ghp_1234567890123456789012345678901234567890"));
-        assert!(!redacted.contains("AKIA1234567890123456"));
+        assert!(!redacted.contains(&github_token));
+        assert!(!redacted.contains(&aws_key));
         assert!(redacted.contains("[REDACTED:github_pat]"));
         assert!(redacted.contains("[REDACTED:aws_access_key]"));
     }
 
     #[test]
     fn test_log_phase_error_redacts_secrets() {
+        let token = test_support::github_pat();
         // Test the standalone function
         log_phase_error(
             "test-spec",
             "requirements",
-            "Failed with token ghp_1234567890123456789012345678901234567890",
+            &format!("Failed with token {}", token),
             1000,
         );
 
@@ -1362,9 +1374,10 @@ mod tests {
         logger.set_spec_id("test-spec".to_string());
         logger.set_phase("requirements".to_string());
         logger.set_runner_mode("native".to_string());
+        let token = test_support::github_pat();
 
         // Should redact even with context set
-        logger.error("Error with secret: ghp_1234567890123456789012345678901234567890");
+        logger.error(&format!("Error with secret: {}", token));
     }
 
     #[test]
@@ -1406,23 +1419,22 @@ mod tests {
     #[test]
     fn test_sanitize_slack_token() {
         let logger = Logger::new(false);
-        let message = "Slack webhook: xoxb-1234567890-abcdefghijklmnop";
-        let sanitized = logger.sanitize(message);
+        let token = test_support::slack_bot_token();
+        let message = format!("Slack webhook: {}", token);
+        let sanitized = logger.sanitize(&message);
 
         // Should redact Slack token
-        assert!(!sanitized.contains("xoxb-1234567890-abcdefghijklmnop"));
+        assert!(!sanitized.contains(&token));
         assert!(sanitized.contains("[REDACTED:slack_token]"));
     }
 
     #[test]
     fn test_verbose_fmt_redacts_secrets() {
         let logger = Logger::new(true);
+        let token = test_support::github_pat();
 
         // Test formatted logging with secrets
-        logger.verbose_fmt(format_args!(
-            "Token: {}",
-            "ghp_1234567890123456789012345678901234567890"
-        ));
+        logger.verbose_fmt(format_args!("Token: {}", token));
 
         // Should not panic and should redact
     }

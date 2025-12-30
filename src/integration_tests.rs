@@ -4,7 +4,7 @@
 //! are properly integrated and working as expected.
 
 use anyhow::{Context, Result};
-use std::process::Command;
+use crate::runner::CommandSpec;
 use tempfile::TempDir;
 
 /// Run basic smoke tests to validate integration
@@ -32,8 +32,9 @@ pub fn run_smoke_tests() -> Result<()> {
 
 /// Test that CLI help works correctly
 fn test_cli_help() -> Result<()> {
-    let output = Command::new("cargo")
+    let output = CommandSpec::new("cargo")
         .args(["run", "--bin", "xchecker", "--", "--help"])
+        .to_command()
         .output()?;
 
     if !output.status.success() {
@@ -51,8 +52,9 @@ fn test_cli_help() -> Result<()> {
 
 /// Test that version information works
 fn test_version_info() -> Result<()> {
-    let output = Command::new("cargo")
+    let output = CommandSpec::new("cargo")
         .args(["run", "--bin", "xchecker", "--", "--version"])
+        .to_command()
         .output()?;
 
     if !output.status.success() {
@@ -72,16 +74,17 @@ fn test_version_info() -> Result<()> {
 fn test_dry_run_execution() -> Result<()> {
     let _temp_dir = TempDir::new()?;
 
-    let mut cmd = Command::new("cargo");
-    cmd.args([
-        "run",
-        "--bin",
-        "xchecker",
-        "--",
-        "spec",
-        "smoke-test",
-        "--dry-run",
-    ]);
+    let mut cmd = CommandSpec::new("cargo")
+        .args([
+            "run",
+            "--bin",
+            "xchecker",
+            "--",
+            "spec",
+            "smoke-test",
+            "--dry-run",
+        ])
+        .to_command();
 
     // Provide test input via stdin
     let mut child = cmd
@@ -113,7 +116,7 @@ fn test_dry_run_execution() -> Result<()> {
 
 /// Test that status command works
 fn test_status_command() -> Result<()> {
-    let output = Command::new("cargo")
+    let output = CommandSpec::new("cargo")
         .args([
             "run",
             "--bin",
@@ -122,6 +125,7 @@ fn test_status_command() -> Result<()> {
             "status",
             "nonexistent-spec",
         ])
+        .to_command()
         .output()?;
 
     if !output.status.success() {
@@ -140,7 +144,7 @@ fn test_status_command() -> Result<()> {
 /// Test that benchmark command works
 fn test_benchmark_command() -> Result<()> {
     // Test 1: Basic benchmark command
-    let output = Command::new("cargo")
+    let output = CommandSpec::new("cargo")
         .args([
             "run",
             "--bin",
@@ -152,6 +156,7 @@ fn test_benchmark_command() -> Result<()> {
             "--iterations",
             "2",
         ])
+        .to_command()
         .output()?;
 
     if !output.status.success() {
@@ -165,7 +170,7 @@ fn test_benchmark_command() -> Result<()> {
     }
 
     // Test 2: JSON output format
-    let json_output = Command::new("cargo")
+    let json_output = CommandSpec::new("cargo")
         .args([
             "run",
             "--bin",
@@ -178,6 +183,7 @@ fn test_benchmark_command() -> Result<()> {
             "2",
             "--json",
         ])
+        .to_command()
         .output()?;
 
     if !json_output.status.success() {
@@ -203,7 +209,7 @@ fn test_benchmark_command() -> Result<()> {
     }
 
     // Test 3: Threshold overrides
-    let threshold_output = Command::new("cargo")
+    let threshold_output = CommandSpec::new("cargo")
         .args([
             "run",
             "--bin",
@@ -220,6 +226,7 @@ fn test_benchmark_command() -> Result<()> {
             "500.0",
             "--json",
         ])
+        .to_command()
         .output()?;
 
     if !threshold_output.status.success() {

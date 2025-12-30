@@ -4,7 +4,7 @@
 //! and validating Claude CLI availability within WSL environments.
 
 use crate::error::RunnerError;
-use std::process::Command;
+use crate::runner::CommandSpec;
 
 /// Check if WSL is available on the system
 ///
@@ -32,8 +32,8 @@ pub fn is_wsl_available() -> Result<bool, RunnerError> {
         return Ok(false);
     }
 
-    // Try to execute `wsl.exe -l -q` to list distributions
-    match Command::new("wsl").args(["-l", "-q"]).output() {
+    // Try to execute `wsl.exe -l -q` to list distributions using CommandSpec
+    match CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output() {
         Ok(output) => {
             if !output.status.success() {
                 return Ok(false);
@@ -126,19 +126,19 @@ pub fn validate_claude_in_wsl(distro: Option<&str>) -> Result<bool, RunnerError>
         return Ok(false);
     }
 
-    // Build the command: wsl.exe [-d <distro>] -- which claude
-    let mut cmd = Command::new("wsl");
+    // Build the command: wsl.exe [-d <distro>] -- which claude using CommandSpec
+    let mut cmd = CommandSpec::new("wsl");
 
     // Add distro specification if provided
     if let Some(distro_name) = distro {
-        cmd.args(["-d", distro_name]);
+        cmd = cmd.args(["-d", distro_name]);
     }
 
     // Add the command to check for Claude
-    cmd.args(["--", "which", "claude"]);
+    cmd = cmd.args(["--", "which", "claude"]);
 
     // Execute the command
-    match cmd.output() {
+    match cmd.to_command().output() {
         Ok(output) => {
             // If the command succeeds and returns a path, Claude is available
             if output.status.success() {
@@ -224,9 +224,10 @@ pub fn translate_win_to_wsl(windows_path: &std::path::Path) -> Result<String, Ru
 /// * `Err(RunnerError)` - wslpath command failed or is not available
 #[allow(dead_code)] // Future-facing: used for WSL path translation when needed
 fn try_wslpath(windows_path: &str) -> Result<String, RunnerError> {
-    // Execute wsl.exe wslpath -a <path>
-    let output = Command::new("wsl")
+    // Execute wsl.exe wslpath -a <path> using CommandSpec for secure argv-style execution
+    let output = CommandSpec::new("wsl")
         .args(["wslpath", "-a", windows_path])
+        .to_command()
         .output()
         .map_err(|e| RunnerError::WslExecutionFailed {
             reason: format!("Failed to execute wslpath: {e}"),
@@ -454,7 +455,7 @@ fn translate_path_env_var(path_value: &str) -> String {
 fn normalize_wsl_output(raw: &[u8]) -> String {
     // Check if this looks like UTF-16LE (every other byte is 0x00 for ASCII)
     let looks_like_utf16le = raw.len() >= 4
-        && raw.len() % 2 == 0
+        && raw.len().is_multiple_of(2)
         && raw
             .iter()
             .skip(1)
@@ -483,6 +484,7 @@ fn normalize_wsl_output(raw: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // use std::process::Command;
 
     #[test]
     fn test_is_wsl_available_on_non_windows() {
@@ -607,7 +609,7 @@ mod tests {
         // If WSL is available, we should get at least one distro
         if matches!(result, Ok(true)) {
             // Try to get the distro list
-            let output = Command::new("wsl").args(["-l", "-q"]).output();
+            let output = CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output();
             if let Ok(output) = output {
                 let distros = parse_distro_list(&output.stdout);
                 assert!(distros.is_ok());
@@ -621,7 +623,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_parse_distro_list_integration() {
         // Try to get actual WSL distro list
-        if let Ok(output) = Command::new("wsl").args(["-l", "-q"]).output()
+        if let Ok(output) = CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output()
             && output.status.success()
         {
             let distros = parse_distro_list(&output.stdout);
@@ -680,7 +682,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_validate_claude_in_wsl_specific_distro_integration() {
         // First, check if WSL is available and get distro list
-        if let Ok(output) = Command::new("wsl").args(["-l", "-q"]).output()
+        if let Ok(output) = CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output()
             && output.status.success()
             && let Ok(distros) = parse_distro_list(&output.stdout)
             && !distros.is_empty()
@@ -750,7 +752,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_validate_claude_in_wsl_multiple_distros() {
         // Test Claude validation across all available distros
-        if let Ok(output) = Command::new("wsl").args(["-l", "-q"]).output()
+        if let Ok(output) = CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output()
             && output.status.success()
             && let Ok(distros) = parse_distro_list(&output.stdout)
         {

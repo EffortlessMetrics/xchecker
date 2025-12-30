@@ -20,15 +20,95 @@ The SecretRedactor component detects and blocks secrets before they reach Claude
 
 ### Default Secret Patterns
 
-xchecker detects the following secret patterns by default:
+<!-- BEGIN GENERATED:DEFAULT_SECRET_PATTERNS -->
+xchecker includes **39 default secret patterns** across 7 categories.
 
-| Pattern | Description | Example |
-|---------|-------------|---------|
-| `ghp_[A-Za-z0-9]{36}` | GitHub Personal Access Token | `ghp_1234567890abcdefghijklmnopqrstuvwxyz` |
-| `AKIA[0-9A-Z]{16}` | AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY=` | AWS Secret Access Key | `AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `xox[baprs]-` | Slack tokens | `xoxb-1234567890-1234567890-abcdefghijklmnopqrstuvwx` |
-| `Bearer [A-Za-z0-9._-]{20,}` | Bearer tokens | `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+#### AWS Credentials (5 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `aws_access_key` | `AKIA[0-9A-Z]{16}` | AWS access key IDs |
+| `aws_secret_key` | `AWS_SECRET_ACCESS_KEY[=:][A-Za-z0-9/+=]{40}` | Secret access key assignments |
+| `aws_secret_key_value` | `(?i)(?:aws_secret\|secret_access_key)[=:][A-Za-z0-9/+=]{40}` | Standalone secret key values |
+| `aws_session_token` | `(?i)AWS_SESSION_TOKEN[=:][A-Za-z0-9/+=]{100,}` | Session token assignments |
+| `aws_session_token_value` | `(?i)(?:session_token\|security_token)[=:][A-Za-z0-9/+=]{100,}` | Session token values |
+
+#### Azure Credentials (4 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `azure_client_secret` | `(?i)(?:AZURE_CLIENT_SECRET\|client_secret)[=:][A-Za-z0-9~._-]{34,}` | Client secrets |
+| `azure_connection_string` | `DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9/+=]{86,90}` | Full connection strings |
+| `azure_sas_token` | `[?&]sig=[A-Za-z0-9%/+=]{40,}` | Shared Access Signature tokens |
+| `azure_storage_key` | `(?i)(?:AccountKey\|storage_key)[=:][A-Za-z0-9/+=]{86,90}` | Storage account keys |
+
+#### Database Connection URLs (5 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `mongodb_url` | `mongodb(\+srv)?://[^:]+:[^@]+@[^\s]+` | MongoDB URLs with credentials |
+| `mysql_url` | `mysql://[^:]+:[^@]+@[^\s]+` | MySQL URLs with credentials |
+| `postgres_url` | `postgres(?:ql)?://[^:]+:[^@]+@[^\s]+` | PostgreSQL URLs with credentials |
+| `redis_url` | `rediss?://[^:]*:[^@]+@[^\s]+` | Redis URLs with credentials |
+| `sqlserver_url` | `(?:sqlserver\|mssql)://[^:]+:[^@]+@[^\s]+` | SQL Server URLs with credentials |
+
+#### GCP Credentials (3 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `gcp_api_key` | `AIza[0-9A-Za-z_-]{35}` | Google API keys |
+| `gcp_oauth_client_secret` | `(?i)client_secret[=:][A-Za-z0-9_-]{24,}` | OAuth client secrets |
+| `gcp_service_account_key` | `-----BEGIN (RSA )?PRIVATE KEY-----` | Service account private key markers |
+
+#### Generic API Tokens (5 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `api_key_header` | `(?i)(?:x-api-key\|api-key\|apikey)[=:][A-Za-z0-9_-]{20,}` | API key headers |
+| `authorization_basic` | `Basic [A-Za-z0-9+/=]{20,}` | Basic auth credentials |
+| `bearer_token` | `Bearer [A-Za-z0-9._-]{20,}` | Bearer authentication tokens |
+| `jwt_token` | `eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*` | JSON Web Tokens |
+| `oauth_token` | `(?i)(?:access_token\|refresh_token)[=:][A-Za-z0-9._-]{20,}` | OAuth tokens |
+
+#### Platform-Specific Tokens (12 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `docker_auth` | `"auth":\s*"[A-Za-z0-9+/=]{20,}"` | Docker registry auth tokens |
+| `github_app_token` | `gh[us]_[A-Za-z0-9]{36}` | GitHub App tokens |
+| `github_oauth` | `gho_[A-Za-z0-9]{36}` | GitHub OAuth tokens |
+| `github_pat` | `ghp_[A-Za-z0-9]{36}` | GitHub personal access tokens |
+| `gitlab_token` | `glpat-[A-Za-z0-9_-]{20,}` | GitLab personal/project tokens |
+| `npm_token` | `npm_[A-Za-z0-9]{36}` | NPM authentication tokens |
+| `nuget_key` | `(?i)nuget_?(?:api_?)?key[=:][A-Za-z0-9]{46}` | NuGet API keys |
+| `pypi_token` | `pypi-[A-Za-z0-9_-]{50,}` | PyPI API tokens |
+| `sendgrid_key` | `SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}` | SendGrid API keys |
+| `slack_token` | `xox[baprs]-[A-Za-z0-9-]+` | Slack bot/user tokens |
+| `stripe_key` | `sk_(?:live\|test)_[A-Za-z0-9]{24,}` | Stripe API keys |
+| `twilio_key` | `SK[A-Za-z0-9]{32}` | Twilio API keys |
+
+#### SSH and PEM Private Keys (5 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `ec_private_key` | `-----BEGIN EC PRIVATE KEY-----` | EC private key markers |
+| `openssh_private_key` | `-----BEGIN OPENSSH PRIVATE KEY-----` | OpenSSH format markers |
+| `pem_private_key` | `-----BEGIN PRIVATE KEY-----` | Generic PEM private key markers |
+| `rsa_private_key` | `-----BEGIN RSA PRIVATE KEY-----` | RSA private key markers |
+| `ssh_private_key` | `-----BEGIN (?:OPENSSH \|DSA \|EC \|RSA )?PRIVATE KEY-----` | SSH private key markers |
+<!-- END GENERATED:DEFAULT_SECRET_PATTERNS -->
+
+### Redaction Examples
+
+The following table demonstrates how xchecker detects and redacts various secret types. Note that the actual redaction replaces the secret with `***` or `[REDACTED:<pattern_id>]` depending on the context.
+
+| Category | Secret Example (Simulated) | Redacted Output |
+|----------|----------------------------|-----------------|
+| AWS Credentials | `AKIAIOSFODNN7EXAMPLE` | `***` |
+| Generic API Tokens | `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` | `Bearer ***` |
+| Database URLs | `postgres://user:password@localhost:5432/db` | `postgres://user:***@localhost:5432/db` |
+| GitHub Tokens | `ghp_1234567890abcdef1234567890abcdef1234` | `***` |
+| Private Keys | `-----BEGIN RSA PRIVATE KEY-----` | `***` |
 
 ### Secret Detection Flow
 
@@ -164,7 +244,7 @@ xchecker spec my-feature --debug-packet
 
 ### Path Security Model
 
-xchecker validates all file paths to prevent path traversal and unauthorized access:
+xchecker validates file paths to prevent path traversal and restrict access to the workspace:
 
 1. **Canonicalization**: All paths are canonicalized to absolute paths
 2. **Root Boundary**: Paths must be under the allowed root directory
@@ -174,6 +254,8 @@ xchecker validates all file paths to prevent path traversal and unauthorized acc
 6. **Hardlink Detection**: Hardlinks are rejected by default
 
 ### Path Validation Rules
+
+The `SandboxRoot` struct in `src/paths.rs` enforces strict path validation rules to ensure all file operations remain within the workspace boundary.
 
 ```rust
 // Valid paths (under project root)
@@ -187,6 +269,14 @@ xchecker validates all file paths to prevent path traversal and unauthorized acc
 ❌ /tmp/symlink (symlink, unless --allow-links)
 ❌ /tmp/hardlink (hardlink, unless --allow-links)
 ```
+
+### Implementation Details
+
+- **Canonicalization**: `SandboxRoot::new()` canonicalizes the root path, resolving all symlinks.
+- **Join Validation**: `SandboxRoot::join()` validates every path component.
+- **Symlink Checks**: If `allow_symlinks` is false (default), every component of the path is checked to ensure it's not a symlink.
+- **Hardlink Checks**: If `allow_hardlinks` is false (default), file link counts are checked (Unix only).
+- **Error Types**: Specific errors like `ParentTraversal`, `AbsolutePath`, and `EscapeAttempt` are returned for different violation types.
 
 ### Symlinks and Hardlinks
 
@@ -226,7 +316,7 @@ When applying fixups, xchecker validates all target paths:
 
 ## File System Security
 
-### Sandboxing
+### Sandboxing and Atomic Writes
 
 xchecker restricts file operations to the project tree by default:
 
@@ -234,35 +324,61 @@ xchecker restricts file operations to the project tree by default:
 - Read files under project root
 - Write artifacts to `.xchecker/specs/<spec-id>/`
 - Write receipts to `.xchecker/specs/<spec-id>/receipts/`
-- Write context to `.xchecker/specs/<spec-id>/context/`
+- Write context to `.xchecker/specs/<spec-id>/context/`, implemented in `src/atomic_write.rs`:
 
-**Restricted:**
-- Read files outside project root (requires explicit opt-in)
-- Write files outside `.xchecker/` directory
-- Follow symlinks (requires --allow-links)
-- Access system directories
-
-### Atomic File Operations
-
-All file writes use atomic operations to prevent corruption:
-
-1. **Write to Temp**: Write to `.tmp` file first
-2. **Fsync**: Flush to disk
-3. **Atomic Rename**: Rename to final name (same filesystem)
-4. **Fallback**: Copy+fsync+replace for cross-filesystem
+**Atomic Write Guarantees:**
+1. **Write to Temp**: Write to a `NamedTempFile` in the same directory (`.tmp` extension).
+2. **Fsync**: Call `sync_all()` to flush data to physical disk.
+3. **Atomic Rename**: Use `persist()` to atomically rename the temp file to the target.
+4. **Fallback**: If cross-filesystem error (EXDEV) occurs, fallback to copy+fsync+replace.
 
 **Security Benefits:**
-- No partial writes on crash
-- No race conditions
-- No corruption from concurrent access
+- Prevents partial writes on crash
+- Mitigates race conditions
+- Prevents corruption from concurrent access
 
 ### Windows-Specific Security
 
 On Windows, xchecker implements additional security measures:
 
-1. **Job Objects**: Process tree termination on timeout
-2. **Retry Logic**: Handle antivirus/indexer locks (≤250ms)
-3. **Attribute Preservation**: Maintain file attributes on replace
+1. **Job Objects**: Process tree termination on timeout using `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.
+2. **Retry Logic**: `atomic_rename` implements exponential backoff (up to 5 retries, max 250ms) to handle transient locks from antivirus or indexers.
+3. **Attribute Preservation**: Maintain file attributes on replace.
+
+## Process Execution Security
+
+### Runner Security Model
+
+xchecker executes external commands (e.g., `cargo`, `npm`) using a secure runner architecture designed to prevent command injection and shell exploits:
+
+1. **Pure Argv Execution**: Commands are constructed as a list of arguments (`Vec<OsString>`), never as a single shell string.
+2. **No Shell Invocation**: `sh -c`, `cmd /C`, or `PowerShell` are never implicitly invoked.
+3. **Argument Isolation**: Each argument is passed directly to the operating system's process spawner, ensuring that shell metacharacters (`;`, `|`, `&&`, `$()`) are treated as literal string data.
+4. **WSL Safety**: When running in WSL mode, commands are wrapped in `wsl.exe --exec <prog> <args...>`, which bypasses the default shell behavior of `wsl.exe <command>`.
+
+### Command Injection Prevention
+
+The `CommandSpec` type enforces the separation of program and arguments:
+
+```rust
+// Secure by design
+let cmd = CommandSpec::new("cargo")
+    .arg("build")
+    .arg("--message-format=json");
+
+// Prevents injection
+// This will look for a subcommand named "build; rm -rf /" and fail safely
+let cmd = CommandSpec::new("cargo")
+    .arg("build; rm -rf /");
+```
+
+### WSL Execution Safety
+
+On Windows, xchecker can execute commands inside WSL distributions. This is hardened against injection:
+
+1. **--exec Flag**: Uses `wsl.exe --exec` instead of the default shell mode.
+2. **Null Byte Rejection**: Arguments containing null bytes are rejected before execution to prevent C-string truncation attacks.
+3. **Argument Validation**: All arguments are validated for safety before being passed to the WSL bridge.
 
 ## Receipt Security
 
@@ -334,6 +450,51 @@ let redacted = redactor.redact(&message);
 
 logger.info(&redacted);
 ```
+
+## Known Limitations (FR-DOC-6)
+
+While xchecker implements rigorous security controls, users should be aware of the following limitations:
+
+### Secret Detection Limitations
+
+1. **Line-Based Scanning**: The secret scanner operates on a line-by-line basis. Secrets split across multiple lines (e.g., in a multi-line string literal) may not be detected by patterns that assume single-line content.
+2. **Encoding Support**: Scanning is performed on UTF-8 text only. Secrets in binary files, UTF-16 encoded files, or other non-UTF-8 encodings are not detected.
+3. **Obfuscation**: Secrets that are Base64 encoded (unless matching a specific token format like JWT), encrypted, or otherwise obfuscated will not be detected.
+4. **Custom Secrets**: Proprietary or custom secret formats are not detected unless explicitly added via configuration.
+
+### False Positives and Negatives
+
+- **False Positives**: High-entropy strings (e.g., Git commit hashes, random IDs) may occasionally trigger false positives, particularly with generic patterns like `bearer_token`. Use `ignore_secret_patterns` with caution to suppress these.
+- **False Negatives**: Patterns are designed to be conservative to avoid noise. Non-standard variations of keys (e.g., an AWS key that doesn't start with `AKIA`) will be missed.
+
+### Path Validation Edge Cases
+
+- **Race Conditions**: While xchecker uses canonicalization to resolve paths, there is a theoretical Time-of-Check Time-of-Use (TOCTOU) window between validation and file operations. This is mitigated by the atomic write strategy but cannot be eliminated entirely at the OS level.
+- **Mount Points**: On Linux/WSL, mount points can behave like directory junctions. xchecker treats them as directories but they may cross filesystem boundaries.
+
+### Symlink Handling
+
+By default, xchecker rejects all symlinks to ensure strict containment. When `--allow-links` is enabled:
+- **Target Validation**: xchecker attempts to validate the target of the symlink, but complex chains or circular links may lead to unexpected behavior.
+- **Container Escape**: In containerized environments (like Docker), symlinks could potentially reference files outside the intended volume if not carefully managed.
+
+### Runner Limitations
+
+- **Signal Handling**: On Windows, process termination uses `TerminateProcess` (force kill) when timeouts occur, which does not allow the child process to clean up. On Unix, `SIGTERM` is sent first, followed by `SIGKILL`.
+- **WSL Dependency**: WSL execution relies on the host's `wsl.exe` configuration. Misconfigured WSL instances may lead to execution failures.
+
+### Windows Hardlink Detection
+
+On Windows, hardlink detection is currently skipped due to the complexity of Win32 API integration. While symlinks are correctly detected and rejected (unless allowed), hardlinks are not explicitly blocked on Windows. This is a known limitation for the v1 release.
+
+### Fixup Engine Limitations
+
+The fuzzy matching algorithm used for applying fixups has known limitations in complex scenarios:
+- **Ambiguous Context**: If context lines appear multiple times in the file, the wrong location might be selected.
+- **Complex Diffs**: Large cumulative offsets or interleaved additions/deletions may cause patch application to fail.
+- **Context Contiguity**: Replacements that break context contiguity may not be matched correctly.
+
+These limitations result in `FuzzyMatchFailed` errors rather than incorrect code application, failing safe.
 
 ## Security Best Practices
 

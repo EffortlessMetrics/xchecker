@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
+use crate::atomic_write::write_file_atomic;
 use crate::canonicalization::Canonicalizer;
 use crate::error::XCheckerError;
 use crate::types::{ErrorKind, FileHash, FileType, PacketEvidence, PhaseId, Receipt};
@@ -344,8 +345,8 @@ impl ReceiptManager {
         let json_content = String::from_utf8(json_bytes)
             .with_context(|| "Failed to convert canonical JSON to UTF-8 string")?;
 
-        // Write using atomic operation (tempfile → rename)
-        self.write_file_atomic(&receipt_path, &json_content)
+        // Write using atomic operation (tempfile → fsync → rename)
+        write_file_atomic(&receipt_path, &json_content)
             .map_err(|e| XCheckerError::ReceiptWriteFailed {
                 path: receipt_path.to_string(),
                 reason: e.to_string(),
@@ -485,37 +486,6 @@ impl ReceiptManager {
             diff_context,
             pipeline,
         )
-    }
-
-    /// Write content to a file using atomic operations (tempfile → rename)
-    fn write_file_atomic(&self, path: &Utf8PathBuf, content: &str) -> Result<()> {
-        // Ensure parent directory exists (ignore benign races)
-        if let Some(parent) = path.parent() {
-            crate::paths::ensure_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory: {parent}"))?;
-        }
-
-        // Create temporary file in the same directory as the target
-        let temp_dir = path.parent().unwrap_or(&self.receipts_path);
-        let mut temp_file = NamedTempFile::new_in(temp_dir)
-            .with_context(|| format!("Failed to create temporary file in: {temp_dir}"))?;
-
-        // Write content to temporary file
-        temp_file
-            .write_all(content.as_bytes())
-            .with_context(|| "Failed to write content to temporary file")?;
-
-        // Ensure data is written to disk
-        temp_file
-            .flush()
-            .with_context(|| "Failed to flush temporary file")?;
-
-        // Atomically rename temporary file to target path
-        temp_file
-            .persist(path.as_std_path())
-            .with_context(|| format!("Failed to persist temporary file to: {path}"))?;
-
-        Ok(())
     }
 }
 

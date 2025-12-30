@@ -262,7 +262,7 @@ impl BenchmarkRunner {
         sorted.sort();
 
         let mid = sorted.len() / 2;
-        if sorted.len() % 2 == 0 {
+        if sorted.len().is_multiple_of(2) {
             // Even number of elements: average the two middle values
             Some((sorted[mid - 1] + sorted[mid]) / 2)
         } else {

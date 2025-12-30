@@ -428,6 +428,7 @@ mod tests {
     use super::*;
     use crate::phase::{NextStep, Phase, PhaseContext};
     use crate::phases::RequirementsPhase;
+    use crate::test_support;
     use std::env;
     use std::path::PathBuf;
     use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -698,7 +699,8 @@ This is a generated requirements document for spec {}. The system will provide c
 
             fn make_packet(&self, _ctx: &PhaseContext) -> Result<crate::phase::Packet> {
                 // Create a packet with a GitHub PAT secret
-                let content = "Here is my GitHub token: ghp_1234567890123456789012345678901234AB\nSome other content";
+                let token = test_support::github_pat();
+                let content = format!("Here is my GitHub token: {}\nSome other content", token);
                 let blake3_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
 
                 let evidence = crate::types::PacketEvidence {
@@ -711,7 +713,7 @@ This is a generated requirements document for spec {}. The system will provide c
                 budget.add_content(content.len(), content.lines().count());
 
                 Ok(crate::phase::Packet::new(
-                    content.to_string(),
+                    content,
                     blake3_hash,
                     evidence,
                     budget,

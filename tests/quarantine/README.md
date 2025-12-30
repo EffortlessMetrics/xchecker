@@ -11,9 +11,9 @@ These files are used to test the secret scanning functionality in CI:
 
 ## Files
 
-- `positive-control-fake-secrets.txt` - Contains fake tokens that should trigger scanner
+- `positive-control-fake-secrets.txt` - Placeholder file; secrets are generated at runtime
 - `negative-control-clean.txt` - Contains clean content that should pass scanner
 
 ## Important
 
-These files are for testing purposes only and contain FAKE credentials that are not valid.
+These files are for testing purposes only; detector-grade secrets are generated in tests.

@@ -7,8 +7,7 @@
 //! Tests that verify ring buffer behavior with large stdout/stderr streams.
 
 use std::process::Stdio;
-use tokio::process::Command;
-use xchecker::runner::{BufferConfig, Runner, WslOptions};
+use xchecker::runner::{BufferConfig, CommandSpec, Runner, WslOptions};
 use xchecker::types::RunnerMode;
 
 /// AT-RUN-006: Test large stdout stream > 2 MiB
@@ -45,8 +44,10 @@ sys.stdout.flush()
 
     // Note: This test requires Python to be installed
     // Skip if Python is not available
-    let python_check = Command::new("python")
+    let mut cmd = CommandSpec::new("python")
         .arg("--version")
+        .to_tokio_command();
+    let python_check = cmd
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()

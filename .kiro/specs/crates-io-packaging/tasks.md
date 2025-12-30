@@ -569,70 +569,70 @@ This plan transforms xchecker into a crates.io-native CLI with a stable library 
 
 ### Path Sandbox Implementation
 
-- [ ] 25. Implement path sandboxing
-  - [ ] 25.1 Implement SandboxRoot and SandboxPath types in paths.rs
+- [x] 25. Implement path sandboxing
+  - [x] 25.1 Implement SandboxRoot and SandboxPath types in paths.rs
     - Implement `SandboxRoot::new()` with canonicalization
     - Implement `SandboxRoot::join()` with validation
     - Implement rejection of `..` traversal
     - Implement rejection of absolute paths outside root
     - Implement symlink/hardlink rejection (configurable)
     - _Requirements: FR-SEC-10, FR-SEC-11, FR-SEC-12, FR-SEC-13, FR-SEC-14_
-  - [ ] 25.2 Refactor fixup.rs to use sandboxed paths
+  - [x] 25.2 Refactor fixup.rs to use sandboxed paths
     - Replace raw PathBuf operations with SandboxPath
     - Ensure all diff application uses validated paths
     - _Requirements: FR-SEC-10_
-  - [ ] 25.3 Refactor artifact.rs to use sandboxed paths
+  - [x] 25.3 Refactor artifact.rs to use sandboxed paths
     - Replace raw PathBuf operations with SandboxPath
     - Ensure artifact discovery uses validated paths
     - _Requirements: FR-SEC-10_
-  - [ ] 25.4 Refactor cache/state handling to use sandboxed paths
+  - [x] 25.4 Refactor cache/state handling to use sandboxed paths
     - Ensure state directory operations use validated paths
     - _Requirements: FR-SEC-10_
-  - [ ] 25.5 Write property test for path sandbox enforcement
+  - [x] 25.5 Write property test for path sandbox enforcement
     - **Property 14: Path sandbox enforcement**
     - Generate paths with traversal attempts, absolute paths
     - Verify all are rejected
     - **Validates: Requirements FR-SEC-3**
-  - [ ] 25.6 Write property test for symlink rejection
+  - [x] 25.6 Write property test for symlink rejection
     - **Property 15: Symlink rejection**
     - **Validates: Requirements FR-SEC-3**
 
-- [ ] 26. Checkpoint - Verify path sandbox implementation
+- [x] 26. Checkpoint - Verify path sandbox implementation
   - Ensure all tests pass, ask the user if questions arise.
 
 ### Runner Refactor
 
-- [ ] 27. Refactor runner.rs to pure argv
-  - [ ] 27.1 Implement CommandSpec type
+- [x] 27. Refactor runner.rs to pure argv
+  - [x] 27.1 Implement CommandSpec type
     - Define struct with program, args, cwd, env fields
     - Ensure args are Vec<OsString>, not shell strings
     - _Requirements: FR-SEC-15_
-  - [ ] 27.2 Implement ProcessRunner trait
+  - [x] 27.2 Implement ProcessRunner trait
     - Define trait with run() method taking CommandSpec
     - _Requirements: FR-SEC-15_
-  - [ ] 27.3 Implement NativeRunner
+  - [x] 27.3 Implement NativeRunner
     - Use Command::new().args() only
     - Eliminate any shell string execution
     - _Requirements: FR-SEC-15, FR-SEC-16_
-  - [ ] 27.4 Refactor WslRunner to use argv
+  - [x] 27.4 Refactor WslRunner to use argv
     - Build wsl command with argv entries
     - Eliminate string concatenation of user data
     - Validate/normalize arguments at trust boundaries
     - _Requirements: FR-SEC-17, FR-SEC-18_
-  - [ ] 27.5 Update all call sites to use CommandSpec
+  - [x] 27.5 Update all call sites to use CommandSpec
     - Ensure orchestrator uses runner with CommandSpec
     - Ensure no direct Command::new() calls outside runner
     - _Requirements: FR-SEC-15_
-  - [ ] 27.6 Write tests for command injection prevention
+  - [x] 27.6 Write tests for command injection prevention
     - Test with user-controlled arguments containing shell metacharacters
     - Verify no shell injection occurs
     - **Property 16: Argv-style execution**
     - **Validates: Requirements FR-SEC-4**
-  - [ ] 27.7 Write property test for WSL runner safety
+  - [x] 27.7 Write property test for WSL runner safety
     - **Property 17: WSL runner safety**
     - **Validates: Requirements FR-SEC-4**
 
-- [ ] 28. Checkpoint - Verify runner refactor
+- [x] 28. Checkpoint - Verify runner refactor
   - Ensure all tests pass, ask the user if questions arise.
 
 ### Atomic Writes Audit
@@ -683,7 +683,7 @@ This plan transforms xchecker into a crates.io-native CLI with a stable library 
     - Attempt path traversal via fixup or artifact paths
     - Verify rejection with appropriate error
     - _Requirements: FR-TEST-6_
-  - [ ] 33.2 Write integration test for command injection blocking
+  - [x] 33.2 Write integration test for command injection blocking
     - Use public CLI or OrchestratorHandle
     - Attempt command injection via user-controlled arguments
     - Verify no shell execution occurs
@@ -699,14 +699,14 @@ This plan transforms xchecker into a crates.io-native CLI with a stable library 
 
 ### Security Gate Verification
 
-- [ ] 35. Confirm security gate for publication
-  - [ ] 35.1 Review all high-severity security issues
+- [x] 35. Confirm security gate for publication
+  - [x] 35.1 Review all high-severity security issues
     - Confirm secret detection issues are closed
     - Confirm path validation issues are closed
     - Confirm process execution issues are closed
     - Reference fixes in CHANGELOG
     - _Requirements: FR-SEC-22_
-  - [ ] 35.2 Document remaining medium/low issues
+  - [x] 35.2 Document remaining medium/low issues
     - List any remaining issues in SECURITY.md
     - Document mitigations for each
     - _Requirements: FR-SEC-23_
@@ -720,7 +720,7 @@ This plan transforms xchecker into a crates.io-native CLI with a stable library 
 ### Publish to crates.io
 
 - [ ] 36. Publish to crates.io
-  - [ ] 36.1 Confirm FR-SEC-6: no open critical security issues
+  - [x] 36.1 Confirm FR-SEC-6: no open critical security issues
     - Verify tasks 35.1/35.2 have been completed
     - Confirm secret detection issues are closed
     - Confirm path validation issues are closed

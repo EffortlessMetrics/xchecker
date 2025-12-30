@@ -10,6 +10,7 @@
 use xchecker::logging::{
     Logger, init_tracing, log_phase_complete, log_phase_error, log_phase_start, phase_span,
 };
+use xchecker::test_support;
 
 #[test]
 fn test_tracing_initialization() {
@@ -130,30 +131,34 @@ fn test_logging_redacts_github_tokens() {
     logger.set_spec_id("redaction-test".to_string());
     logger.set_phase("requirements".to_string());
     logger.set_runner_mode("native".to_string());
+    let token = test_support::github_pat();
 
     // These should not panic and should redact the token
-    logger.verbose("Found token: ghp_1234567890123456789012345678901234567890");
-    logger.info("Using token: ghp_1234567890123456789012345678901234567890");
-    logger.warn("Exposed token: ghp_1234567890123456789012345678901234567890");
-    logger.error("Error with token: ghp_1234567890123456789012345678901234567890");
+    logger.verbose(&format!("Found token: {}", token));
+    logger.info(&format!("Using token: {}", token));
+    logger.warn(&format!("Exposed token: {}", token));
+    logger.error(&format!("Error with token: {}", token));
 }
 
 #[test]
 fn test_logging_redacts_aws_keys() {
     // Test that AWS keys are redacted
     let logger = Logger::new(false);
+    let aws_key = test_support::aws_access_key_id();
+    let aws_secret = test_support::aws_secret_access_key();
 
-    logger.info("AWS access key: AKIA1234567890123456");
-    logger.error("Failed with AWS_SECRET_ACCESS_KEY=secret_value");
+    logger.info(&format!("AWS access key: {}", aws_key));
+    logger.error(&format!("Failed with {}", aws_secret));
 }
 
 #[test]
 fn test_logging_redacts_bearer_tokens() {
     // Test that Bearer tokens are redacted
     let logger = Logger::new(false);
+    let bearer_token = test_support::bearer_token();
 
-    logger.info("Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
-    logger.error("Auth failed with Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+    logger.info(&format!("Authorization: {}", bearer_token));
+    logger.error(&format!("Auth failed with {}", bearer_token));
 }
 
 #[test]
@@ -169,18 +174,20 @@ fn test_logging_excludes_environment_variables() {
 
 #[test]
 fn test_phase_error_logging_redacts_secrets() {
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
     // Test that phase error logging redacts secrets
     log_phase_error(
         "test-spec",
         "requirements",
-        "Failed with token ghp_1234567890123456789012345678901234567890",
+        &format!("Failed with token {}", github_token),
         1000,
     );
 
     log_phase_error(
         "test-spec",
         "design",
-        "AWS key AKIA1234567890123456 exposed",
+        &format!("AWS key {} exposed", aws_key),
         2000,
     );
 }
@@ -195,19 +202,20 @@ fn test_error_context_redaction() {
 
     // Error messages with sensitive context should be redacted
     logger.error("Authentication failed with API_KEY=secret123");
-    logger.error("Connection error: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+    logger.error(&format!(
+        "Connection error: {}",
+        test_support::bearer_token()
+    ));
 }
 
 #[test]
 fn test_verbose_logging_with_secrets() {
     // Test verbose logging with secrets in formatted messages
     let logger = Logger::new(true);
+    let token = test_support::github_pat();
 
     // Formatted verbose logging should also redact
-    logger.verbose_fmt(format_args!(
-        "Processing with token: {}",
-        "ghp_1234567890123456789012345678901234567890"
-    ));
+    logger.verbose_fmt(format_args!("Processing with token: {}", token));
 }
 
 #[test]
@@ -229,12 +237,13 @@ fn test_multiple_log_levels_with_redaction() {
     logger.set_phase("review".to_string());
     logger.set_runner_mode("auto".to_string());
 
-    let secret_message = "Token: ghp_1234567890123456789012345678901234567890";
+    let token = test_support::github_pat();
+    let secret_message = format!("Token: {}", token);
 
-    logger.verbose(secret_message);
-    logger.info(secret_message);
-    logger.warn(secret_message);
-    logger.error(secret_message);
+    logger.verbose(&secret_message);
+    logger.info(&secret_message);
+    logger.warn(&secret_message);
+    logger.error(&secret_message);
 
     // All should complete without exposing the secret
 }
@@ -243,9 +252,11 @@ fn test_multiple_log_levels_with_redaction() {
 fn test_slack_token_redaction() {
     // Test that Slack tokens are redacted
     let logger = Logger::new(false);
+    let slack_bot = test_support::slack_bot_token();
+    let slack_user = test_support::slack_user_token();
 
-    logger.info("Slack webhook: xoxb-1234567890-abcdefghijklmnop");
-    logger.error("Slack error with xoxp-1234567890-abcdefghijklmnop");
+    logger.info(&format!("Slack webhook: {}", slack_bot));
+    logger.error(&format!("Slack error with {}", slack_user));
 }
 
 #[test]

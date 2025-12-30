@@ -34,7 +34,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo bench
 
 # Documentation validation
-cargo test --test doc_validation -- --test-threads=1
+cargo test --features dev-tools --test doc_validation -- --test-threads=1
 ```
 
 ## Architecture
@@ -99,7 +99,7 @@ Tests requiring external resources are marked with skip flags:
 
 ```bash
 # Schema validation
-cargo test --test doc_validation schema
+cargo test --features dev-tools --test doc_validation schema
 
 # Doctor/health checks
 cargo test doctor

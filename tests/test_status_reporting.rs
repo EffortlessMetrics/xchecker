@@ -35,6 +35,7 @@ fn generate_status(
         effective_config,
         lock_drift,
         None, // pending_fixups
+        None, // secret_redactor
     )
 }
 
@@ -699,6 +700,7 @@ fn test_pending_fixup_summary() -> Result<()> {
         effective_config,
         None,
         pending_fixups,
+        None,
     )?;
 
     // Verify pending fixups are present
@@ -767,6 +769,7 @@ fn test_pending_fixups_omitted_when_none() -> Result<()> {
         effective_config,
         None,
         None, // No pending fixups
+        None,
     )?;
 
     // Verify pending fixups are not present

@@ -246,16 +246,14 @@ async fn test_single_phase_vs_workflow_receipt_parity() -> Result<()> {
         let single_provider = single_receipt["llm"]["provider"].as_str();
         let workflow_provider = workflow_receipt["llm"]["provider"].as_str();
 
-        if single_provider.is_some() && workflow_provider.is_some() {
+        if let (Some(sp), Some(wp)) = (single_provider, workflow_provider) {
             // Both have provider info - verify they're consistent
             assert!(
-                single_provider.unwrap().contains("claude")
-                    || single_provider.unwrap().contains("simulated"),
+                sp.contains("claude") || sp.contains("simulated"),
                 "Single-phase provider should be claude-related"
             );
             assert!(
-                workflow_provider.unwrap().contains("claude")
-                    || workflow_provider.unwrap().contains("simulated"),
+                wp.contains("claude") || wp.contains("simulated"),
                 "Workflow provider should be claude-related"
             );
         }
@@ -264,16 +262,13 @@ async fn test_single_phase_vs_workflow_receipt_parity() -> Result<()> {
         let single_model = single_receipt["llm"]["model_used"].as_str();
         let workflow_model = workflow_receipt["llm"]["model_used"].as_str();
 
-        if single_model.is_some() && workflow_model.is_some() {
+        if let (Some(sm), Some(wm)) = (single_model, workflow_model) {
             // Both have model info - verify they're reasonable
             assert!(
-                !single_model.unwrap().is_empty(),
+                !sm.is_empty(),
                 "Single-phase model_used should not be empty"
             );
-            assert!(
-                !workflow_model.unwrap().is_empty(),
-                "Workflow model_used should not be empty"
-            );
+            assert!(!wm.is_empty(), "Workflow model_used should not be empty");
         }
     }
 

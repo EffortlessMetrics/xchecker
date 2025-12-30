@@ -18,7 +18,7 @@
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::time::sleep;
-use xchecker::runner::Runner;
+use xchecker::runner::{CommandSpec, Runner};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -76,9 +76,8 @@ wait
 #[tokio::test]
 async fn test_process_group_creation() -> Result<()> {
     // Create a simple command that will run long enough for us to check
-    let mut cmd = tokio::process::Command::new("sleep");
-    cmd.arg("10")
-        .stdin(Stdio::null())
+    let mut cmd = CommandSpec::new("sleep").arg("10").to_tokio_command();
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -128,10 +127,11 @@ async fn test_sigterm_then_sigkill_sequence() -> Result<()> {
     use nix::unistd::Pid;
 
     // Spawn a process that ignores SIGTERM (to test SIGKILL)
-    let mut cmd = tokio::process::Command::new("sh");
-    cmd.arg("-c")
+    let mut cmd = CommandSpec::new("sh")
+        .arg("-c")
         .arg("trap '' TERM; sleep 30") // Ignore SIGTERM, sleep for 30 seconds
-        .stdin(Stdio::null())
+        .to_tokio_command();
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -194,9 +194,8 @@ async fn test_graceful_termination_with_sigterm() -> Result<()> {
     use nix::unistd::Pid;
 
     // Spawn a process that handles SIGTERM gracefully
-    let mut cmd = tokio::process::Command::new("sleep");
-    cmd.arg("30")
-        .stdin(Stdio::null())
+    let mut cmd = CommandSpec::new("sleep").arg("30").to_tokio_command();
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -256,9 +255,10 @@ async fn test_process_group_termination() -> Result<()> {
     create_test_script(script_path.to_str().unwrap(), 30)?;
 
     // Spawn the script
-    let mut cmd = tokio::process::Command::new("bash");
-    cmd.arg(script_path.to_str().unwrap())
-        .stdin(Stdio::null())
+    let mut cmd = CommandSpec::new("bash")
+        .arg(script_path.to_str().unwrap())
+        .to_tokio_command();
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
 
@@ -366,9 +366,8 @@ async fn test_timeout_grace_period() -> Result<()> {
     use nix::unistd::Pid;
 
     // Spawn a process
-    let mut cmd = tokio::process::Command::new("sleep");
-    cmd.arg("30")
-        .stdin(Stdio::null())
+    let mut cmd = CommandSpec::new("sleep").arg("30").to_tokio_command();
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -436,7 +435,7 @@ async fn test_terminate_already_dead_process() -> Result<()> {
     use nix::unistd::Pid;
 
     // Spawn a process that exits immediately
-    let mut cmd = tokio::process::Command::new("true");
+    let mut cmd = CommandSpec::new("true").to_tokio_command();
     cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());

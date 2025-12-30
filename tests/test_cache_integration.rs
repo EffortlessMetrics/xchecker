@@ -261,7 +261,7 @@ fn median(times: &mut [f64]) -> f64 {
     if len == 0 {
         return 0.0;
     }
-    if len % 2 == 0 {
+    if len.is_multiple_of(2) {
         (times[len / 2 - 1] + times[len / 2]) / 2.0
     } else {
         times[len / 2]

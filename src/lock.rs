@@ -6,7 +6,9 @@
 
 use crate::error::{ErrorCategory, UserFriendlyError};
 use crate::types::{DriftPair, LockDrift};
+use crate::atomic_write::write_file_atomic;
 use anyhow::Result;
+use camino::Utf8PathBuf;
 use chrono::{DateTime, Utc};
 use fd_lock::RwLock;
 use serde::{Deserialize, Serialize};
@@ -131,26 +133,25 @@ impl XCheckerLock {
 
     /// Save lockfile to spec directory
     pub fn save(&self, spec_id: &str) -> Result<(), io::Error> {
-        let lock_path = Self::get_lock_path(spec_id);
-
-        // Ensure the full directory path exists (ignore benign races)
-        if let Some(parent) = lock_path.parent() {
-            crate::paths::ensure_dir_all(parent)?;
-        }
+        let lock_path = Self::get_lock_path_utf8(spec_id);
 
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-        fs::write(&lock_path, json)?;
+        write_file_atomic(&lock_path, &json)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         Ok(())
     }
 
     /// Get the path to the lockfile for a spec ID
     fn get_lock_path(spec_id: &str) -> PathBuf {
-        crate::paths::spec_root(spec_id)
-            .as_std_path()
-            .join("lock.json")
+        Self::get_lock_path_utf8(spec_id).into_std_path_buf()
+    }
+
+    /// Get the UTF-8 path to the lockfile for a spec ID
+    fn get_lock_path_utf8(spec_id: &str) -> Utf8PathBuf {
+        crate::paths::spec_root(spec_id).join("lock.json")
     }
 }
 

@@ -269,8 +269,9 @@ mod wsl_runner_tests {
         }
 
         // Get available distros
-        let distros = match std::process::Command::new("wsl")
+        let distros = match xchecker::runner::CommandSpec::new("wsl")
             .args(["-l", "-q"])
+            .to_command()
             .output()
         {
             Ok(output) if output.status.success() => {

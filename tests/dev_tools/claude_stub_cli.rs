@@ -18,10 +18,13 @@ fn claude_stub_cmd() -> Command {
 #[test]
 fn version_output() {
     let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude-stub"));
+    let version_predicate =
+        predicate::str::is_match(r"\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\b").unwrap();
     cmd.arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("0.8.1"));
+        .stdout(predicate::str::contains("claude-stub"))
+        .stdout(version_predicate);
 }
 
 #[test]

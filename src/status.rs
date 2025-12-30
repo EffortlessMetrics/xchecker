@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 use crate::artifact::ArtifactManager;
 use crate::orchestrator::PhaseOrchestrator;
 use crate::receipt::ReceiptManager;
+use crate::redaction::SecretRedactor;
 use crate::types::{ArtifactInfo, ConfigSource, ConfigValue, LockDrift, StatusOutput};
 
 /// Status manager for generating full status outputs (StatusOutput schema).
@@ -36,6 +37,7 @@ impl StatusManager {
         effective_config: BTreeMap<String, (String, String)>,
         lock_drift: Option<LockDrift>,
         pending_fixups: Option<crate::types::PendingFixupsSummary>,
+        redactor: Option<&SecretRedactor>,
     ) -> Result<StatusOutput> {
         let artifact_manager = orchestrator.artifact_manager();
         let receipt_manager = orchestrator.receipt_manager();
@@ -46,6 +48,7 @@ impl StatusManager {
             effective_config,
             lock_drift,
             pending_fixups,
+            redactor,
         )
     }
 
@@ -65,6 +68,7 @@ impl StatusManager {
         effective_config: BTreeMap<String, (String, String)>,
         lock_drift: Option<LockDrift>,
         pending_fixups: Option<crate::types::PendingFixupsSummary>,
+        redactor: Option<&SecretRedactor>,
     ) -> Result<StatusOutput> {
         // Get the latest receipt to extract runner and canonicalization info
         let receipts = receipt_manager
@@ -100,7 +104,7 @@ impl StatusManager {
         };
 
         // Build effective config with source attribution
-        let effective_config_map = Self::build_effective_config(effective_config);
+        let effective_config_map = Self::build_effective_config(effective_config, redactor);
 
         // Use values from latest receipt if available, otherwise use sensible defaults
         Ok(StatusOutput {
@@ -183,6 +187,7 @@ impl StatusManager {
     #[cfg_attr(not(test), allow(dead_code))] // Reserved for future orchestration API
     fn build_effective_config(
         config_map: BTreeMap<String, (String, String)>,
+        redactor: Option<&SecretRedactor>,
     ) -> BTreeMap<String, ConfigValue> {
         let mut effective_config = BTreeMap::new();
 
@@ -196,13 +201,20 @@ impl StatusManager {
                 ConfigSource::Default
             };
 
+            // Redact value if redactor is available
+            let redacted_value = if let Some(r) = redactor {
+                r.redact_string(&value)
+            } else {
+                value.clone()
+            };
+
             // Convert value to JSON value
-            let json_value = if let Ok(num) = value.parse::<i64>() {
-                serde_json::Value::Number(num.into())
-            } else if let Ok(boolean) = value.parse::<bool>() {
+            let json_value = if let Ok(num) = redacted_value.parse::<i64>() {
+                serde_json::Value::Number(serde_json::Number::from(num))
+            } else if let Ok(boolean) = redacted_value.parse::<bool>() {
                 serde_json::Value::Bool(boolean)
             } else {
-                serde_json::Value::String(value)
+                serde_json::Value::String(redacted_value)
             };
 
             effective_config.insert(
@@ -317,6 +329,7 @@ mod tests {
             effective_config,
             None,
             None, // pending_fixups
+            None, // redactor
         )
         .unwrap();
 
@@ -385,6 +398,7 @@ mod tests {
             effective_config,
             None,
             None, // pending_fixups
+            None, // redactor
         )
         .unwrap();
 
@@ -466,6 +480,7 @@ mod tests {
             effective_config,
             lock_drift,
             None, // pending_fixups
+            None, // redactor
         )
         .unwrap();
 
@@ -508,6 +523,7 @@ mod tests {
             &artifact_manager,
             &receipt_manager,
             effective_config,
+            None,
             None,
             None,
         )
@@ -564,6 +580,7 @@ mod tests {
             &artifact_manager,
             &receipt_manager,
             effective_config,
+            None,
             None,
             None,
         )
@@ -633,6 +650,7 @@ mod tests {
             effective_config,
             lock_drift,
             None,
+            None,
         )
         .unwrap();
 
@@ -696,6 +714,7 @@ mod tests {
             effective_config,
             None,
             None,
+            None,
         )
         .unwrap();
 
@@ -748,6 +767,7 @@ mod tests {
             &artifact_manager,
             &receipt_manager,
             effective_config,
+            None,
             None,
             None,
         )
@@ -805,6 +825,7 @@ mod tests {
             effective_config,
             None,
             None,
+            None,
         )
         .unwrap();
 
@@ -822,6 +843,7 @@ mod tests {
             &artifact_manager,
             &receipt_manager,
             effective_config,
+            None,
             None,
             None,
         )
@@ -887,6 +909,7 @@ mod tests {
             effective_config,
             None,
             pending_fixups,
+            None,
         )
         .unwrap();
 
@@ -948,6 +971,7 @@ mod tests {
             effective_config,
             None,
             pending_fixups,
+            None,
         )
         .unwrap();
 
@@ -978,7 +1002,7 @@ mod tests {
             ("-10".to_string(), "CLI".to_string()),
         );
 
-        let effective_config = StatusManager::build_effective_config(config_map);
+        let effective_config = StatusManager::build_effective_config(config_map, None);
 
         // Verify types are correctly parsed
         assert!(matches!(
@@ -1002,7 +1026,7 @@ mod tests {
     #[test]
     fn test_build_effective_config_with_empty_map() {
         let config_map = BTreeMap::new();
-        let effective_config = StatusManager::build_effective_config(config_map);
+        let effective_config = StatusManager::build_effective_config(config_map, None);
 
         assert!(effective_config.is_empty());
     }
@@ -1056,6 +1080,7 @@ mod tests {
             &artifact_manager,
             &receipt_manager,
             effective_config,
+            None,
             None,
             None,
         )

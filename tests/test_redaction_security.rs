@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use xchecker::packet::PacketBuilder;
 use xchecker::receipt::ReceiptManager;
 use xchecker::redaction::SecretRedactor;
+use xchecker::test_support;
 use xchecker::types::{PacketEvidence, PhaseId};
 
 /// Test that packet previews are redacted and don't contain default secret patterns
@@ -98,10 +99,8 @@ fn test_packet_preview_secrets_redacted() -> Result<()> {
         .add_ignored_pattern("github_pat".to_string());
 
     // Now create a file with a GitHub token (which will be ignored)
-    fs::write(
-        base_path.join("config.yaml"),
-        "token: ghp_1234567890123456789012345678901234567890",
-    )?;
+    let token = test_support::github_pat();
+    fs::write(base_path.join("config.yaml"), format!("token: {}", token))?;
 
     let _packet = builder.build_packet(&base_path, "requirements", &context_dir, None)?;
 
@@ -368,37 +367,37 @@ fn test_redactor_detects_all_default_patterns() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
     // Test GitHub PAT
-    let github_content = "token = ghp_1234567890123456789012345678901234567890";
+    let github_content = format!("token = {}", test_support::github_pat());
     assert!(
-        redactor.has_secrets(github_content, "test.txt")?,
+        redactor.has_secrets(&github_content, "test.txt")?,
         "Should detect GitHub PAT"
     );
 
     // Test AWS access key
-    let aws_key_content = "access_key = AKIA1234567890123456";
+    let aws_key_content = format!("access_key = {}", test_support::aws_access_key_id());
     assert!(
-        redactor.has_secrets(aws_key_content, "test.txt")?,
+        redactor.has_secrets(&aws_key_content, "test.txt")?,
         "Should detect AWS access key"
     );
 
     // Test AWS secret key
-    let aws_secret_content = "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+    let aws_secret_content = test_support::aws_secret_access_key();
     assert!(
-        redactor.has_secrets(aws_secret_content, "test.txt")?,
+        redactor.has_secrets(&aws_secret_content, "test.txt")?,
         "Should detect AWS secret key"
     );
 
     // Test Slack token
-    let slack_content = "slack_token = xoxb-1234567890-abcdefghijklmnop";
+    let slack_content = format!("slack_token = {}", test_support::slack_bot_token());
     assert!(
-        redactor.has_secrets(slack_content, "test.txt")?,
+        redactor.has_secrets(&slack_content, "test.txt")?,
         "Should detect Slack token"
     );
 
     // Test Bearer token
-    let bearer_content = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+    let bearer_content = format!("Authorization: {}", test_support::bearer_token());
     assert!(
-        redactor.has_secrets(bearer_content, "test.txt")?,
+        redactor.has_secrets(&bearer_content, "test.txt")?,
         "Should detect Bearer token"
     );
 
@@ -418,11 +417,12 @@ fn test_packet_builder_fails_on_secret_detection() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
+    let token = test_support::github_pat();
 
     // Create a file with a GitHub token
     fs::write(
         base_path.join("config.yaml"),
-        "github_token: ghp_1234567890123456789012345678901234567890",
+        format!("github_token: {}", token),
     )?;
 
     let mut builder = PacketBuilder::new()?;
@@ -452,11 +452,13 @@ fn test_multiple_secrets_detected() -> Result<()> {
     let context_dir = base_path.join("context");
 
     // Create a file with multiple secrets
-    let multi_secret_content = r"
-github_token: ghp_1234567890123456789012345678901234567890
-aws_key: AKIA1234567890123456
-slack_token: xoxb-1234567890-abcdefghijklmnop
-";
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let slack_token = test_support::slack_bot_token();
+    let multi_secret_content = format!(
+        "\ngithub_token: {}\naws_key: {}\nslack_token: {}\n",
+        github_token, aws_key, slack_token
+    );
     fs::write(base_path.join("secrets.yaml"), multi_secret_content)?;
 
     let mut builder = PacketBuilder::new()?;

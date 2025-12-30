@@ -15,6 +15,7 @@ use std::sync::Arc;
 use crate::{CliArgs, Config, ExitCode, OrchestratorHandle, PhaseId, XCheckerError, emit_jcs};
 
 // Internal module imports (not part of stable public API)
+use crate::atomic_write::write_file_atomic;
 use crate::error::{ConfigError, PhaseError};
 use crate::error_reporter::{ErrorReport, utils as error_utils};
 use crate::logging::Logger;
@@ -1064,9 +1065,9 @@ async fn execute_spec_command(
         .with_context(|| format!("Failed to create source directory: {}", source_dir))?;
 
     let problem_path = source_dir.join("00-problem-statement.md");
-    std::fs::write(
+    write_file_atomic(
         &problem_path,
-        format!("# Problem Statement\n\n{}\n", problem_statement.trim()),
+        &format!("# Problem Statement\n\n{}\n", problem_statement.trim()),
     )
     .with_context(|| format!("Failed to write problem statement: {}", problem_path))?;
 
@@ -1482,7 +1483,10 @@ fn count_pending_fixups(handle: &OrchestratorHandle) -> u32 {
     };
 
     // Create fixup parser in preview mode to check for targets
-    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.clone().into());
+    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.clone().into()) {
+        Ok(parser) => parser,
+        Err(_) => return 0, // Can't create parser, assume no fixups
+    };
 
     // Check if there are fixup markers
     if !fixup_parser.has_fixup_markers(&review_content) {
@@ -1956,7 +1960,7 @@ fn check_and_display_fixup_targets(handle: &OrchestratorHandle, spec_id: &str) -
     };
 
     // Create fixup parser in preview mode to check for targets
-    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.clone().into());
+    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.clone().into())?;
 
     // Check if there are fixup markers
     if !fixup_parser.has_fixup_markers(&review_content) {
@@ -2871,10 +2875,11 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
 
 /// Detect Claude CLI version by running `claude --version`
 fn detect_claude_cli_version() -> Result<String> {
-    use std::process::Command;
+    use crate::runner::CommandSpec;
 
-    let output = Command::new("claude")
+    let output = CommandSpec::new("claude")
         .arg("--version")
+        .to_command()
         .output()
         .context("Failed to execute 'claude --version'")?;
 
@@ -5202,7 +5207,10 @@ fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
         Err(_) => return 0,
     };
 
-    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.into());
+    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.into()) {
+        Ok(parser) => parser,
+        Err(_) => return 0,
+    };
 
     if !fixup_parser.has_fixup_markers(&review_content) {
         return 0;

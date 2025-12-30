@@ -4,6 +4,7 @@
 //! content for Claude CLI invocations while respecting budget constraints and
 //! maintaining evidence for auditability.
 
+use crate::atomic_write::write_file_atomic;
 use crate::cache::{InsightCache, calculate_content_hash};
 use crate::config::Selectors;
 use crate::error::XCheckerError;
@@ -817,7 +818,7 @@ impl PacketBuilder {
         let preview_path = context_dir.join(format!("{}-packet.txt", phase.to_lowercase()));
 
         // Write packet preview
-        fs::write(&preview_path, content)
+        write_file_atomic(&preview_path, content)
             .with_context(|| format!("Failed to write packet preview to: {preview_path}"))?;
 
         Ok(())
@@ -864,7 +865,7 @@ impl PacketBuilder {
         let manifest_json = serde_json::to_string_pretty(&manifest)
             .context("Failed to serialize packet manifest")?;
 
-        fs::write(&manifest_path, manifest_json)
+        write_file_atomic(&manifest_path, &manifest_json)
             .with_context(|| format!("Failed to write packet manifest to: {manifest_path}"))?;
 
         Ok(())
@@ -885,7 +886,7 @@ impl PacketBuilder {
         let debug_path = context_dir.join(format!("{}-packet-debug.txt", phase.to_lowercase()));
 
         // Write full packet content (after secret scan has passed)
-        fs::write(&debug_path, content)
+        write_file_atomic(&debug_path, content)
             .with_context(|| format!("Failed to write debug packet to: {debug_path}"))?;
 
         Ok(())
@@ -909,6 +910,7 @@ impl Default for PacketBuilder {
 #[cfg(test)]
 mod packet_builder_tests {
     use super::*;
+    use crate::test_support;
     use tempfile::TempDir;
 
     #[test]
@@ -1063,11 +1065,12 @@ mod packet_builder_tests {
         let temp_dir = TempDir::new()?;
         let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
         let context_dir = base_path.join("context");
+        let token = test_support::github_pat();
 
         // Create a file with a secret
         fs::write(
             base_path.join("config.yaml"),
-            "github_token: ghp_1234567890123456789012345678901234567890",
+            format!("github_token: {}", token),
         )?;
 
         let mut builder = PacketBuilder::new()?;
@@ -1139,11 +1142,12 @@ mod packet_builder_tests {
         let temp_dir = TempDir::new()?;
         let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
         let context_dir = base_path.join("context");
+        let token = test_support::github_pat();
 
         // Create a file with content that contains a pattern that will be redacted
         fs::write(
             base_path.join("README.md"),
-            "# Test\nThis contains a ghp_1234567890123456789012345678901234567890 token.",
+            format!("# Test\nThis contains a {} token.", token),
         )?;
 
         // Create a builder with the pattern ignored
@@ -1157,11 +1161,7 @@ mod packet_builder_tests {
         // Packet should be created successfully since pattern is ignored
         assert!(!packet.content.is_empty());
         // Content should contain the original token since it's ignored
-        assert!(
-            packet
-                .content
-                .contains("ghp_1234567890123456789012345678901234567890")
-        );
+        assert!(packet.content.contains(&token));
 
         Ok(())
     }

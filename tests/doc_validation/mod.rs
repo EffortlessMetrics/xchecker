@@ -13,4 +13,5 @@ pub mod m8_gate_tests;
 pub mod m9_gate_tests;
 pub mod schema_rust_conformance_tests;
 pub mod schema_versioning_tests;
+pub mod secret_patterns_tests;
 pub mod xchecker_home_tests;

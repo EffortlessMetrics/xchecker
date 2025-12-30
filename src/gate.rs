@@ -352,7 +352,10 @@ fn count_pending_fixups(handle: &OrchestratorHandle) -> u32 {
     };
 
     // Create fixup parser in preview mode to check for targets
-    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.clone().into());
+    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.clone().into()) {
+        Ok(parser) => parser,
+        Err(_) => return 0, // Can't create parser, assume no fixups
+    };
 
     // Check if there are fixup markers
     if !fixup_parser.has_fixup_markers(&review_content) {

@@ -42,9 +42,19 @@ name = "regenerate_examples"
 path = "src/bin/regenerate_examples.rs"
 required-features = ["dev-tools"]
 
+[[bin]]
+name = "regenerate_secret_patterns_docs"
+path = "src/bin/regenerate_secret_patterns_docs.rs"
+required-features = ["dev-tools"]
+
 [[test]]
 name = "claude_stub_cli"
 path = "tests/dev_tools/claude_stub_cli.rs"
+required-features = ["dev-tools"]
+
+[[test]]
+name = "doc_validation"
+path = "tests/test_doc_validation.rs"
 required-features = ["dev-tools"]
 
 [dependencies]

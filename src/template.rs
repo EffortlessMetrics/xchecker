@@ -9,7 +9,9 @@
 //! - 4.7.2: `xchecker template init <template> <spec-id>` seeds spec from template
 //! - 4.7.3: Each template has a README describing intended use
 
+use crate::atomic_write::write_file_atomic;
 use anyhow::{Context, Result};
+use camino::Utf8Path;
 use std::path::Path;
 
 /// Built-in template identifiers
@@ -137,12 +139,12 @@ pub fn init_from_template(template_id: &str, spec_id: &str) -> Result<()> {
 
     // Write problem statement to context
     let problem_path = context_dir.join("problem-statement.md");
-    std::fs::write(&problem_path, &problem_statement)
+    write_file_atomic(&problem_path, &problem_statement)
         .with_context(|| format!("Failed to write problem statement: {}", problem_path))?;
 
     // Write README to spec directory
     let readme_path = spec_dir.join("README.md");
-    std::fs::write(&readme_path, &readme_content)
+    write_file_atomic(&readme_path, &readme_content)
         .with_context(|| format!("Failed to write README: {}", readme_path))?;
 
     // Create minimal config if .xchecker/config.toml doesn't exist
@@ -408,7 +410,7 @@ xchecker resume <spec-id> --phase <phase> --dry-run
 
 /// Ensure minimal .xchecker/config.toml exists
 fn ensure_minimal_config() -> Result<()> {
-    let config_dir = Path::new(".xchecker");
+    let config_dir = Utf8Path::new(".xchecker");
     let config_path = config_dir.join("config.toml");
 
     // Only create if it doesn't exist
@@ -418,10 +420,10 @@ fn ensure_minimal_config() -> Result<()> {
 
     // Create .xchecker directory if needed
     if !config_dir.exists() {
-        std::fs::create_dir_all(config_dir).with_context(|| {
+        crate::paths::ensure_dir_all(config_dir).with_context(|| {
             format!(
                 "Failed to create config directory: {}",
-                config_dir.display()
+                config_dir
             )
         })?;
     }
@@ -445,8 +447,8 @@ fn ensure_minimal_config() -> Result<()> {
 # execution_strategy = "controlled"
 "#;
 
-    std::fs::write(&config_path, config_content)
-        .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+    write_file_atomic(&config_path, config_content)
+        .with_context(|| format!("Failed to write config file: {}", config_path))?;
 
     Ok(())
 }

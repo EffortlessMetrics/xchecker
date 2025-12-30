@@ -80,7 +80,7 @@ fn test_normalize_only_line_endings() {
 #[test]
 fn test_diff_calculation_with_crlf() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a test file with CRLF line endings
     let test_file = temp_dir.path().join("test_crlf.txt");
@@ -119,7 +119,7 @@ FIXUP PLAN:
 #[test]
 fn test_diff_calculation_with_mixed_endings() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a test file with mixed line endings
     let test_file = temp_dir.path().join("test_mixed.txt");
@@ -158,7 +158,7 @@ FIXUP PLAN:
 #[test]
 fn test_applied_fixups_write_lf() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with CRLF line endings
     let test_file = temp_dir.path().join("test_apply_lf.txt");
@@ -203,7 +203,7 @@ FIXUP PLAN:
 #[test]
 fn test_read_tolerates_crlf() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with CRLF line endings
     let test_file = temp_dir.path().join("test_read_crlf.txt");
@@ -259,13 +259,13 @@ fn test_diff_estimates_consistent_across_line_endings() -> Result<()> {
     let temp_dir = TempDir::new()?;
 
     // Test with LF
-    let parser_lf = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser_lf = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
     let test_file_lf = temp_dir.path().join("test_lf.txt");
     let content_lf = b"line1\nline2\nline3\n";
     fs::write(&test_file_lf, content_lf)?;
 
     // Test with CRLF
-    let parser_crlf = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser_crlf = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
     let test_file_crlf = temp_dir.path().join("test_crlf.txt");
     let content_crlf = b"line1\r\nline2\r\nline3\r\n";
     fs::write(&test_file_crlf, content_crlf)?;

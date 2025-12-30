@@ -3,7 +3,7 @@
 //! This test verifies WSL availability on Windows runners.
 //! It's marked as ignored and only runs in CI on Windows.
 
-use std::process::Command;
+use xchecker::runner::CommandSpec;
 
 /// Test that WSL is available on Windows CI runners
 ///
@@ -22,7 +22,7 @@ fn test_wsl_probe() {
     println!("Probing for WSL availability on Windows...");
 
     // Try to run `wsl --version` to check if WSL is installed
-    let version_result = Command::new("wsl").arg("--version").output();
+    let version_result = CommandSpec::new("wsl").arg("--version").to_command().output();
 
     match version_result {
         Ok(output) => {
@@ -32,7 +32,7 @@ fn test_wsl_probe() {
                 println!("{}", version_output);
 
                 // Try to list distributions
-                let list_result = Command::new("wsl").args(["-l", "-v"]).output();
+                let list_result = CommandSpec::new("wsl").args(["-l", "-v"]).to_command().output();
 
                 if let Ok(list_output) = list_result
                     && list_output.status.success()
@@ -43,8 +43,9 @@ fn test_wsl_probe() {
                 }
 
                 // Try to run a simple command in WSL
-                let test_result = Command::new("wsl")
+                let test_result = CommandSpec::new("wsl")
                     .args(["-e", "echo", "WSL test successful"])
+                    .to_command()
                     .output();
 
                 match test_result {

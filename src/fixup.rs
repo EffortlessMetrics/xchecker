@@ -2,18 +2,30 @@
 //!
 //! This module implements the fixup system that detects "FIXUP PLAN:" markers in review output,
 //! parses unified diff blocks, and provides preview/apply modes for safe fixup application.
+//!
+//! # Security
+//!
+//! All path operations use the sandboxed path types from `crate::paths` to prevent:
+//! - Directory traversal attacks via `..` components
+//! - Absolute path escapes
+//! - Symlink-based escapes (configurable)
+//! - Hardlink-based escapes (configurable)
+//!
+//! The `FixupParser` uses `SandboxRoot` to validate all target paths before any file operations.
+//! This ensures that diff application cannot escape the workspace root.
 
 use anyhow::Result;
 use camino::Utf8Path;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
 use tempfile::TempDir;
 use thiserror::Error;
 
 use crate::atomic_write::write_file_atomic;
 use crate::error::{ErrorCategory, UserFriendlyError};
+use crate::paths::{SandboxConfig, SandboxError, SandboxPath, SandboxRoot};
+use crate::runner::CommandSpec;
 
 /// Errors that can occur during fixup detection and parsing
 #[derive(Error, Debug)]
@@ -407,18 +419,97 @@ pub struct AppliedFile {
 }
 
 /// Main fixup parser that handles detection and parsing of fixup plans
+///
+/// # Security
+///
+/// `FixupParser` uses `SandboxRoot` to validate all target paths before any file operations.
+/// This ensures that:
+/// - Paths cannot escape the workspace root via `..` traversal
+/// - Absolute paths are rejected
+/// - Symlinks are rejected by default (configurable via `SandboxConfig`)
+/// - Hardlinks are rejected by default (configurable via `SandboxConfig`)
+///
+/// All path validation happens through `SandboxRoot::join()` which provides
+/// comprehensive security checks before any file I/O.
 pub struct FixupParser {
     /// Operating mode (preview or apply)
     pub mode: FixupMode,
-    /// Base directory for resolving relative paths
-    pub base_dir: PathBuf,
+    /// Sandboxed root directory for resolving and validating relative paths
+    sandbox_root: SandboxRoot,
 }
 
 impl FixupParser {
-    /// Create a new fixup parser
+    /// Create a new fixup parser with a sandboxed root directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - The operating mode (preview or apply)
+    /// * `base_dir` - The base directory to use as the sandbox root
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the base directory cannot be used as a sandbox root
+    /// (e.g., doesn't exist, isn't a directory, or can't be canonicalized).
+    pub fn new(mode: FixupMode, base_dir: PathBuf) -> Result<Self, FixupError> {
+        let sandbox_root = SandboxRoot::new(&base_dir, SandboxConfig::default())
+            .map_err(|e| FixupError::CanonicalizationError(format!("Failed to create sandbox root: {e}")))?;
+        Ok(Self { mode, sandbox_root })
+    }
+
+    /// Create a new fixup parser with custom sandbox configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `mode` - The operating mode (preview or apply)
+    /// * `base_dir` - The base directory to use as the sandbox root
+    /// * `config` - Custom sandbox configuration (e.g., to allow symlinks)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the base directory cannot be used as a sandbox root.
+    pub fn with_config(mode: FixupMode, base_dir: PathBuf, config: SandboxConfig) -> Result<Self, FixupError> {
+        let sandbox_root = SandboxRoot::new(&base_dir, config)
+            .map_err(|e| FixupError::CanonicalizationError(format!("Failed to create sandbox root: {e}")))?;
+        Ok(Self { mode, sandbox_root })
+    }
+
+    /// Get the sandbox root path.
     #[must_use]
-    pub const fn new(mode: FixupMode, base_dir: PathBuf) -> Self {
-        Self { mode, base_dir }
+    pub fn base_dir(&self) -> &std::path::Path {
+        self.sandbox_root.as_path()
+    }
+
+    /// Validate and resolve a target path within the sandbox.
+    ///
+    /// This method uses `SandboxRoot::join()` to validate the path, ensuring:
+    /// - The path is relative (not absolute)
+    /// - The path doesn't contain `..` traversal components
+    /// - The path doesn't escape the sandbox root
+    /// - The path isn't a symlink (unless configured to allow)
+    /// - The path isn't a hardlink (unless configured to allow)
+    ///
+    /// # Arguments
+    ///
+    /// * `target_file` - The relative path to validate
+    ///
+    /// # Returns
+    ///
+    /// A `SandboxPath` that is guaranteed to be within the sandbox root.
+    fn validate_target_path(&self, target_file: &str) -> Result<SandboxPath, FixupError> {
+        self.sandbox_root.join(target_file).map_err(|e| match e {
+            SandboxError::AbsolutePath { path } => FixupError::AbsolutePath(PathBuf::from(path)),
+            SandboxError::ParentTraversal { path } => FixupError::ParentDirEscape(PathBuf::from(path)),
+            SandboxError::EscapeAttempt { path, .. } => FixupError::OutsideRepo(PathBuf::from(path)),
+            SandboxError::SymlinkNotAllowed { path } => FixupError::SymlinkNotAllowed(PathBuf::from(path)),
+            SandboxError::HardlinkNotAllowed { path } => FixupError::HardlinkNotAllowed(PathBuf::from(path)),
+            SandboxError::RootNotFound { path } | SandboxError::RootNotDirectory { path } => {
+                FixupError::CanonicalizationError(format!("Invalid sandbox root: {path}"))
+            }
+            SandboxError::RootCanonicalizationFailed { path, reason } |
+            SandboxError::PathCanonicalizationFailed { path, reason } => {
+                FixupError::CanonicalizationError(format!("Failed to canonicalize {path}: {reason}"))
+            }
+        })
     }
 
     /// Detect if the review output contains fixup markers
@@ -610,6 +701,14 @@ impl FixupParser {
     /// Preview changes without applying them
     ///
     /// Line endings are normalized before calculating diff statistics (FR-FIX-010)
+    ///
+    /// # Security
+    ///
+    /// All target paths are validated through `SandboxRoot::join()` to ensure:
+    /// - Paths cannot escape the workspace root via `..` traversal
+    /// - Absolute paths are rejected
+    /// - Symlinks are rejected by default (configurable via `SandboxConfig`)
+    /// - Hardlinks are rejected by default (configurable via `SandboxConfig`)
     pub fn preview_changes(&self, diffs: &[UnifiedDiff]) -> Result<FixupPreview, FixupError> {
         let mut target_files = Vec::new();
         let mut change_summary = HashMap::new();
@@ -622,9 +721,10 @@ impl FixupParser {
             let mut validation_messages = Vec::new();
             let mut validation_passed = true;
 
-            // 1. Path validation using validate_fixup_target
-            let target_path = std::path::Path::new(&diff.target_file);
-            if let Err(e) = validate_fixup_target(target_path, &self.base_dir, false) {
+            // 1. Path validation using SandboxRoot::join() via validate_target_path
+            // This replaces the legacy validate_fixup_target function with the
+            // centralized sandbox validation that provides comprehensive security checks.
+            if let Err(e) = self.validate_target_path(&diff.target_file) {
                 validation_passed = false;
                 all_valid = false;
                 let msg = format!("Invalid target path: {e}");
@@ -673,12 +773,20 @@ impl FixupParser {
     /// Apply changes to files using atomic writes (FR-FIX-005, FR-FIX-006, FR-FIX-008)
     ///
     /// This method implements the atomic write pattern:
-    /// 1. Validate target path (security check)
+    /// 1. Validate target path using SandboxPath (security check)
     /// 2. Write to .tmp file with fsync
     /// 3. Create .bak backup if file exists
     /// 4. Atomic rename with Windows retry
     /// 5. Preserve file permissions (Unix) or attributes (Windows)
     /// 6. Record warnings if permission preservation fails
+    ///
+    /// # Security
+    ///
+    /// All target paths are validated through `SandboxRoot::join()` to ensure:
+    /// - Paths cannot escape the workspace root via `..` traversal
+    /// - Absolute paths are rejected
+    /// - Symlinks are rejected by default (configurable via `SandboxConfig`)
+    /// - Hardlinks are rejected by default (configurable via `SandboxConfig`)
     pub fn apply_changes(&self, diffs: &[UnifiedDiff]) -> Result<FixupResult, FixupError> {
         if self.mode != FixupMode::Apply {
             return Err(FixupError::DiffParsingFailed {
@@ -691,9 +799,10 @@ impl FixupParser {
         let mut warnings = Vec::new();
 
         for diff in diffs {
-            // Validate target path before applying (hard error in apply mode)
-            let target_path = std::path::Path::new(&diff.target_file);
-            if let Err(e) = validate_fixup_target(target_path, &self.base_dir, false) {
+            // Validate target path before applying using SandboxPath (hard error in apply mode)
+            // This replaces the legacy validate_fixup_target function with the
+            // centralized sandbox validation that provides comprehensive security checks.
+            if let Err(e) = self.validate_target_path(&diff.target_file) {
                 failed_files.push(diff.target_file.clone());
                 warnings.push(format!(
                     "Path validation failed for {}: {}",
@@ -732,10 +841,17 @@ impl FixupParser {
     /// - FR-FIX-006: Create .bak backup and preserve file permissions
     /// - FR-FIX-007: Cross-filesystem fallback (copy→fsync→replace)
     /// - FR-FIX-008: Record warnings for permission preservation failures
+    ///
+    /// # Security
+    ///
+    /// The target path is validated through `SandboxRoot::join()` before any file operations.
     fn apply_single_diff_atomic(&self, diff: &UnifiedDiff) -> Result<AppliedFile, FixupError> {
         use std::fs;
 
-        let target_path = self.base_dir.join(&diff.target_file);
+        // Validate and get the sandboxed target path
+        // This ensures the path is within the sandbox root and passes all security checks
+        let sandbox_path = self.validate_target_path(&diff.target_file)?;
+        let target_path = sandbox_path.as_path();
 
         if !target_path.exists() {
             return Err(FixupError::TargetFileNotFound {
@@ -748,14 +864,14 @@ impl FixupParser {
         // Read original content with CRLF tolerance (FR-FS-005)
         // Line endings will be normalized during diff application
         let original_content =
-            fs::read_to_string(&target_path).map_err(|e| FixupError::TempCopyFailed {
+            fs::read_to_string(target_path).map_err(|e| FixupError::TempCopyFailed {
                 file: diff.target_file.clone(),
                 reason: format!("Failed to read original file: {e}"),
             })?;
 
         // Get original file permissions/attributes before modification
         let original_metadata =
-            fs::metadata(&target_path).map_err(|e| FixupError::TempCopyFailed {
+            fs::metadata(target_path).map_err(|e| FixupError::TempCopyFailed {
                 file: diff.target_file.clone(),
                 reason: format!("Failed to get file metadata: {e}"),
             })?;
@@ -778,14 +894,14 @@ impl FixupParser {
 
         // Create .bak backup (FR-FIX-006)
         let backup_path = target_path.with_extension("bak");
-        fs::copy(&target_path, &backup_path).map_err(|e| FixupError::TempCopyFailed {
+        fs::copy(target_path, &backup_path).map_err(|e| FixupError::TempCopyFailed {
             file: diff.target_file.clone(),
             reason: format!("Failed to create .bak backup: {e}"),
         })?;
 
         // Convert PathBuf to Utf8Path for atomic_write
         let target_utf8_path =
-            Utf8Path::from_path(&target_path).ok_or_else(|| FixupError::TempCopyFailed {
+            Utf8Path::from_path(target_path).ok_or_else(|| FixupError::TempCopyFailed {
                 file: diff.target_file.clone(),
                 reason: "Path contains invalid UTF-8".to_string(),
             })?;
@@ -807,7 +923,7 @@ impl FixupParser {
             if let Some(mode) = original_permissions {
                 use std::os::unix::fs::PermissionsExt;
                 let permissions = fs::Permissions::from_mode(mode);
-                if let Err(e) = fs::set_permissions(&target_path, permissions) {
+                if let Err(e) = fs::set_permissions(target_path, permissions) {
                     file_warnings.push(format!("Failed to preserve file permissions: {}", e));
                 }
             }
@@ -815,10 +931,10 @@ impl FixupParser {
 
         #[cfg(windows)]
         {
-            if let Ok(metadata) = fs::metadata(&target_path) {
+            if let Ok(metadata) = fs::metadata(target_path) {
                 let mut permissions = metadata.permissions();
                 permissions.set_readonly(original_readonly);
-                if let Err(e) = fs::set_permissions(&target_path, permissions) {
+                if let Err(e) = fs::set_permissions(target_path, permissions) {
                     file_warnings.push(format!("Failed to preserve file attributes: {e}"));
                 }
             }
@@ -1101,8 +1217,14 @@ impl FixupParser {
     }
 
     /// Validate a diff using git apply --check
+    ///
+    /// # Security
+    ///
+    /// The target path is validated through `SandboxRoot::join()` before any file operations.
     fn validate_diff_with_git_apply(&self, diff: &UnifiedDiff) -> Result<Vec<String>, FixupError> {
-        let target_path = self.base_dir.join(&diff.target_file);
+        // Validate and get the sandboxed target path
+        let sandbox_path = self.validate_target_path(&diff.target_file)?;
+        let target_path = sandbox_path.as_path();
 
         if !target_path.exists() {
             return Err(FixupError::TargetFileNotFound {
@@ -1117,7 +1239,7 @@ impl FixupParser {
         })?;
 
         let temp_file = temp_dir.path().join("target_file");
-        std::fs::copy(&target_path, &temp_file).map_err(|e| FixupError::TempCopyFailed {
+        std::fs::copy(target_path, &temp_file).map_err(|e| FixupError::TempCopyFailed {
             file: diff.target_file.clone(),
             reason: e.to_string(),
         })?;
@@ -1129,11 +1251,12 @@ impl FixupParser {
             reason: e.to_string(),
         })?;
 
-        // Run git apply --check
-        let output = Command::new("git")
+        // Run git apply --check using CommandSpec for secure argv-style execution
+        let output = CommandSpec::new("git")
             .args(["apply", "--check", "--verbose"])
             .arg(&diff_file)
-            .current_dir(temp_dir.path())
+            .cwd(temp_dir.path())
+            .to_command()
             .output()
             .map_err(|e| FixupError::GitApplyValidationFailed {
                 target_file: diff.target_file.clone(),
@@ -1164,8 +1287,14 @@ impl FixupParser {
     }
 
     /// Apply a single diff to its target file
+    ///
+    /// # Security
+    ///
+    /// The target path is validated through `SandboxRoot::join()` before any file operations.
     fn apply_single_diff(&self, diff: &UnifiedDiff) -> Result<bool, FixupError> {
-        let target_path = self.base_dir.join(&diff.target_file);
+        // Validate and get the sandboxed target path
+        let sandbox_path = self.validate_target_path(&diff.target_file)?;
+        let target_path = sandbox_path.as_path();
 
         if !target_path.exists() {
             return Err(FixupError::TargetFileNotFound {
@@ -1185,11 +1314,12 @@ impl FixupParser {
             reason: e.to_string(),
         })?;
 
-        // First try git apply --check
-        let check_output = Command::new("git")
+        // First try git apply --check using CommandSpec for secure argv-style execution
+        let check_output = CommandSpec::new("git")
             .args(["apply", "--check"])
             .arg(&diff_file)
-            .current_dir(&self.base_dir)
+            .cwd(self.base_dir())
+            .to_command()
             .output()
             .map_err(|e| FixupError::GitApplyValidationFailed {
                 target_file: diff.target_file.clone(),
@@ -1197,11 +1327,12 @@ impl FixupParser {
             })?;
 
         if !check_output.status.success() {
-            // Try with 3-way merge as last resort
-            let three_way_output = Command::new("git")
+            // Try with 3-way merge as last resort using CommandSpec
+            let three_way_output = CommandSpec::new("git")
                 .args(["apply", "--3way"])
                 .arg(&diff_file)
-                .current_dir(&self.base_dir)
+                .cwd(self.base_dir())
+                .to_command()
                 .output()
                 .map_err(|e| FixupError::GitApplyExecutionFailed {
                     target_file: diff.target_file.clone(),
@@ -1219,11 +1350,12 @@ impl FixupParser {
             return Ok(true); // Used 3-way merge
         }
 
-        // Apply the diff normally
-        let apply_output = Command::new("git")
+        // Apply the diff normally using CommandSpec for secure argv-style execution
+        let apply_output = CommandSpec::new("git")
             .args(["apply"])
             .arg(&diff_file)
-            .current_dir(&self.base_dir)
+            .cwd(self.base_dir())
+            .to_command()
             .output()
             .map_err(|e| FixupError::GitApplyExecutionFailed {
                 target_file: diff.target_file.clone(),
@@ -1459,7 +1591,8 @@ mod tests {
 
     #[test]
     fn test_detect_fixup_markers() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         // Test FIXUP PLAN: marker
         let content1 = "Some review content\nFIXUP PLAN:\nHere are the fixes needed...";
@@ -1476,7 +1609,8 @@ mod tests {
 
     #[test]
     fn test_parse_simple_diff() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1848,7 +1982,8 @@ The following changes are needed:
 
     #[test]
     fn test_parse_multiple_hunks() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1888,7 +2023,8 @@ Multiple changes needed:
 
     #[test]
     fn test_parse_multiple_diffs() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1921,7 +2057,8 @@ Changes needed in multiple files:
 
     #[test]
     fn test_calculate_change_stats() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1950,7 +2087,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_parse_diff_without_git_prefix() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1972,7 +2110,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_parse_diff_with_git_prefix() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r#"
 FIXUP PLAN:
@@ -1995,7 +2134,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_hunk_range_parsing() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r"
 FIXUP PLAN:
@@ -2031,7 +2171,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_empty_diff_block() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r"
 FIXUP PLAN:
@@ -2048,7 +2189,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_malformed_hunk_header() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = r"
 FIXUP PLAN:
@@ -2070,7 +2212,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_no_fixup_markers() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         let content = "This is just regular review content without any fixup markers.";
 
@@ -2084,7 +2227,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_fixup_preview_structure() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         // Create a simple diff
         let diff = UnifiedDiff {
@@ -2174,7 +2318,8 @@ FIXUP PLAN:
 
     #[test]
     fn test_case_insensitive_fixup_markers() {
-        let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
         // Test various case variations
         let content1 = "fixup plan:\nSome content";

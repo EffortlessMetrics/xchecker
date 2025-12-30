@@ -28,7 +28,7 @@ use xchecker::fixup::{FixupMode, FixupParser};
 #[test]
 fn test_cross_filesystem_fallback_warning() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("cross_fs_test.txt");
@@ -88,7 +88,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_warnings_propagation() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("warnings_test.txt");
@@ -126,7 +126,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_preserves_content() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with specific content
     let test_file = temp_dir.path().join("content_test.txt");
@@ -170,7 +170,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_normalizes_line_endings() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with CRLF line endings
     let test_file = temp_dir.path().join("line_endings_test.txt");
@@ -213,7 +213,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_large_file() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a large test file (1 MB) with multiple lines
     // Each line is 64 'x' characters to match the diff context
@@ -265,7 +265,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_unicode_content() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with unicode content
     let test_file = temp_dir.path().join("unicode_test.txt");
@@ -306,7 +306,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_creates_parent_dirs() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create nested directory structure
     let nested_dir = temp_dir.path().join("nested").join("deep").join("path");
@@ -345,7 +345,7 @@ FIXUP PLAN:
 #[test]
 fn test_atomic_write_blake3_hash() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("hash_test.txt");

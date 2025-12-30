@@ -268,7 +268,10 @@ fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
         Err(_) => return 0,
     };
 
-    let fixup_parser = FixupParser::new(FixupMode::Preview, base_path.into());
+    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.into()) {
+        Ok(parser) => parser,
+        Err(_) => return 0,
+    };
 
     if !fixup_parser.has_fixup_markers(&review_content) {
         return 0;

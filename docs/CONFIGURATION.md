@@ -362,11 +362,10 @@ Security and secret detection configuration.
 | `ignore_secret_patterns` | Array | `[]` | Patterns to suppress from secret detection |
 
 **Default Secret Patterns:**
-- `ghp_[A-Za-z0-9]{36}` - GitHub Personal Access Token
-- `AKIA[0-9A-Z]{16}` - AWS Access Key
-- `AWS_SECRET_ACCESS_KEY=` - AWS Secret Key
-- `xox[baprs]-` - Slack tokens
-- `Bearer [A-Za-z0-9._-]{20,}` - Bearer tokens
+
+xchecker includes default secret patterns covering AWS, GCP, Azure, generic API tokens, database connection URLs, SSH/PEM private keys, and platform tokens (GitHub, GitLab, Slack, Stripe, etc.).
+
+For the complete list of patterns, counts, and regex definitions, see [SECURITY.md](SECURITY.md#default-secret-patterns).
 
 ### [debug]
 

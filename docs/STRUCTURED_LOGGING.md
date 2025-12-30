@@ -133,6 +133,25 @@ RUST_LOG=xchecker=info xchecker spec my-spec
 - Environment variables are not included in logs
 - Error messages include actionable context without exposing sensitive data
 
+### Automatic Redaction in Logger Methods
+
+All Logger methods (`info`, `warn`, `error`, `verbose`, `verbose_fmt`) automatically apply redaction before logging. This is implemented through two internal methods in `src/logging.rs`:
+
+1. **`Logger::redact(&str)`**: Applies `SecretRedactor.redact_content()` to all log messages, replacing detected secrets with `[REDACTED:<pattern_id>]` markers.
+
+2. **`Logger::sanitize(&str)`**: First checks for environment variable patterns (KEY=, TOKEN=, SECRET=, PASSWORD=), replacing them with `[ENV_VAR_REDACTED]`, then applies secret redaction.
+
+### SecretRedactor Integration
+
+The Logger struct includes a `SecretRedactor` instance (`Logger::redactor` field):
+
+```rust
+/// Secret redactor for sanitizing log output (FR-OBS-002, FR-OBS-003)
+redactor: SecretRedactor,
+```
+
+This ensures all log output passes through the default secret pattern detectors before emission. See [SECURITY.md](SECURITY.md#default-secret-patterns) for the complete list of patterns.
+
 ## Testing
 
 The logging system includes comprehensive unit and integration tests:
@@ -172,6 +191,7 @@ logger.info("Starting phase");
 
 - [tracing crate documentation](https://docs.rs/tracing/)
 - [tracing-subscriber documentation](https://docs.rs/tracing-subscriber/)
+- [SECURITY.md](SECURITY.md) - Complete list of secret patterns that are automatically redacted
 - FR-OBS-001: Structured logging with spec_id, phase, duration_ms, runner_mode
 - FR-OBS-002: Secret redaction in logs
 - FR-OBS-003: Actionable context in error logs

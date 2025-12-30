@@ -4,7 +4,7 @@
 //! documentation regression over time. It runs as part of the standard test
 //! suite (not ignored) to catch missing docs early.
 
-use std::process::Command;
+use xchecker::runner::CommandSpec;
 
 /// Guard test: Verifies that doctests exist and are discoverable.
 ///
@@ -15,9 +15,13 @@ use std::process::Command;
 #[test]
 fn test_doctests_are_present() {
     // Run cargo test --doc in list mode to count available doctests
-    let output = Command::new("cargo")
-        .args(["test", "--doc", "--", "--list"])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+    let output = CommandSpec::new("cargo")
+        .arg("test")
+        .arg("--doc")
+        .arg("--")
+        .arg("--list")
+        .cwd(env!("CARGO_MANIFEST_DIR"))
+        .to_command()
         .output()
         .expect("Failed to execute cargo test --doc");
 

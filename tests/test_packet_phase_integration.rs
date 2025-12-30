@@ -12,6 +12,7 @@ use anyhow::Result;
 use std::fs;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
+use xchecker::test_support;
 use xchecker::types::PhaseId;
 
 /// Helper to set up test environment with sample files
@@ -144,10 +145,8 @@ async fn test_secret_scanning_integration() -> Result<()> {
 
     // Create a file with a fake secret
     let spec_dir = orchestrator.artifact_manager().base_path();
-    fs::write(
-        spec_dir.join("secrets.txt"),
-        "API Key: ghp_1234567890123456789012345678901234AB",
-    )?;
+    let token = test_support::github_pat();
+    fs::write(spec_dir.join("secrets.txt"), format!("API Key: {}", token))?;
 
     let config = OrchestratorConfig {
         dry_run: true, // Use dry_run to avoid nested runtime issues

@@ -92,7 +92,7 @@ pub fn sanitize_spec_id(id: &str) -> Result<String, SpecIdError> {
     let normalized: String = id.nfkc().collect();
 
     // Step 2: Filter and replace invalid characters
-    let sanitized: String = normalized
+    let mut sanitized: String = normalized
         .chars()
         .map(|c| {
             // Accept [A-Za-z0-9._-]
@@ -104,6 +104,11 @@ pub fn sanitize_spec_id(id: &str) -> Result<String, SpecIdError> {
             }
         })
         .collect();
+
+    // Step 2.5: Replace consecutive dots to prevent path traversal
+    while sanitized.contains("..") {
+        sanitized = sanitized.replace("..", "__");
+    }
 
     // Step 3: Check if empty after sanitization
     if sanitized.is_empty() {
@@ -294,7 +299,8 @@ mod tests {
         assert_eq!(sanitize_spec_id(".").unwrap(), ".");
 
         // Dots and dashes are meaningful
-        assert_eq!(sanitize_spec_id("...").unwrap(), "...");
+        // Note: consecutive dots are replaced with underscores to prevent path traversal
+        assert_eq!(sanitize_spec_id("...").unwrap(), "__.");
         assert_eq!(sanitize_spec_id("---").unwrap(), "---");
 
         // Only underscores is not meaningful (result of replacing invalid chars)

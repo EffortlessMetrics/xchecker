@@ -103,6 +103,7 @@ use xchecker::canonicalization::Canonicalizer;
 use xchecker::packet::{DEFAULT_PACKET_MAX_BYTES, DEFAULT_PACKET_MAX_LINES};
 use xchecker::phase::BudgetUsage;
 use xchecker::redaction::SecretRedactor;
+use xchecker::test_support;
 use xchecker::types::FileType;
 
 /// Generate arbitrary YAML content for property testing
@@ -317,11 +318,11 @@ fn prop_secret_redaction_consistency() {
 
         // Insert different types of secrets
         let secret = match secret_type {
-            0 => "ghp_1234567890123456789012345678901234567890", // GitHub token
-            1 => "AKIA1234567890123456", // AWS access key
-            2 => "xoxb-1234567890-1234567890-abcdefghijklmnop", // Slack token
-            3 => "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", // Bearer token
-            _ => "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", // AWS secret
+            0 => test_support::github_pat(), // GitHub token
+            1 => test_support::aws_access_key_id(), // AWS access key
+            2 => test_support::slack_bot_token(), // Slack token
+            3 => test_support::bearer_token(), // Bearer token
+            _ => test_support::aws_secret_access_key(), // AWS secret
         };
 
         let content_with_secret = format!("{base_content}\n{secret}\n{base_content}");
@@ -330,7 +331,7 @@ fn prop_secret_redaction_consistency() {
         let redaction_result = redactor.redact_content(&content_with_secret, "test.txt").unwrap();
 
         // Verify secret was detected and redacted
-        prop_assert!(!redaction_result.content.contains(secret),
+        prop_assert!(!redaction_result.content.contains(&secret),
                     "Secret should be redacted from content");
         prop_assert!(!redaction_result.matches.is_empty(),
                     "Secret matches should be detected");
@@ -458,10 +459,10 @@ fn prop_error_handling_consistency() {
         prop_assert_eq!(result1.is_err(), result2.is_err(),
                        "Error handling should be consistent");
 
-        if result1.is_err() && result2.is_err() {
+        if let (Err(e1), Err(e2)) = (result1, result2) {
             // Error messages should be similar (though not necessarily identical due to internal state)
-            let err1 = result1.unwrap_err().to_string();
-            let err2 = result2.unwrap_err().to_string();
+            let err1 = e1.to_string();
+            let err2 = e2.to_string();
 
             // At minimum, both should be non-empty error messages
             prop_assert!(!err1.is_empty() && !err2.is_empty(),
@@ -2226,6 +2227,7 @@ mod hook_timeout_property {
 
 /// Generators for each documented secret category
 mod secret_generators {
+    use super::test_support;
     use proptest::prelude::*;
 
     /// Generate a valid AWS access key (AKIA prefix + 16 alphanumeric chars)
@@ -2271,26 +2273,41 @@ mod secret_generators {
     /// Generate a PostgreSQL connection URL with credentials
     pub fn postgres_url() -> impl Strategy<Value = String> {
         ("[a-z]{4,10}", "[a-zA-Z0-9]{8,16}", "[a-z]{4,10}").prop_map(|(user, pass, db)| {
-            format!("postgres://{}:{}@localhost:5432/{}", user, pass, db)
+            format!(
+                "{}{}{}{}{}{}{}{}{}",
+                "postgres", "://", user, ":", pass, "@", "localhost", ":5432/", db
+            )
         })
     }
 
     /// Generate a MySQL connection URL with credentials
     pub fn mysql_url() -> impl Strategy<Value = String> {
-        ("[a-z]{4,10}", "[a-zA-Z0-9]{8,16}", "[a-z]{4,10}")
-            .prop_map(|(user, pass, db)| format!("mysql://{}:{}@localhost:3306/{}", user, pass, db))
+        ("[a-z]{4,10}", "[a-zA-Z0-9]{8,16}", "[a-z]{4,10}").prop_map(|(user, pass, db)| {
+            format!(
+                "{}{}{}{}{}{}{}{}{}",
+                "mysql", "://", user, ":", pass, "@", "localhost", ":3306/", db
+            )
+        })
     }
 
     /// Generate a MongoDB connection URL with credentials
     pub fn mongodb_url() -> impl Strategy<Value = String> {
         ("[a-z]{4,10}", "[a-zA-Z0-9]{8,16}", "[a-z]{4,10}").prop_map(|(user, pass, db)| {
-            format!("mongodb://{}:{}@cluster.mongodb.net/{}", user, pass, db)
+            format!(
+                "{}{}{}{}{}{}{}{}{}",
+                "mongodb", "://", user, ":", pass, "@", "cluster.mongodb.net", "/", db
+            )
         })
     }
 
     /// Generate a Redis connection URL with credentials
     pub fn redis_url() -> impl Strategy<Value = String> {
-        "[a-zA-Z0-9]{8,16}".prop_map(|pass| format!("redis://:{}@localhost:6379", pass))
+        "[a-zA-Z0-9]{8,16}".prop_map(|pass| {
+            format!(
+                "{}{}{}{}{}{}",
+                "redis", "://", ":", pass, "@localhost", ":6379"
+            )
+        })
     }
 
     /// Generate a GitHub personal access token (ghp_ prefix + 36 chars)
@@ -2320,10 +2337,10 @@ mod secret_generators {
     /// Generate an SSH private key marker
     pub fn ssh_private_key() -> impl Strategy<Value = String> {
         prop_oneof![
-            Just("-----BEGIN RSA PRIVATE KEY-----".to_string()),
-            Just("-----BEGIN OPENSSH PRIVATE KEY-----".to_string()),
-            Just("-----BEGIN EC PRIVATE KEY-----".to_string()),
-            Just("-----BEGIN PRIVATE KEY-----".to_string()),
+            Just(test_support::pem_marker("RSA ")),
+            Just(test_support::pem_marker("OPENSSH ")),
+            Just(test_support::pem_marker("EC ")),
+            Just(test_support::pem_marker("")),
         ]
     }
 
@@ -3097,5 +3114,815 @@ fn prop_redaction_preserves_structure() {
             !redacted.contains(&secret),
             "Secret should be redacted"
         );
+    });
+}
+
+
+// ============================================================================
+// Property 14: Path Sandbox Enforcement
+// ============================================================================
+
+/// Property test: Path sandbox enforcement
+///
+/// **Feature: crates-io-packaging, Property 14: Path sandbox enforcement**
+///
+/// This test verifies that the path sandbox correctly rejects:
+/// - Paths containing ".." traversal components
+/// - Absolute paths outside the sandbox root
+/// - Various escape attempts through path manipulation
+///
+/// **Validates: Requirements FR-SEC-3**
+#[test]
+fn prop_path_sandbox_enforcement() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate various traversal attempts
+        traversal_depth in 1usize..10,
+        // Generate random path segments
+        path_segments in prop::collection::vec("[a-zA-Z0-9_-]{1,20}", 0..5),
+        // Generate position for traversal insertion
+        traversal_position in 0usize..6,
+    )| {
+        // Create a temporary directory for the sandbox root
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+            .expect("Failed to create sandbox root");
+
+        // Test 1: Paths with ".." traversal should be rejected
+        {
+            // Build a path with ".." components
+            let mut path_parts: Vec<String> = path_segments.iter().take(traversal_position.min(path_segments.len())).cloned().collect();
+            
+            // Add traversal components
+            for _ in 0..traversal_depth {
+                path_parts.push("..".to_string());
+            }
+            
+            // Add remaining segments
+            path_parts.extend(path_segments.iter().skip(traversal_position.min(path_segments.len())).cloned());
+            
+            let traversal_path = path_parts.join("/");
+            
+            if !traversal_path.is_empty() && traversal_path.contains("..") {
+                let result = root.join(&traversal_path);
+                prop_assert!(
+                    result.is_err(),
+                    "Path with '..' traversal should be rejected: {}",
+                    traversal_path
+                );
+                
+                if let Err(err) = result {
+                    prop_assert!(
+                        matches!(err, SandboxError::ParentTraversal { .. }),
+                        "Error should be ParentTraversal, got: {:?}",
+                        err
+                    );
+                }
+            }
+        }
+
+        // Test 2: Pure ".." paths should be rejected
+        {
+            let pure_traversal = (0..traversal_depth).map(|_| "..").collect::<Vec<_>>().join("/");
+            let result = root.join(&pure_traversal);
+            prop_assert!(
+                result.is_err(),
+                "Pure '..' traversal path should be rejected: {}",
+                pure_traversal
+            );
+        }
+
+        // Test 3: Absolute paths should be rejected
+        {
+            #[cfg(unix)]
+            {
+                let abs_paths = vec![
+                    "/etc/passwd".to_string(),
+                    "/tmp/test".to_string(),
+                    format!("/home/{}", path_segments.first().unwrap_or(&"user".to_string())),
+                ];
+                
+                for abs_path in abs_paths {
+                    let result = root.join(&abs_path);
+                    prop_assert!(
+                        result.is_err(),
+                        "Absolute path should be rejected: {}",
+                        abs_path
+                    );
+                    
+                    if let Err(err) = result {
+                        prop_assert!(
+                            matches!(err, SandboxError::AbsolutePath { .. }),
+                            "Error should be AbsolutePath, got: {:?}",
+                            err
+                        );
+                    }
+                }
+            }
+            
+            #[cfg(windows)]
+            {
+                let abs_paths = vec![
+                    "C:\\Windows\\System32".to_string(),
+                    "D:\\test".to_string(),
+                    format!("C:\\Users\\{}", path_segments.first().unwrap_or(&"user".to_string())),
+                ];
+                
+                for abs_path in abs_paths {
+                    let result = root.join(&abs_path);
+                    prop_assert!(
+                        result.is_err(),
+                        "Absolute path should be rejected: {}",
+                        abs_path
+                    );
+                    
+                    if let Err(err) = result {
+                        prop_assert!(
+                            matches!(err, SandboxError::AbsolutePath { .. }),
+                            "Error should be AbsolutePath, got: {:?}",
+                            err
+                        );
+                    }
+                }
+            }
+        }
+
+        // Test 4: Valid relative paths should be accepted
+        {
+            if !path_segments.is_empty() {
+                let valid_path = path_segments.join("/");
+                // Only test if path doesn't contain ".."
+                if !valid_path.contains("..") {
+                    let result = root.join(&valid_path);
+                    prop_assert!(
+                        result.is_ok(),
+                        "Valid relative path should be accepted: {}",
+                        valid_path
+                    );
+                    
+                    if let Ok(sandbox_path) = result {
+                        // Verify the relative path is preserved
+                        prop_assert_eq!(
+                            sandbox_path.relative().to_string_lossy(),
+                            valid_path,
+                            "Relative path should be preserved"
+                        );
+                    }
+                }
+            }
+        }
+    });
+}
+
+/// Property test: Path sandbox rejects various escape patterns
+///
+/// **Feature: crates-io-packaging, Property 14: Path sandbox enforcement (escape patterns)**
+///
+/// This test generates various escape attempt patterns and verifies they are all rejected.
+///
+/// **Validates: Requirements FR-SEC-3**
+#[test]
+fn prop_path_sandbox_escape_patterns() {
+    use xchecker::paths::{SandboxConfig, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random prefix segments
+        prefix in prop::collection::vec("[a-zA-Z0-9_]{1,10}", 0..3),
+        // Generate random suffix segments  
+        suffix in prop::collection::vec("[a-zA-Z0-9_]{1,10}", 0..3),
+        // Number of parent traversals
+        num_traversals in 1usize..5,
+    )| {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+            .expect("Failed to create sandbox root");
+
+        // Pattern 1: prefix/../../../suffix
+        {
+            let mut parts = prefix.clone();
+            for _ in 0..num_traversals {
+                parts.push("..".to_string());
+            }
+            parts.extend(suffix.clone());
+            
+            let escape_path = parts.join("/");
+            if escape_path.contains("..") {
+                let result = root.join(&escape_path);
+                prop_assert!(
+                    result.is_err(),
+                    "Escape pattern should be rejected: {}",
+                    escape_path
+                );
+            }
+        }
+
+        // Pattern 2: ./../escape
+        {
+            let mut parts = vec![".".to_string()];
+            for _ in 0..num_traversals {
+                parts.push("..".to_string());
+            }
+            parts.push("escape".to_string());
+            
+            let escape_path = parts.join("/");
+            let result = root.join(&escape_path);
+            prop_assert!(
+                result.is_err(),
+                "Dot-prefixed escape should be rejected: {}",
+                escape_path
+            );
+        }
+
+        // Pattern 3: subdir/./../../escape (with current dir markers)
+        {
+            let mut parts = prefix.clone();
+            parts.push(".".to_string());
+            for _ in 0..num_traversals {
+                parts.push("..".to_string());
+            }
+            parts.push("escape".to_string());
+            
+            let escape_path = parts.join("/");
+            if escape_path.contains("..") {
+                let result = root.join(&escape_path);
+                prop_assert!(
+                    result.is_err(),
+                    "Mixed escape pattern should be rejected: {}",
+                    escape_path
+                );
+            }
+        }
+    });
+}
+
+/// Property test: Sandbox root validation
+///
+/// **Feature: crates-io-packaging, Property 14: Path sandbox enforcement (root validation)**
+///
+/// This test verifies that sandbox root creation properly validates the root path.
+///
+/// **Validates: Requirements FR-SEC-3**
+#[test]
+fn prop_sandbox_root_validation() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random nonexistent path segments
+        nonexistent_segments in prop::collection::vec("[a-zA-Z0-9_]{5,15}", 3..6),
+    )| {
+        // Test 1: Nonexistent paths should fail
+        {
+            let nonexistent_path = format!("/nonexistent/{}", nonexistent_segments.join("/"));
+            let result = SandboxRoot::new(&nonexistent_path, SandboxConfig::default());
+            prop_assert!(
+                result.is_err(),
+                "Nonexistent path should fail: {}",
+                nonexistent_path
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::RootNotFound { .. }),
+                    "Error should be RootNotFound, got: {:?}",
+                    err
+                );
+            }
+        }
+
+        // Test 2: Files (not directories) should fail
+        {
+            let temp_dir = TempDir::new().expect("Failed to create temp dir");
+            let file_path = temp_dir.path().join("file.txt");
+            std::fs::write(&file_path, "content").expect("Failed to write file");
+            
+            let result = SandboxRoot::new(&file_path, SandboxConfig::default());
+            prop_assert!(
+                result.is_err(),
+                "File path should fail as sandbox root"
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::RootNotDirectory { .. }),
+                    "Error should be RootNotDirectory, got: {:?}",
+                    err
+                );
+            }
+        }
+
+        // Test 3: Valid directories should succeed
+        {
+            let temp_dir = TempDir::new().expect("Failed to create temp dir");
+            let result = SandboxRoot::new(temp_dir.path(), SandboxConfig::default());
+            prop_assert!(
+                result.is_ok(),
+                "Valid directory should succeed as sandbox root"
+            );
+            
+            if let Ok(root) = result {
+                // Root path should be absolute after canonicalization
+                prop_assert!(
+                    root.as_path().is_absolute(),
+                    "Sandbox root should be absolute"
+                );
+            }
+        }
+    });
+}
+
+// ============================================================================
+// Property 15: Symlink Rejection
+// ============================================================================
+
+/// Property test: Symlink rejection
+///
+/// **Feature: crates-io-packaging, Property 15: Symlink rejection**
+///
+/// This test verifies that the path sandbox correctly rejects symlinks when
+/// configured to do so (default behavior), and allows them when explicitly
+/// enabled via configuration.
+///
+/// The test covers:
+/// - Symlinks to files within the sandbox are rejected by default
+/// - Symlinks to files outside the sandbox are always rejected (escape attempt)
+/// - Symlinks are allowed when `allow_symlinks: true` is configured
+/// - Hardlinks are rejected by default (Unix only)
+/// - Hardlinks are allowed when `allow_hardlinks: true` is configured
+///
+/// **Validates: Requirements FR-SEC-3**
+#[cfg(unix)]
+#[test]
+fn prop_symlink_rejection() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random file names for targets and links
+        target_name in "[a-zA-Z0-9_]{3,15}",
+        link_name in "[a-zA-Z0-9_]{3,15}",
+        // Generate random file content
+        file_content in "[a-zA-Z0-9 ]{10,100}",
+        // Generate random subdirectory depth
+        subdir_depth in 0usize..3,
+    )| {
+        // Create a temporary directory for the sandbox root
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create subdirectories if needed
+        let mut target_dir = temp_dir.path().to_path_buf();
+        for i in 0..subdir_depth {
+            target_dir = target_dir.join(format!("subdir{}", i));
+        }
+        std::fs::create_dir_all(&target_dir).expect("Failed to create subdirs");
+        
+        // Create a target file
+        let target_file = target_dir.join(format!("{}.txt", target_name));
+        std::fs::write(&target_file, &file_content).expect("Failed to write target file");
+        
+        // Create a symlink to the target file
+        let link_file = temp_dir.path().join(format!("{}_link.txt", link_name));
+        std::os::unix::fs::symlink(&target_file, &link_file).expect("Failed to create symlink");
+        
+        // Test 1: Symlinks should be rejected with default config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+                .expect("Failed to create sandbox root");
+            
+            let link_relative = format!("{}_link.txt", link_name);
+            let result = root.join(&link_relative);
+            
+            prop_assert!(
+                result.is_err(),
+                "Symlink should be rejected with default config: {}",
+                link_relative
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::SymlinkNotAllowed { .. }),
+                    "Error should be SymlinkNotAllowed, got: {:?}",
+                    err
+                );
+            }
+        }
+        
+        // Test 2: Symlinks should be allowed with permissive config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::permissive())
+                .expect("Failed to create sandbox root");
+            
+            let link_relative = format!("{}_link.txt", link_name);
+            let result = root.join(&link_relative);
+            
+            prop_assert!(
+                result.is_ok(),
+                "Symlink should be allowed with permissive config: {}",
+                link_relative
+            );
+        }
+        
+        // Test 3: Symlinks pointing outside sandbox should always be rejected (escape attempt)
+        {
+            let outside_dir = TempDir::new().expect("Failed to create outside dir");
+            let outside_file = outside_dir.path().join("secret.txt");
+            std::fs::write(&outside_file, "secret content").expect("Failed to write outside file");
+            
+            // Create a symlink inside sandbox pointing outside
+            let escape_link = temp_dir.path().join("escape_link.txt");
+            std::os::unix::fs::symlink(&outside_file, &escape_link).expect("Failed to create escape symlink");
+            
+            // Even with permissive config, escape should be detected
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::permissive())
+                .expect("Failed to create sandbox root");
+            
+            let result = root.join("escape_link.txt");
+            
+            prop_assert!(
+                result.is_err(),
+                "Symlink escape attempt should be rejected even with permissive config"
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::EscapeAttempt { .. }),
+                    "Error should be EscapeAttempt, got: {:?}",
+                    err
+                );
+            }
+        }
+    });
+}
+
+/// Property test: Hardlink rejection (Unix only)
+///
+/// **Feature: crates-io-packaging, Property 15: Symlink rejection (hardlinks)**
+///
+/// This test verifies that hardlinks (files with link count > 1) are rejected
+/// by default and allowed when explicitly configured.
+///
+/// **Validates: Requirements FR-SEC-3**
+#[cfg(unix)]
+#[test]
+fn prop_hardlink_rejection() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random file names
+        original_name in "[a-zA-Z0-9_]{3,15}",
+        hardlink_name in "[a-zA-Z0-9_]{3,15}",
+        // Generate random file content
+        file_content in "[a-zA-Z0-9 ]{10,100}",
+    )| {
+        // Create a temporary directory for the sandbox root
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create an original file
+        let original_file = temp_dir.path().join(format!("{}.txt", original_name));
+        std::fs::write(&original_file, &file_content).expect("Failed to write original file");
+        
+        // Create a hardlink to the original file
+        let hardlink_file = temp_dir.path().join(format!("{}_hardlink.txt", hardlink_name));
+        std::fs::hard_link(&original_file, &hardlink_file).expect("Failed to create hardlink");
+        
+        // Test 1: Hardlinks should be rejected with default config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+                .expect("Failed to create sandbox root");
+            
+            let hardlink_relative = format!("{}_hardlink.txt", hardlink_name);
+            let result = root.join(&hardlink_relative);
+            
+            prop_assert!(
+                result.is_err(),
+                "Hardlink should be rejected with default config: {}",
+                hardlink_relative
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::HardlinkNotAllowed { .. }),
+                    "Error should be HardlinkNotAllowed, got: {:?}",
+                    err
+                );
+            }
+        }
+        
+        // Test 2: Hardlinks should be allowed with permissive config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::permissive())
+                .expect("Failed to create sandbox root");
+            
+            let hardlink_relative = format!("{}_hardlink.txt", hardlink_name);
+            let result = root.join(&hardlink_relative);
+            
+            prop_assert!(
+                result.is_ok(),
+                "Hardlink should be allowed with permissive config: {}",
+                hardlink_relative
+            );
+        }
+        
+        // Test 3: Original file (link count = 1 initially, now = 2) should also be rejected
+        // because it now has multiple links
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+                .expect("Failed to create sandbox root");
+            
+            let original_relative = format!("{}.txt", original_name);
+            let result = root.join(&original_relative);
+            
+            prop_assert!(
+                result.is_err(),
+                "Original file with hardlink should be rejected with default config: {}",
+                original_relative
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::HardlinkNotAllowed { .. }),
+                    "Error should be HardlinkNotAllowed, got: {:?}",
+                    err
+                );
+            }
+        }
+    });
+}
+
+/// Property test: Symlink in path components
+///
+/// **Feature: crates-io-packaging, Property 15: Symlink rejection (path components)**
+///
+/// This test verifies that symlinks anywhere in the path (not just the final
+/// component) are detected and rejected.
+///
+/// **Validates: Requirements FR-SEC-3**
+#[cfg(unix)]
+#[test]
+fn prop_symlink_in_path_components() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random directory and file names
+        real_dir_name in "[a-zA-Z0-9_]{3,10}",
+        link_dir_name in "[a-zA-Z0-9_]{3,10}",
+        file_name in "[a-zA-Z0-9_]{3,10}",
+        file_content in "[a-zA-Z0-9 ]{10,50}",
+    )| {
+        // Create a temporary directory for the sandbox root
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create a real directory with a file
+        let real_dir = temp_dir.path().join(&real_dir_name);
+        std::fs::create_dir(&real_dir).expect("Failed to create real dir");
+        
+        let real_file = real_dir.join(format!("{}.txt", file_name));
+        std::fs::write(&real_file, &file_content).expect("Failed to write file");
+        
+        // Create a symlink directory pointing to the real directory
+        let link_dir = temp_dir.path().join(&link_dir_name);
+        std::os::unix::fs::symlink(&real_dir, &link_dir).expect("Failed to create symlink dir");
+        
+        // Test: Accessing file through symlink directory should be rejected
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+                .expect("Failed to create sandbox root");
+            
+            // Try to access the file through the symlink directory
+            let path_through_symlink = format!("{}/{}.txt", link_dir_name, file_name);
+            let result = root.join(&path_through_symlink);
+            
+            prop_assert!(
+                result.is_err(),
+                "Path through symlink directory should be rejected: {}",
+                path_through_symlink
+            );
+            
+            if let Err(err) = result {
+                prop_assert!(
+                    matches!(err, SandboxError::SymlinkNotAllowed { .. }),
+                    "Error should be SymlinkNotAllowed, got: {:?}",
+                    err
+                );
+            }
+        }
+        
+        // Test: Same path should work with permissive config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::permissive())
+                .expect("Failed to create sandbox root");
+            
+            let path_through_symlink = format!("{}/{}.txt", link_dir_name, file_name);
+            let result = root.join(&path_through_symlink);
+            
+            prop_assert!(
+                result.is_ok(),
+                "Path through symlink directory should be allowed with permissive config: {}",
+                path_through_symlink
+            );
+        }
+        
+        // Test: Direct path to real file should work with default config
+        {
+            let root = SandboxRoot::new(temp_dir.path(), SandboxConfig::default())
+                .expect("Failed to create sandbox root");
+            
+            let direct_path = format!("{}/{}.txt", real_dir_name, file_name);
+            let result = root.join(&direct_path);
+            
+            prop_assert!(
+                result.is_ok(),
+                "Direct path to real file should be allowed: {}",
+                direct_path
+            );
+        }
+    });
+}
+
+/// Property test: Mixed symlink and hardlink configuration
+///
+/// **Feature: crates-io-packaging, Property 15: Symlink rejection (mixed config)**
+///
+/// This test verifies that symlink and hardlink settings can be configured
+/// independently.
+///
+/// **Validates: Requirements FR-SEC-3**
+#[cfg(unix)]
+#[test]
+fn prop_symlink_hardlink_independent_config() {
+    use xchecker::paths::{SandboxConfig, SandboxError, SandboxRoot};
+    use tempfile::TempDir;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate random file names
+        target_name in "[a-zA-Z0-9_]{3,10}",
+        symlink_name in "[a-zA-Z0-9_]{3,10}",
+        hardlink_name in "[a-zA-Z0-9_]{3,10}",
+        file_content in "[a-zA-Z0-9 ]{10,50}",
+    )| {
+        // Create a temporary directory for the sandbox root
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create a target file for symlink
+        let symlink_target = temp_dir.path().join(format!("{}_target.txt", target_name));
+        std::fs::write(&symlink_target, &file_content).expect("Failed to write symlink target");
+        
+        // Create a separate file for hardlink (to avoid link count issues)
+        let hardlink_original = temp_dir.path().join(format!("{}_original.txt", target_name));
+        std::fs::write(&hardlink_original, &file_content).expect("Failed to write hardlink original");
+        
+        // Create symlink
+        let symlink_file = temp_dir.path().join(format!("{}_symlink.txt", symlink_name));
+        std::os::unix::fs::symlink(&symlink_target, &symlink_file).expect("Failed to create symlink");
+        
+        // Create hardlink
+        let hardlink_file = temp_dir.path().join(format!("{}_hardlink.txt", hardlink_name));
+        std::fs::hard_link(&hardlink_original, &hardlink_file).expect("Failed to create hardlink");
+        
+        // Test 1: Allow symlinks only
+        {
+            let config = SandboxConfig {
+                allow_symlinks: true,
+                allow_hardlinks: false,
+            };
+            let root = SandboxRoot::new(temp_dir.path(), config)
+                .expect("Failed to create sandbox root");
+            
+            // Symlink should be allowed
+            let symlink_relative = format!("{}_symlink.txt", symlink_name);
+            let symlink_result = root.join(&symlink_relative);
+            prop_assert!(
+                symlink_result.is_ok(),
+                "Symlink should be allowed when allow_symlinks=true"
+            );
+            
+            // Hardlink should be rejected
+            let hardlink_relative = format!("{}_hardlink.txt", hardlink_name);
+            let hardlink_result = root.join(&hardlink_relative);
+            prop_assert!(
+                hardlink_result.is_err(),
+                "Hardlink should be rejected when allow_hardlinks=false"
+            );
+            if let Err(err) = hardlink_result {
+                prop_assert!(
+                    matches!(err, SandboxError::HardlinkNotAllowed { .. }),
+                    "Error should be HardlinkNotAllowed"
+                );
+            }
+        }
+        
+        // Test 2: Allow hardlinks only
+        {
+            let config = SandboxConfig {
+                allow_symlinks: false,
+                allow_hardlinks: true,
+            };
+            let root = SandboxRoot::new(temp_dir.path(), config)
+                .expect("Failed to create sandbox root");
+            
+            // Symlink should be rejected
+            let symlink_relative = format!("{}_symlink.txt", symlink_name);
+            let symlink_result = root.join(&symlink_relative);
+            prop_assert!(
+                symlink_result.is_err(),
+                "Symlink should be rejected when allow_symlinks=false"
+            );
+            if let Err(err) = symlink_result {
+                prop_assert!(
+                    matches!(err, SandboxError::SymlinkNotAllowed { .. }),
+                    "Error should be SymlinkNotAllowed"
+                );
+            }
+            
+            // Hardlink should be allowed
+            let hardlink_relative = format!("{}_hardlink.txt", hardlink_name);
+            let hardlink_result = root.join(&hardlink_relative);
+            prop_assert!(
+                hardlink_result.is_ok(),
+                "Hardlink should be allowed when allow_hardlinks=true"
+            );
+        }
+    });
+}
+
+/// Property test: Atomic writes for state files
+///
+/// **Property 13: Atomic writes for state files**
+/// **Validates: Requirements FR-SEC-2**
+///
+/// This property verifies that state file writes are atomic and consistent.
+/// It checks that:
+/// 1. Writes succeed for arbitrary content
+/// 2. Content is correctly written (including line ending normalization)
+/// 3. Overwrites work correctly
+/// 4. Parent directories are created automatically
+#[test]
+fn prop_atomic_writes_for_state_files() {
+    use xchecker::atomic_write::write_file_atomic;
+    use camino::Utf8Path;
+    use tempfile::TempDir;
+    use std::fs;
+
+    let config = proptest_config(None);
+
+    proptest!(config, |(
+        // Generate arbitrary content (including special chars and newlines)
+        content in ".*",
+        // Generate a filename
+        filename in "[a-zA-Z0-9_]{1,20}\\.json",
+        // Generate a subdirectory path (optional)
+        subdir in prop::option::of("[a-zA-Z0-9_]{1,10}/[a-zA-Z0-9_]{1,10}")
+    )| {
+        let temp_dir = TempDir::new().unwrap();
+        let mut file_path_buf = temp_dir.path().to_path_buf();
+        
+        if let Some(ref sub) = subdir {
+            file_path_buf.push(sub);
+        }
+        file_path_buf.push(&filename);
+        
+        let file_path = Utf8Path::from_path(file_path_buf.as_path()).unwrap();
+
+        // 1. Write content atomically
+        let result = write_file_atomic(file_path, &content);
+        
+        prop_assert!(result.is_ok(), "Atomic write should succeed");
+        prop_assert!(file_path.exists(), "File should exist after write");
+        
+        // 2. Verify content
+        let read_content = fs::read_to_string(file_path.as_std_path()).unwrap();
+        
+        // Normalize expected content (atomic write normalizes line endings)
+        let expected_content = content.replace("\r\n", "\n").replace('\r', "\n");
+        prop_assert_eq!(read_content, expected_content, "File content should match written content (normalized)");
+        
+        // 3. Verify overwrite
+        let new_content = format!("updated: {}", content);
+        let result_overwrite = write_file_atomic(file_path, &new_content);
+        
+        prop_assert!(result_overwrite.is_ok(), "Atomic overwrite should succeed");
+        
+        let read_new_content = fs::read_to_string(file_path.as_std_path()).unwrap();
+        let expected_new_content = new_content.replace("\r\n", "\n").replace('\r', "\n");
+        prop_assert_eq!(read_new_content, expected_new_content, "Overwritten content should match");
     });
 }

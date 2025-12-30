@@ -30,50 +30,97 @@ print_warning() {
 
 echo "1. Testing hybrid dependency policy validation..."
 # This simulates the dependency-policy job
-SECURITY_CRITICAL=(
-    "reqwest = \"0.12.26\""
-    "tokio = \"1.48.0\""
-    "serde = \"1.0.228\""
-    "serde_json = \"1.0.145\""
-    "blake3 = \"1.8.2\""
-)
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    PYTHON_BIN=python
+fi
 
-CORE_DEPS=(
-    "clap = \"4.5\""
-    "anyhow = \"1.0\""
-    "thiserror = \"2.0\""
-    "tracing = \"0.1\""
-)
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    print_status 1 "Python 3.11+ is required for policy validation"
+fi
 
-POLICY_PASSED=true
+if "$PYTHON_BIN" - <<'PY'
+from pathlib import Path
+import re
+import sys
 
-# Check security-critical deps
-for dep_spec in "${SECURITY_CRITICAL[@]}"; do
-    dep_name=$(echo "$dep_spec" | cut -d' ' -f1)
-    dep_version=$(echo "$dep_spec" | cut -d'"' -f2)
-    
-    if grep -q "^$dep_name = \"$dep_version\"" Cargo.toml; then
-        echo "  ✅ $dep_name: exact version $dep_version"
-    else
-        echo "  ❌ $dep_name: expected exact version $dep_version"
-        POLICY_PASSED=false
-    fi
-done
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python < 3.11
+    try:
+        import tomli as tomllib
+    except ModuleNotFoundError:
+        print("tomllib not available (need Python 3.11+ or tomli).", file=sys.stderr)
+        sys.exit(2)
 
-# Check core deps
-for dep_spec in "${CORE_DEPS[@]}"; do
-    dep_name=$(echo "$dep_spec" | cut -d' ' -f1)
-    dep_version=$(echo "$dep_spec" | cut -d'"' -f2)
-    
-    if grep -q "^$dep_name = \"$dep_version\"" Cargo.toml; then
-        echo "  ✅ $dep_name: coarse minimum $dep_version"
-    else
-        echo "  ❌ $dep_name: expected coarse minimum $dep_version"
-        POLICY_PASSED=false
-    fi
-done
+SECURITY_CRITICAL = {
+    "reqwest": "0.12.26",
+    "tokio": "1.48.0",
+    "serde": "1.0.228",
+    "serde_json": "1.0.145",
+    "blake3": "1.8.2",
+}
 
-if [ "$POLICY_PASSED" = true ]; then
+CORE_DEPS = {
+    "clap": "4.5",
+    "anyhow": "1.0",
+    "thiserror": "2.0",
+    "tracing": "0.1",
+}
+
+def read_version(deps, name):
+    spec = deps.get(name)
+    if isinstance(spec, str):
+        return spec.strip()
+    if isinstance(spec, dict):
+        version = spec.get("version")
+        if isinstance(version, str):
+            return version.strip()
+    return None
+
+def extract_version(req):
+    if not req:
+        return None
+    match = re.search(r"\d+\.\d+(?:\.\d+)?", req)
+    return match.group(0) if match else None
+
+data = tomllib.loads(Path("Cargo.toml").read_text())
+deps = data.get("dependencies", {})
+
+errors = []
+
+print("  Checking security-critical dependency versions...")
+for name, expected in SECURITY_CRITICAL.items():
+    version = read_version(deps, name)
+    if version is None:
+        errors.append(f"{name}: missing from Cargo.toml")
+        continue
+    if version != expected and version != f"={expected}":
+        errors.append(f"{name}: expected exact {expected}, found {version}")
+    else:
+        print(f"  ✅ {name}: exact version {expected}")
+
+print("  Checking core dependency coarse minima...")
+for name, minimum in CORE_DEPS.items():
+    version = read_version(deps, name)
+    if version is None:
+        errors.append(f"{name}: missing from Cargo.toml")
+        continue
+    found = extract_version(version)
+    if found is None or not found.startswith(minimum):
+        errors.append(f"{name}: expected minimum {minimum}, found {version}")
+    else:
+        print(f"  ✅ {name}: coarse minimum {minimum} (found {version})")
+
+if errors:
+    print("  Policy validation failed:")
+    for error in errors:
+        print(f"  ❌ {error}")
+    sys.exit(1)
+
+print("  ✅ Hybrid dependency policy validation passed")
+PY
+then
     print_status 0 "Hybrid dependency policy validation"
 else
     print_status 1 "Hybrid dependency policy validation"

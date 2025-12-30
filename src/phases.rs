@@ -1564,7 +1564,7 @@ The review phase has identified issues that need to be addressed. Please process
         let mut next_step = NextStep::Continue;
 
         // Create fixup parser with the configured mode
-        let fixup_parser = FixupParser::new(self.mode, ctx.spec_dir.clone());
+        let fixup_parser = FixupParser::new(self.mode, ctx.spec_dir.clone())?;
 
         // Process fixups if markers are detected
         if fixup_parser.has_fixup_markers(&fixup_content) {

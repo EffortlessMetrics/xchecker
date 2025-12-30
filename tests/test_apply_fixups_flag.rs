@@ -72,7 +72,7 @@ fn test_fixup_parser_mode_behavior() -> Result<()> {
     let temp_dir = PathBuf::from(".");
 
     // Test preview mode
-    let parser_preview = FixupParser::new(FixupMode::Preview, temp_dir.clone());
+    let parser_preview = FixupParser::new(FixupMode::Preview, temp_dir.clone())?;
 
     let test_content = r"
 FIXUP PLAN:
@@ -100,7 +100,7 @@ The following changes are needed:
     }
 
     // Test apply mode
-    let parser_apply = FixupParser::new(FixupMode::Apply, temp_dir);
+    let parser_apply = FixupParser::new(FixupMode::Apply, temp_dir)?;
 
     // Apply mode should also be able to parse diffs
     if parser_apply.has_fixup_markers(test_content) {

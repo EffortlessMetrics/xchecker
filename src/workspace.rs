@@ -8,7 +8,9 @@
 //! - 4.3.1: `xchecker project init <name>` creates workspace registry
 //! - 4.3.6: Workspace discovery searches upward from CWD
 
+use crate::atomic_write::write_file_atomic;
 use anyhow::{Context, Result};
+use camino::Utf8Path;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -68,8 +70,10 @@ impl Workspace {
     /// Save the workspace to a file
     pub fn save(&self, path: &Path) -> Result<()> {
         let content = serde_yaml::to_string(self).context("Failed to serialize workspace")?;
+        let path_utf8 = Utf8Path::from_path(path)
+            .ok_or_else(|| anyhow::anyhow!("Path is not valid UTF-8: {}", path.display()))?;
 
-        std::fs::write(path, content)
+        write_file_atomic(path_utf8, &content)
             .with_context(|| format!("Failed to write workspace file: {}", path.display()))?;
 
         Ok(())

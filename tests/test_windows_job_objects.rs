@@ -11,10 +11,9 @@
 #[cfg(test)]
 #[cfg(windows)]
 mod windows_job_object_tests {
-    use std::process::Command;
     use std::time::Duration;
     use tokio::time::sleep;
-    use xchecker::runner::{Runner, RunnerMode, WslOptions};
+    use xchecker::runner::{CommandSpec, Runner, RunnerMode, WslOptions};
 
     /// Test that Job Object creation succeeds on Windows
     ///
@@ -89,17 +88,19 @@ Start-Sleep -Seconds 30
         let processes_before = count_powershell_processes();
 
         // Execute the script
-        let mut cmd = tokio::process::Command::new("powershell");
-        cmd.args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            script_path.to_str().unwrap(),
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
+        let mut cmd = CommandSpec::new("powershell")
+            .args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                script_path.to_str().unwrap(),
+            ])
+            .to_tokio_command();
+
+        cmd.stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
 
         // Create Job Object and assign process (simulating what Runner does)
         #[cfg(windows)]
@@ -214,8 +215,9 @@ Start-Sleep -Seconds 30
     /// This is used to verify that child processes are properly terminated.
     #[allow(dead_code)] // Reserved for future test cases
     fn count_timeout_processes() -> usize {
-        let output = Command::new("tasklist")
+        let output = CommandSpec::new("tasklist")
             .args(["/FI", "IMAGENAME eq timeout.exe", "/NH"])
+            .to_command()
             .output()
             .unwrap();
 
@@ -230,8 +232,9 @@ Start-Sleep -Seconds 30
     ///
     /// This is used to verify that child processes are properly terminated.
     fn count_powershell_processes() -> usize {
-        let output = Command::new("tasklist")
+        let output = CommandSpec::new("tasklist")
             .args(["/FI", "IMAGENAME eq powershell.exe", "/NH"])
+            .to_command()
             .output()
             .unwrap();
 
@@ -279,8 +282,9 @@ Start-Sleep -Seconds 30
     #[tokio::test]
     async fn test_job_objects_with_wsl_runner() {
         // Check if WSL is available
-        let wsl_available = Command::new("wsl")
+        let wsl_available = CommandSpec::new("wsl")
             .args(["-l", "-q"])
+            .to_command()
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);

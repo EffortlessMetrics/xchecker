@@ -20,6 +20,7 @@ use tempfile::TempDir;
 use xchecker::packet::{
     ContentSelector, DEFAULT_PACKET_MAX_BYTES, DEFAULT_PACKET_MAX_LINES, PacketBuilder,
 };
+use xchecker::test_support;
 use xchecker::types::Priority;
 
 /// Test FR-PKT-001: Deterministic ordering with sorted file paths
@@ -580,24 +581,27 @@ fn test_manifest_no_content_leak() -> Result<()> {
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create file with sensitive-looking content
-    let sensitive_content = "password: secret123\napi_key: ghp_1234567890abcdef";
-    fs::write(base_path.join("config.core.yaml"), sensitive_content)?;
+    // Create file with non-secret content that exceeds the limit
+    // Must be Upstream (*.core.yaml) to trigger overflow and manifest writing
+    let unique_content = "unique_content_value_that_should_not_leak ".repeat(10);
+    let file_path = base_path.join("config.core.yaml");
+    fs::write(&file_path, &unique_content)?;
+    
+    assert!(file_path.exists(), "Test file must exist");
 
     let mut builder = PacketBuilder::with_limits(50, 3)?;
-    let _result = builder.build_packet(&base_path, "test", &context_dir, None);
+    let result = builder.build_packet(&base_path, "test", &context_dir, None);
+
+    assert!(result.is_err(), "Packet should have overflowed");
 
     // Read manifest
     let manifest_file = context_dir.join("test-packet.manifest.json");
-    assert!(manifest_file.exists());
+    assert!(manifest_file.exists(), "Manifest file should exist");
 
     let manifest_content = fs::read_to_string(&manifest_file)?;
 
-    // Verify no sensitive content in manifest
-    assert!(!manifest_content.contains("password"));
-    assert!(!manifest_content.contains("secret123"));
-    assert!(!manifest_content.contains("api_key"));
-    assert!(!manifest_content.contains("ghp_"));
+    // Verify no content in manifest
+    assert!(!manifest_content.contains("unique_content_value"));
 
     // Verify manifest has metadata
     assert!(manifest_content.contains("config.core.yaml"));
@@ -640,12 +644,10 @@ fn test_debug_packet_not_written_on_secret() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
+    let token = test_support::github_pat();
 
     // Create file with a secret
-    fs::write(
-        base_path.join("secret.md"),
-        "token: ghp_1234567890abcdefghijklmnopqrstuvwxyz",
-    )?;
+    fs::write(base_path.join("secret.md"), format!("token: {}", token))?;
 
     let mut builder = PacketBuilder::new()?;
     let result = builder.build_packet(&base_path, "test", &context_dir, None);

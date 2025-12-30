@@ -26,7 +26,7 @@ use xchecker::fixup::{FixupMode, FixupParser};
 #[test]
 fn test_apply_mode_creates_backup_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("test.txt");
@@ -78,7 +78,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_uses_atomic_writes() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("atomic.txt");
@@ -122,7 +122,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_computes_blake3_hash() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("hash_test.txt");
@@ -168,7 +168,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_sets_applied_true() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("applied_test.txt");
@@ -200,7 +200,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_multiple_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create test files
     let file1 = temp_dir.path().join("file1.txt");
@@ -252,7 +252,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_nonexistent_file() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     let review_content = r"
 FIXUP PLAN:
@@ -282,7 +282,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_multiple_hunks() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with multiple sections
     let test_file = temp_dir.path().join("multi_hunk.txt");
@@ -327,7 +327,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_line_removals() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("removals.txt");
@@ -370,7 +370,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_mixed_changes() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("mixed.txt");
@@ -420,7 +420,7 @@ fn test_apply_mode_preserves_unix_permissions() -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
 
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file with specific permissions
     let test_file = temp_dir.path().join("perms.txt");
@@ -461,7 +461,7 @@ FIXUP PLAN:
 #[test]
 fn test_apply_mode_preserves_windows_attributes() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("attrs.txt");
@@ -513,7 +513,7 @@ fn test_apply_mode_records_permission_warnings() -> Result<()> {
     // It validates that the warning mechanism exists
 
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     let test_file = temp_dir.path().join("warn_test.txt");
     fs::write(&test_file, "content\n")?;

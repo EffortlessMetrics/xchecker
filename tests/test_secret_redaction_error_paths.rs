@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use xchecker::error::XCheckerError;
 use xchecker::receipt::ReceiptManager;
 use xchecker::redaction::{redact_user_optional, redact_user_string, redact_user_strings};
+use xchecker::test_support;
 use xchecker::types::{ErrorKind, PacketEvidence, PhaseId};
 
 #[test]
@@ -33,8 +34,8 @@ fn test_at_sec_003_secret_in_error_reason() {
     let manager = ReceiptManager::new(&spec_base_path);
 
     // Create an error with a secret in the error message
-    let error_with_secret =
-        "Authentication failed with token ghp_1234567890123456789012345678901234567890";
+    let token = test_support::github_pat();
+    let error_with_secret = format!("Authentication failed with token {}", token);
 
     // Create a receipt with the error
     let packet = PacketEvidence {
@@ -74,7 +75,7 @@ fn test_at_sec_003_secret_in_error_reason() {
     assert!(error_reason.contains("Authentication failed"));
     assert!(error_reason.contains("***"));
     assert!(!error_reason.contains("ghp_"));
-    assert!(!error_reason.contains("1234567890"));
+    assert!(!error_reason.contains(&token));
 
     drop(temp_dir);
 }
@@ -91,7 +92,11 @@ fn test_secret_in_stderr_tail() {
     let manager = ReceiptManager::new(&spec_base_path);
 
     // Create stderr with a secret
-    let stderr_with_secret = "Error: Failed to connect\nToken: ghp_1234567890123456789012345678901234567890\nConnection refused";
+    let token = test_support::github_pat();
+    let stderr_with_secret = format!(
+        "Error: Failed to connect\nToken: {}\nConnection refused",
+        token
+    );
 
     let packet = PacketEvidence {
         files: vec![],
@@ -146,10 +151,12 @@ fn test_secret_in_warning_messages() {
     let manager = ReceiptManager::new(&spec_base_path);
 
     // Create warnings with secrets
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
     let warnings_with_secrets = vec![
-        "Warning: Deprecated token ghp_1234567890123456789012345678901234567890 used".to_string(),
+        format!("Warning: Deprecated token {} used", github_token),
         "Warning: Rate limit exceeded".to_string(),
-        "Warning: AWS key AKIA1234567890123456 is invalid".to_string(),
+        format!("Warning: AWS key {} is invalid", aws_key),
     ];
 
     let packet = PacketEvidence {
@@ -211,7 +218,12 @@ fn test_multiple_secrets_in_error_reason() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let error_with_multiple_secrets = "Failed: GitHub token ghp_1234567890123456789012345678901234567890 and AWS key AKIA1234567890123456 both invalid";
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let error_with_multiple_secrets = format!(
+        "Failed: GitHub token {} and AWS key {} both invalid",
+        github_token, aws_key
+    );
 
     let packet = PacketEvidence {
         files: vec![],
@@ -265,7 +277,8 @@ fn test_secret_in_bearer_token_error() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let error_with_bearer = "Authorization failed: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0 was rejected";
+    let bearer_token = test_support::bearer_token();
+    let error_with_bearer = format!("Authorization failed: {} was rejected", bearer_token);
 
     let packet = PacketEvidence {
         files: vec![],
@@ -317,7 +330,8 @@ fn test_secret_in_slack_token_warning() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let warnings = vec!["Slack token xoxb-1234567890-abcdefghijklmnop found in config".to_string()];
+    let slack_token = test_support::slack_bot_token();
+    let warnings = vec![format!("Slack token {} found in config", slack_token)];
 
     let packet = PacketEvidence {
         files: vec![],
@@ -367,7 +381,11 @@ fn test_aws_secret_key_in_stderr() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let stderr = "Configuration error\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nPlease check your environment";
+    let aws_secret = test_support::aws_secret_access_key();
+    let stderr = format!(
+        "Configuration error\n{}\nPlease check your environment",
+        aws_secret
+    );
 
     let packet = PacketEvidence {
         files: vec![],
@@ -474,7 +492,8 @@ fn test_receipt_write_persists_redacted_content() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let error_with_secret = "Failed with token ghp_1234567890123456789012345678901234567890";
+    let token = test_support::github_pat();
+    let error_with_secret = format!("Failed with token {}", token);
 
     let packet = PacketEvidence {
         files: vec![],
@@ -512,8 +531,7 @@ fn test_receipt_write_persists_redacted_content() {
     let file_content = std::fs::read_to_string(receipt_path.as_std_path()).unwrap();
 
     // Verify the file content does not contain the secret
-    assert!(!file_content.contains("ghp_"));
-    assert!(!file_content.contains("1234567890"));
+    assert!(!file_content.contains(&token));
     assert!(file_content.contains("***"));
     assert!(file_content.contains("Failed with token"));
 
@@ -543,7 +561,8 @@ fn test_error_receipt_creation_with_secrets() {
         max_lines: 1200,
     };
 
-    let stderr_with_secret = "Found token: ghp_1234567890123456789012345678901234567890";
+    let token = test_support::github_pat();
+    let stderr_with_secret = format!("Found token: {}", token);
 
     let receipt = manager.create_error_receipt(
         "test-error-receipt",
@@ -584,13 +603,15 @@ fn test_redaction_helper_functions() {
     // Test the global redaction helper functions
 
     // Test redact_user_string
-    let text_with_secret = "Error: ghp_1234567890123456789012345678901234567890 invalid";
-    let redacted = redact_user_string(text_with_secret);
+    let token = test_support::github_pat();
+    let text_with_secret = format!("Error: {} invalid", token);
+    let redacted = redact_user_string(&text_with_secret);
     assert!(redacted.contains("***"));
     assert!(!redacted.contains("ghp_"));
 
     // Test redact_user_optional with Some
-    let some_text = Some("Token AKIA1234567890123456 expired".to_string());
+    let aws_key = test_support::aws_access_key_id();
+    let some_text = Some(format!("Token {} expired", aws_key));
     let redacted_some = redact_user_optional(&some_text);
     assert!(redacted_some.is_some());
     assert!(redacted_some.unwrap().contains("***"));
@@ -601,10 +622,8 @@ fn test_redaction_helper_functions() {
     assert!(redacted_none.is_none());
 
     // Test redact_user_strings
-    let strings = vec![
-        "Warning: ghp_1234567890123456789012345678901234567890".to_string(),
-        "Safe warning".to_string(),
-    ];
+    let token = test_support::github_pat();
+    let strings = vec![format!("Warning: {}", token), "Safe warning".to_string()];
     let redacted_strings = redact_user_strings(&strings);
     assert_eq!(redacted_strings.len(), 2);
     assert!(redacted_strings[0].contains("***"));
@@ -625,7 +644,11 @@ fn test_context_lines_redaction() {
     let manager = ReceiptManager::new(&spec_base_path);
 
     // Simulate context lines with secrets
-    let context_with_secret = "Context: Failed at line 42\nToken used: ghp_1234567890123456789012345678901234567890\nRetry failed";
+    let token = test_support::github_pat();
+    let context_with_secret = format!(
+        "Context: Failed at line 42\nToken used: {}\nRetry failed",
+        token
+    );
 
     let packet = PacketEvidence {
         files: vec![],
@@ -678,9 +701,12 @@ fn test_all_error_fields_redacted_together() {
 
     let manager = ReceiptManager::new(&spec_base_path);
 
-    let error_with_secret = "Error: ghp_1234567890123456789012345678901234567890";
-    let stderr_with_secret = "Stderr: AKIA1234567890123456";
-    let warnings_with_secrets = vec!["Warning: xoxb-test-token-here".to_string()];
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let slack_token = test_support::slack_bot_token();
+    let error_with_secret = format!("Error: {}", github_token);
+    let stderr_with_secret = format!("Stderr: {}", aws_key);
+    let warnings_with_secrets = vec![format!("Warning: {}", slack_token)];
 
     let packet = PacketEvidence {
         files: vec![],

@@ -40,7 +40,7 @@
 
 | Document | Description |
 |----------|-------------|
-| [SECURITY.md](SECURITY.md) | Secret detection and redaction |
+| [SECURITY.md](SECURITY.md) | Secret detection, redaction, and path validation |
 | [PERFORMANCE.md](PERFORMANCE.md) | Benchmarking and optimization |
 | [PLATFORM.md](PLATFORM.md) | Cross-platform support |
 

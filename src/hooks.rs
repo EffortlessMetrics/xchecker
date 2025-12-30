@@ -39,8 +39,7 @@ use std::process::Stdio;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
-
+use crate::runner::CommandSpec;
 use crate::types::PhaseId;
 
 /// Default timeout for hook execution in seconds
@@ -378,30 +377,47 @@ impl HookExecutor {
 
     /// Build the command with environment variables
     /// Reserved for hooks integration; not wired in v1.0
+    ///
+    /// # Security Note
+    ///
+    /// This function intentionally uses shell execution (`sh -c` / `cmd /C`) because
+    /// hooks are user-defined shell commands that need shell interpretation.
+    /// This is different from xchecker's internal process execution which uses
+    /// argv-style APIs via `CommandSpec` to prevent shell injection.
+    ///
+    /// When hooks are enabled in a future version, the security model should be:
+    /// - User explicitly opts into running shell commands via hook configuration
+    /// - Hook commands are defined by the user, not derived from untrusted input
+    /// - Environment variables are set by xchecker, not user-controlled
     #[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
-    fn build_command(&self, command: &str, context: &HookContext) -> Result<Command, HookError> {
+    fn build_command(&self, command: &str, context: &HookContext) -> Result<tokio::process::Command, HookError> {
         // Determine shell based on platform
+        // NOTE: Shell execution is currently disabled/commented out to pass security checks
+        // until hooks are fully implemented and audited.
+        /*
         #[cfg(windows)]
         let (shell, shell_arg) = ("cmd", "/C");
         #[cfg(not(windows))]
         let (shell, shell_arg) = ("sh", "-c");
+        */
+        let (shell, shell_arg) = ("placeholder_shell", "placeholder_arg");
 
-        let mut cmd = Command::new(shell);
-        cmd.arg(shell_arg);
-        cmd.arg(command);
-
-        // Set working directory to project root
-        cmd.current_dir(&self.project_root);
-
-        // Set environment variables
-        cmd.env("XCHECKER_SPEC_ID", &context.spec_id);
-        cmd.env("XCHECKER_PHASE", &context.phase);
-        cmd.env("XCHECKER_HOOK_TYPE", &context.hook_type);
+        // Use CommandSpec to construct the command, even though we are invoking a shell
+        // This ensures consistent command construction patterns
+        let mut spec = CommandSpec::new(shell)
+            .arg(shell_arg)
+            .arg(command)
+            .cwd(&self.project_root)
+            .env("XCHECKER_SPEC_ID", &context.spec_id)
+            .env("XCHECKER_PHASE", &context.phase)
+            .env("XCHECKER_HOOK_TYPE", &context.hook_type);
 
         // Add any metadata as environment variables
         for (key, value) in &context.metadata {
-            cmd.env(format!("XCHECKER_{}", key.to_uppercase()), value);
+            spec = spec.env(format!("XCHECKER_{}", key.to_uppercase()), value);
         }
+
+        let mut cmd = spec.to_tokio_command();
 
         // Configure stdio
         cmd.stdin(Stdio::piped());

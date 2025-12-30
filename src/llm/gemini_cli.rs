@@ -4,13 +4,12 @@
 //! infrastructure for process control, timeouts, and output buffering.
 
 use crate::llm::{LlmBackend, LlmError, LlmInvocation, LlmResult, Message, Role};
-use crate::runner::{BufferConfig, Runner, WslOptions};
+use crate::runner::{BufferConfig, CommandSpec, Runner, WslOptions};
 use crate::types::RunnerMode;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
-use tokio::process::Command as TokioCommand;
 use tokio::time::timeout;
 
 /// Gemini profile configuration for per-phase model selection
@@ -232,17 +231,22 @@ impl LlmBackend for GeminiCliBackend {
         let model = self.resolve_model(&inv);
         let max_tokens = self.resolve_max_tokens(&inv);
 
-        // Build Gemini CLI command
+        // Build Gemini CLI command using CommandSpec for secure argv-style execution
         // Format: gemini -p "<prompt>" --model <model>
         // Note: Gemini takes prompt as command-line argument, not stdin
-        let mut cmd = TokioCommand::new(&self.binary_path);
-        cmd.arg("-p").arg(&prompt).arg("--model").arg(&model);
+        let mut cmd_spec = CommandSpec::new(&self.binary_path)
+            .arg("-p")
+            .arg(&prompt)
+            .arg("--model")
+            .arg(&model);
 
         // Add max_tokens if specified
         if let Some(tokens) = max_tokens {
-            cmd.arg("--max-tokens").arg(tokens.to_string());
+            cmd_spec = cmd_spec.arg("--max-tokens").arg(tokens.to_string());
         }
 
+        // Convert to TokioCommand for async execution
+        let mut cmd = cmd_spec.to_tokio_command();
         cmd.stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

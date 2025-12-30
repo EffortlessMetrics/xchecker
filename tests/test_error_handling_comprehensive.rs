@@ -689,8 +689,9 @@ fn test_io_errors_map_to_unknown() {
 #[test]
 fn test_error_messages_no_sensitive_info() {
     // Create errors with potentially sensitive data
+    let secret_value = format!("ghp_{}", "a".repeat(16));
     let err1 = XCheckerError::SecretDetected {
-        pattern: "ghp_1234567890abcdef".to_string(),
+        pattern: secret_value.clone(),
         location: "/home/user/.env".to_string(),
     };
 
@@ -699,7 +700,7 @@ fn test_error_messages_no_sensitive_info() {
     // Verify the actual secret value is not in the message
     // (pattern name is OK, but not the actual matched value)
     assert!(
-        !user_msg.contains("1234567890abcdef"),
+        !user_msg.contains(&secret_value),
         "Error message should not contain actual secret value"
     );
 }

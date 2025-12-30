@@ -258,8 +258,7 @@ async fn test_timeout_during_artifact_writing() -> Result<()> {
     let result = orchestrator.execute_requirements_phase(&config).await;
 
     // Should handle timeout gracefully
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("timeout") || err_msg.contains("timed out"),

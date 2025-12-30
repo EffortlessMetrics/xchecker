@@ -21,39 +21,45 @@ use anyhow::Result;
 use xchecker::error::XCheckerError;
 use xchecker::exit_codes::codes;
 use xchecker::redaction::{SecretRedactor, create_secret_detected_error};
+use xchecker::test_support;
 
 /// Test all default patterns are detected (FR-SEC-001)
 #[test]
 fn test_all_default_patterns_detected() -> Result<()> {
     let redactor = SecretRedactor::new()?;
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let aws_secret = test_support::aws_secret_access_key();
+    let slack_token = test_support::slack_bot_token();
+    let bearer_token = test_support::bearer_token();
 
     // Test GitHub PAT: ghp_[A-Za-z0-9]{36}
-    let github_content = "token = ghp_123456789012345678901234567890123456";
+    let github_content = format!("token = {}", github_token);
     assert!(
-        redactor.has_secrets(github_content, "test.txt")?,
+        redactor.has_secrets(&github_content, "test.txt")?,
         "Should detect GitHub PAT"
     );
-    let matches = redactor.scan_for_secrets(github_content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&github_content, "test.txt")?;
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].pattern_id, "github_pat");
 
     // Test AWS access key: AKIA[0-9A-Z]{16}
-    let aws_key_content = "access_key = AKIA1234567890123456";
+    let aws_key_content = format!("access_key = {}", aws_key);
     assert!(
-        redactor.has_secrets(aws_key_content, "test.txt")?,
+        redactor.has_secrets(&aws_key_content, "test.txt")?,
         "Should detect AWS access key"
     );
-    let matches = redactor.scan_for_secrets(aws_key_content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&aws_key_content, "test.txt")?;
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].pattern_id, "aws_access_key");
 
     // Test AWS secret key: AWS_SECRET_ACCESS_KEY=
-    let aws_secret_content = "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+    let aws_secret_content = aws_secret;
     assert!(
-        redactor.has_secrets(aws_secret_content, "test.txt")?,
+        redactor.has_secrets(&aws_secret_content, "test.txt")?,
         "Should detect AWS secret key"
     );
-    let matches = redactor.scan_for_secrets(aws_secret_content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&aws_secret_content, "test.txt")?;
     assert!(
         !matches.is_empty(),
         "Should return at least one match for AWS secret key"
@@ -73,22 +79,22 @@ fn test_all_default_patterns_detected() -> Result<()> {
     );
 
     // Test Slack token: xox[baprs]-
-    let slack_content = "slack_token = xoxb-1234567890-abcdefghijklmnop";
+    let slack_content = format!("slack_token = {}", slack_token);
     assert!(
-        redactor.has_secrets(slack_content, "test.txt")?,
+        redactor.has_secrets(&slack_content, "test.txt")?,
         "Should detect Slack token"
     );
-    let matches = redactor.scan_for_secrets(slack_content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&slack_content, "test.txt")?;
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].pattern_id, "slack_token");
 
     // Test Bearer token: Bearer [A-Za-z0-9._-]{20,}
-    let bearer_content = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+    let bearer_content = format!("Authorization: {}", bearer_token);
     assert!(
-        redactor.has_secrets(bearer_content, "test.txt")?,
+        redactor.has_secrets(&bearer_content, "test.txt")?,
         "Should detect Bearer token"
     );
-    let matches = redactor.scan_for_secrets(bearer_content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&bearer_content, "test.txt")?;
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].pattern_id, "bearer_token");
 
@@ -149,21 +155,21 @@ fn test_ignore_secret_pattern_suppression() -> Result<()> {
     // Ignore GitHub PAT pattern
     redactor.add_ignored_pattern("github_pat".to_string());
 
-    let content = "token = ghp_123456789012345678901234567890123456";
+    let content = format!("token = {}", test_support::github_pat());
 
     // Should NOT detect GitHub PAT because it's ignored
     assert!(
-        !redactor.has_secrets(content, "test.txt")?,
+        !redactor.has_secrets(&content, "test.txt")?,
         "Should not detect ignored pattern"
     );
 
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
     assert_eq!(matches.len(), 0);
 
     // But should still detect other patterns
-    let aws_content = "key = AKIA1234567890123456";
+    let aws_content = format!("key = {}", test_support::aws_access_key_id());
     assert!(
-        redactor.has_secrets(aws_content, "test.txt")?,
+        redactor.has_secrets(&aws_content, "test.txt")?,
         "Should still detect non-ignored patterns"
     );
 
@@ -178,15 +184,15 @@ fn test_multiple_ignored_patterns() -> Result<()> {
     redactor.add_ignored_pattern("github_pat".to_string());
     redactor.add_ignored_pattern("slack_token".to_string());
 
-    let github_content = "token = ghp_123456789012345678901234567890123456";
-    let slack_content = "slack = xoxb-1234567890-abcdefghijklmnop";
+    let github_content = format!("token = {}", test_support::github_pat());
+    let slack_content = format!("slack = {}", test_support::slack_bot_token());
 
-    assert!(!redactor.has_secrets(github_content, "test.txt")?);
-    assert!(!redactor.has_secrets(slack_content, "test.txt")?);
+    assert!(!redactor.has_secrets(&github_content, "test.txt")?);
+    assert!(!redactor.has_secrets(&slack_content, "test.txt")?);
 
     // AWS should still be detected
-    let aws_content = "key = AKIA1234567890123456";
-    assert!(redactor.has_secrets(aws_content, "test.txt")?);
+    let aws_content = format!("key = {}", test_support::aws_access_key_id());
+    assert!(redactor.has_secrets(&aws_content, "test.txt")?);
 
     Ok(())
 }
@@ -196,8 +202,9 @@ fn test_multiple_ignored_patterns() -> Result<()> {
 fn test_redaction_replaces_with_marker() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "token = ghp_123456789012345678901234567890123456\nother_line = safe";
-    let result = redactor.redact_content(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = format!("token = {}\nother_line = safe", token);
+    let result = redactor.redact_content(&content, "test.txt")?;
 
     assert!(result.has_secrets);
     assert_eq!(result.matches.len(), 1);
@@ -210,9 +217,7 @@ fn test_redaction_replaces_with_marker() -> Result<()> {
 
     // Should NOT contain the actual secret
     assert!(
-        !result
-            .content
-            .contains("ghp_123456789012345678901234567890123456"),
+        !result.content.contains(&token),
         "Should not contain actual secret"
     );
 
@@ -230,8 +235,10 @@ fn test_redaction_replaces_with_marker() -> Result<()> {
 fn test_redaction_multiple_secrets() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "github = ghp_123456789012345678901234567890123456\naws = AKIA1234567890123456";
-    let result = redactor.redact_content(content, "test.txt")?;
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let content = format!("github = {}\naws = {}", github_token, aws_key);
+    let result = redactor.redact_content(&content, "test.txt")?;
 
     assert!(result.has_secrets);
     assert_eq!(result.matches.len(), 2);
@@ -240,7 +247,7 @@ fn test_redaction_multiple_secrets() -> Result<()> {
     assert!(result.content.contains("[REDACTED:aws_access_key]"));
 
     assert!(!result.content.contains("ghp_"));
-    assert!(!result.content.contains("AKIA1234567890123456"));
+    assert!(!result.content.contains(&aws_key));
 
     Ok(())
 }
@@ -250,8 +257,8 @@ fn test_redaction_multiple_secrets() -> Result<()> {
 fn test_exit_code_8_on_secret_detection() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "token = ghp_123456789012345678901234567890123456";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let content = format!("token = {}", test_support::github_pat());
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert!(!matches.is_empty(), "Should detect secret");
 
@@ -282,10 +289,11 @@ fn test_secrets_in_file_paths() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
     // File path containing a secret-like pattern
-    let file_path = "config/ghp_123456789012345678901234567890123456.yaml";
+    let token = test_support::github_pat();
+    let file_path = format!("config/{}.yaml", token);
 
     // The file path itself should be treated as a string that can be redacted
-    let path_result = redactor.redact_content(file_path, "path")?;
+    let path_result = redactor.redact_content(&file_path, "path")?;
 
     // If the path contains a secret pattern, it should be detected
     assert!(path_result.has_secrets);
@@ -299,9 +307,9 @@ fn test_secrets_in_file_paths() -> Result<()> {
 fn test_secrets_in_error_messages() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let error_message =
-        "Failed to authenticate with token ghp_123456789012345678901234567890123456";
-    let result = redactor.redact_content(error_message, "error.txt")?;
+    let token = test_support::github_pat();
+    let error_message = format!("Failed to authenticate with token {}", token);
+    let result = redactor.redact_content(&error_message, "error.txt")?;
 
     assert!(result.has_secrets);
     assert!(result.content.contains("[REDACTED:github_pat]"));
@@ -315,8 +323,12 @@ fn test_secrets_in_error_messages() -> Result<()> {
 fn test_secrets_in_stderr_redacted() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let stderr = "Error: Authentication failed\nToken: ghp_123456789012345678901234567890123456\nPlease check credentials";
-    let result = redactor.redact_content(stderr, "stderr")?;
+    let token = test_support::github_pat();
+    let stderr = format!(
+        "Error: Authentication failed\nToken: {}\nPlease check credentials",
+        token
+    );
+    let result = redactor.redact_content(&stderr, "stderr")?;
 
     assert!(result.has_secrets);
     assert!(result.content.contains("[REDACTED:github_pat]"));
@@ -334,8 +346,9 @@ fn test_secrets_in_stderr_redacted() -> Result<()> {
 fn test_safe_context_no_secret_leak() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "prefix_ghp_123456789012345678901234567890123456_suffix";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = format!("prefix_{}_suffix", token);
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 1);
 
@@ -343,7 +356,7 @@ fn test_safe_context_no_secret_leak() -> Result<()> {
     let context = &matches[0].context;
     assert!(context.contains("[REDACTED]"));
     assert!(!context.contains("ghp_"));
-    assert!(!context.contains("1234567890123456789012345678901234567890"));
+    assert!(!context.contains(&token));
 
     Ok(())
 }
@@ -353,8 +366,9 @@ fn test_safe_context_no_secret_leak() -> Result<()> {
 fn test_line_number_accuracy() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "line 1\nline 2\nline 3 with ghp_123456789012345678901234567890123456\nline 4";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = format!("line 1\nline 2\nline 3 with {}\nline 4", token);
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].line_number, 3, "Should be on line 3");
@@ -367,16 +381,16 @@ fn test_line_number_accuracy() -> Result<()> {
 fn test_column_range_accuracy() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "token = ghp_123456789012345678901234567890123456 end";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = format!("token = {} end", token);
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 1);
     let (start, end) = matches[0].column_range;
 
     // The token starts at position 8 (after "token = ")
     assert_eq!(start, 8);
-    // The pattern is ghp_ + 36 chars = 40 characters total
-    assert_eq!(end, 48);
+    assert_eq!(end, start + token.len());
 
     Ok(())
 }
@@ -471,8 +485,9 @@ fn test_whitespace_only_content() -> Result<()> {
 fn test_secret_at_line_start() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "ghp_123456789012345678901234567890123456 is the token";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = format!("{} is the token", token);
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].column_range.0, 0);
@@ -485,15 +500,15 @@ fn test_secret_at_line_start() -> Result<()> {
 fn test_secret_at_line_end() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "ghp_123456789012345678901234567890123456";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let token = test_support::github_pat();
+    let content = token.clone();
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 1);
     let (start, end) = matches[0].column_range;
     // The token starts at position 0
     assert_eq!(start, 0);
-    // The pattern is ghp_ + 36 chars = 40 characters total
-    assert_eq!(end, 40);
+    assert_eq!(end, token.len());
     assert_eq!(end, content.len());
 
     Ok(())
@@ -504,8 +519,10 @@ fn test_secret_at_line_end() -> Result<()> {
 fn test_multiple_secrets_same_line() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = "github: ghp_123456789012345678901234567890123456 aws: AKIA1234567890123456";
-    let matches = redactor.scan_for_secrets(content, "test.txt")?;
+    let github_token = test_support::github_pat();
+    let aws_key = test_support::aws_access_key_id();
+    let content = format!("github: {} aws: {}", github_token, aws_key);
+    let matches = redactor.scan_for_secrets(&content, "test.txt")?;
 
     assert_eq!(matches.len(), 2);
 
@@ -535,21 +552,21 @@ fn test_pattern_case_sensitivity() -> Result<()> {
 
     // GitHub PAT pattern allows both cases in the token part: ghp_[A-Za-z0-9]{36}
     // The prefix "ghp_" is lowercase, but the rest can be mixed case
-    let lowercase_prefix = "token = ghp_123456789012345678901234567890123456";
-    let uppercase_prefix = "token = GHP_123456789012345678901234567890123456";
+    let lowercase_prefix = format!("token = {}", test_support::github_pat());
+    let uppercase_prefix = lowercase_prefix.replacen("ghp_", "GHP_", 1);
 
-    assert!(redactor.has_secrets(lowercase_prefix, "test.txt")?);
+    assert!(redactor.has_secrets(&lowercase_prefix, "test.txt")?);
     assert!(
-        !redactor.has_secrets(uppercase_prefix, "test.txt")?,
+        !redactor.has_secrets(&uppercase_prefix, "test.txt")?,
         "GHP_ prefix should not match"
     );
 
     // AWS keys pattern: AKIA[0-9A-Z]{16} - uppercase only
-    let aws_upper = "key = AKIA1234567890123456";
-    let aws_lower = "key = akia1234567890123456";
+    let aws_upper = format!("key = {}", test_support::aws_access_key_id());
+    let aws_lower = aws_upper.to_lowercase();
 
-    assert!(redactor.has_secrets(aws_upper, "test.txt")?);
-    assert!(!redactor.has_secrets(aws_lower, "test.txt")?);
+    assert!(redactor.has_secrets(&aws_upper, "test.txt")?);
+    assert!(!redactor.has_secrets(&aws_lower, "test.txt")?);
 
     Ok(())
 }

@@ -28,6 +28,7 @@ use crate::artifact::ArtifactManager;
 use crate::config::{CliArgs, Config};
 use crate::error::{ConfigError, XCheckerError};
 use crate::receipt::ReceiptManager;
+use crate::spec_id::sanitize_spec_id;
 use crate::status::StatusManager;
 use crate::types::{PhaseId, StatusOutput};
 
@@ -184,6 +185,14 @@ impl OrchestratorHandle {
         config: Config,
         force: bool,
     ) -> Result<Self, XCheckerError> {
+        // Sanitize spec ID to prevent path traversal and invalid characters
+        let sanitized_id = sanitize_spec_id(spec_id).map_err(|e| {
+            XCheckerError::Config(ConfigError::InvalidValue {
+                key: "spec_id".to_string(),
+                value: e.to_string(),
+            })
+        })?;
+
         let redactor = crate::redaction::SecretRedactor::from_config(&config).map_err(|e| {
             XCheckerError::Config(ConfigError::InvalidValue {
                 key: "security".to_string(),
@@ -192,9 +201,9 @@ impl OrchestratorHandle {
         })?;
 
         let orchestrator = if force {
-            PhaseOrchestrator::new_with_force(spec_id, true)
+            PhaseOrchestrator::new_with_force(&sanitized_id, true)
         } else {
-            PhaseOrchestrator::new(spec_id)
+            PhaseOrchestrator::new(&sanitized_id)
         }
         .map_err(|e| {
             XCheckerError::Config(crate::error::ConfigError::DiscoveryFailed {
@@ -203,9 +212,10 @@ impl OrchestratorHandle {
         })?;
 
         // Convert Config to OrchestratorConfig
-        let mut orch_config = OrchestratorConfig::default();
-
-        orch_config.redactor = std::sync::Arc::new(redactor);
+        let mut orch_config = OrchestratorConfig {
+            redactor: std::sync::Arc::new(redactor),
+            ..Default::default()
+        };
 
         // Apply config values to orchestrator config
         if let Some(model) = &config.defaults.model {
@@ -228,7 +238,7 @@ impl OrchestratorHandle {
         Ok(Self {
             orchestrator,
             config: orch_config,
-            spec_id: spec_id.to_string(),
+            spec_id: sanitized_id,
         })
     }
 
@@ -263,10 +273,18 @@ impl OrchestratorHandle {
         config: OrchestratorConfig,
         force: bool,
     ) -> Result<Self, XCheckerError> {
+        // Sanitize spec ID
+        let sanitized_id = sanitize_spec_id(spec_id).map_err(|e| {
+            XCheckerError::Config(ConfigError::InvalidValue {
+                key: "spec_id".to_string(),
+                value: e.to_string(),
+            })
+        })?;
+
         let orchestrator = if force {
-            PhaseOrchestrator::new_with_force(spec_id, true)
+            PhaseOrchestrator::new_with_force(&sanitized_id, true)
         } else {
-            PhaseOrchestrator::new(spec_id)
+            PhaseOrchestrator::new(&sanitized_id)
         }
         .map_err(|e| {
             XCheckerError::Config(crate::error::ConfigError::DiscoveryFailed {
@@ -277,7 +295,7 @@ impl OrchestratorHandle {
         Ok(Self {
             orchestrator,
             config,
-            spec_id: spec_id.to_string(),
+            spec_id: sanitized_id,
         })
     }
 
@@ -290,7 +308,15 @@ impl OrchestratorHandle {
     ///
     /// Returns error if orchestrator creation fails.
     pub fn readonly(spec_id: &str) -> Result<Self, XCheckerError> {
-        let orchestrator = PhaseOrchestrator::new_readonly(spec_id).map_err(|e| {
+        // Sanitize spec ID
+        let sanitized_id = sanitize_spec_id(spec_id).map_err(|e| {
+            XCheckerError::Config(ConfigError::InvalidValue {
+                key: "spec_id".to_string(),
+                value: e.to_string(),
+            })
+        })?;
+
+        let orchestrator = PhaseOrchestrator::new_readonly(&sanitized_id).map_err(|e| {
             XCheckerError::Config(crate::error::ConfigError::DiscoveryFailed {
                 reason: e.to_string(),
             })
@@ -301,7 +327,7 @@ impl OrchestratorHandle {
         Ok(Self {
             orchestrator,
             config,
-            spec_id: spec_id.to_string(),
+            spec_id: sanitized_id,
         })
     }
 
@@ -396,6 +422,7 @@ impl OrchestratorHandle {
             effective_config,
             None, // lock_drift - not tracked in handle
             None, // pending_fixups - not tracked in handle
+            Some(&self.config.redactor),
         )
         .map_err(|e| {
             XCheckerError::Config(crate::error::ConfigError::DiscoveryFailed {

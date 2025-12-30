@@ -1,3 +1,4 @@
+#![cfg(feature = "dev-tools")]
 //! Documentation validation integration tests
 //!
 //! This test suite verifies that all xchecker documentation is accurate and
@@ -14,6 +15,6 @@
 //! - Code example execution (R9)
 //! - Feature documentation accuracy (R10)
 //!
-//! Run with: cargo test --test `test_doc_validation`
+//! Run with: cargo test --features dev-tools --test doc_validation
 
 mod doc_validation;

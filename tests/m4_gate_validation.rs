@@ -63,7 +63,7 @@ impl M4TestEnvironment {
 /// Validates R5.1 requirements for fixup detection and parsing
 #[test]
 fn test_review_detects_fixup_plan_with_unified_diffs() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
 
     // Test content with FIXUP PLAN: marker and unified diff blocks
     let review_content_with_fixups = r#"
@@ -197,7 +197,7 @@ These changes will ensure the specification is complete and implementable.
 /// Validates R5.1 requirements for alternative fixup marker detection
 #[test]
 fn test_review_detects_needs_fixups_marker() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
 
     // Test content with "needs fixups" marker
     let review_content_needs_fixups = r"
@@ -516,7 +516,7 @@ async fn test_verbose_logging_provides_debugging_information() -> Result<()> {
 #[test]
 fn test_fixup_validation_with_git_apply_check() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a test file to apply diffs against
     let test_file = temp_dir.path().join("test.txt");
@@ -692,7 +692,7 @@ These changes will improve the specification completeness.
     let review_content = std::fs::read_to_string(&review_md)?;
 
     // Test fixup detection on actual review output
-    let parser = FixupParser::new(FixupMode::Preview, env.artifacts_dir());
+    let parser = FixupParser::new(FixupMode::Preview, env.artifacts_dir())?;
 
     // The review should contain fixup markers (based on claude-stub scenario)
     let has_fixups = parser.has_fixup_markers(&review_content);

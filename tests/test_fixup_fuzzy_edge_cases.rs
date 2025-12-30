@@ -48,7 +48,7 @@ fn test_multi_hunk_with_backward_shift() {
         + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with two hunks:
     // First hunk: delete lines 3-5 (removes 3 lines)
@@ -110,7 +110,7 @@ fn test_multi_hunk_simple_additions() {
         "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Two hunks that only add lines (no deletions to split context)
     let content = r#"
@@ -159,7 +159,7 @@ fn test_multi_hunk_with_forward_shift() {
         + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with two hunks:
     // First hunk: add 5 lines after line 3
@@ -218,7 +218,7 @@ fn test_small_context_hunk_one_line() {
     let original_content = "function start() {\n    // implementation\n}\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with minimal context (1 line)
     let content = r#"
@@ -251,7 +251,7 @@ fn test_small_context_hunk_two_lines() {
     let original_content = "line 1\nline 2\nline 3\nline 4\nline 5\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with 2 context lines
     let content = r#"
@@ -287,7 +287,7 @@ fn test_hunk_no_context_only_additions() {
     let original_content = "line 1\nline 2\nline 3\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with no context lines - just additions at a specific position
     // This tests the edge case where there's no context to match
@@ -320,7 +320,7 @@ fn test_file_shorter_than_hunk_context() {
     let original_content = "line 1\nline 2\nline 3\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff that references lines that exist
     let content = r#"
@@ -359,7 +359,7 @@ fn test_simple_replacement_at_position() {
     let original_content = "line1\nline2\noldvalue\nline4\nline5\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with contiguous context (no deletions breaking context)
     let content = r#"
@@ -412,7 +412,7 @@ function baz() {
 "#;
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff targeting the second function with unique context
     let content = r#"
@@ -459,7 +459,7 @@ fn test_fuzzy_match_at_window_boundary() {
         + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff that claims to be at line 50, but actually matches at line 50
     // This tests exact matching at expected position
@@ -502,7 +502,7 @@ fn test_fuzzy_match_large_shift_within_window() {
     let original_content = lines.join("\n") + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff claims target is at line 50, but it's actually at line 90
     // This is a 40 line shift - within the 50 line fuzzy window
@@ -545,7 +545,7 @@ fn test_replacement_with_full_context() {
     let original_content = "header\ncontext_before\ntarget_line\ncontext_after\nfooter\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with proper context surrounding the change
     let content = r#"
@@ -585,7 +585,7 @@ fn test_fuzzy_match_exceeds_window() {
     let original_content = lines.join("\n") + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff claims target is at line 50, but it's at line 150
     // This is a 100 line shift - exceeds the 50 line fuzzy window
@@ -625,7 +625,7 @@ fn test_whitespace_normalized_matching() {
     let original_content = "function foo() {\n    let   x = 1;\n    let y = 2;\n}\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Diff with normalized whitespace
     let content = r#"
@@ -670,7 +670,7 @@ fn test_cumulative_offset_three_hunks() {
         + "\n";
     fs::write(&test_file, &original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Three hunks:
     // 1. Delete 2 lines at position 5 (-2 offset)
@@ -735,7 +735,7 @@ fn test_cumulative_offset_additions_only() {
     let original_content = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
 
     // Two hunks that only add lines
     let content = r#"
@@ -801,7 +801,7 @@ fn test_preview_mode_no_modifications() {
     let original_content = "line 1\nline 2\nline 3\n";
     fs::write(&test_file, original_content).unwrap();
 
-    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone()).unwrap();
 
     let content = r#"
 FIXUP PLAN:
@@ -838,7 +838,7 @@ FIXUP PLAN:
 fn test_preview_change_stats() {
     let (_temp_dir, base_dir) = setup_test_env();
 
-    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone());
+    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone()).unwrap();
 
     let content = r#"
 FIXUP PLAN:

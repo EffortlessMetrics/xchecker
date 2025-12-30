@@ -258,6 +258,10 @@ pub fn xchecker_version() -> String {
     format!("{}+{}", env!("CARGO_PKG_VERSION"), env!("GIT_HASH"))
 }
 
+#[cfg(any(test, feature = "test-utils"))]
+#[doc(hidden)]
+pub mod test_support;
+
 #[doc(hidden)]
 pub mod paths;
 

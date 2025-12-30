@@ -151,14 +151,14 @@ The requirements need some updates.
 #[test]
 fn test_apply_fixups_flag_handling() -> Result<()> {
     // Test preview mode (default)
-    let _parser_preview = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+    let _parser_preview = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
     assert_eq!(
         std::mem::discriminant(&FixupMode::Preview),
         std::mem::discriminant(&FixupMode::Preview)
     );
 
     // Test apply mode
-    let _parser_apply = FixupParser::new(FixupMode::Apply, PathBuf::from("."));
+    let _parser_apply = FixupParser::new(FixupMode::Apply, PathBuf::from("."))?;
     assert_eq!(
         std::mem::discriminant(&FixupMode::Apply),
         std::mem::discriminant(&FixupMode::Apply)
@@ -171,7 +171,7 @@ fn test_apply_fixups_flag_handling() -> Result<()> {
 /// Test that review output loading works
 #[test]
 fn test_review_output_loading() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
 
     let review_content = r#"# Review Document
 
@@ -207,7 +207,7 @@ fn test_review_output_loading() -> Result<()> {
 /// Test that FixupPlan derivation from review works
 #[test]
 fn test_fixup_plan_derivation() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."));
+    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
 
     let review_content = r#"# Review Document
 
@@ -244,7 +244,7 @@ fn test_fixup_plan_derivation() -> Result<()> {
 #[test]
 fn test_plan_validation() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("test.txt");
@@ -279,7 +279,7 @@ fn test_plan_validation() -> Result<()> {
 #[test]
 fn test_preview_mode_no_modifications() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("test.txt");
@@ -322,7 +322,7 @@ fn test_preview_mode_no_modifications() -> Result<()> {
 #[test]
 fn test_apply_mode_modifies_files() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf())?;
 
     // Create a test file
     let test_file = temp_dir.path().join("test.txt");

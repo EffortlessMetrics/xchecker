@@ -33,7 +33,7 @@ fn test_preview_mode_no_file_modifications() -> Result<()> {
     let original_modified = original_metadata.modified()?;
 
     // Create a fixup parser in preview mode
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a diff that would modify the file
     let review_content = r#"
@@ -91,7 +91,7 @@ fn test_preview_shows_intended_targets() -> Result<()> {
     fs::write(&file1, "content 1\n")?;
     fs::write(&file2, "content 2\n")?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:
@@ -136,7 +136,7 @@ fn test_preview_calculates_line_changes() -> Result<()> {
     let test_file = temp_dir.path().join("test.txt");
     fs::write(&test_file, "line 1\nline 2\nline 3\nline 4\n")?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:
@@ -180,7 +180,7 @@ fn test_preview_displays_validation_warnings() -> Result<()> {
     let test_file = temp_dir.path().join("test.txt");
     fs::write(&test_file, "line 1\nline 2\n")?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     // Create a diff that won't apply cleanly (wrong line numbers)
     let review_content = r#"
@@ -234,7 +234,7 @@ fn test_preview_output_format() -> Result<()> {
     let test_file = temp_dir.path().join("example.rs");
     fs::write(&test_file, "fn main() {\n    println!(\"Hello\");\n}\n")?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:
@@ -289,7 +289,7 @@ fn test_preview_multiple_hunks() -> Result<()> {
         "section 1\nline 1\nline 2\n\nsection 2\nline 3\nline 4\n",
     )?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:
@@ -331,7 +331,7 @@ Changes in multiple locations:
 #[test]
 fn test_preview_empty_diffs() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let empty_diffs = vec![];
     let preview = parser.preview_changes(&empty_diffs)?;
@@ -358,7 +358,7 @@ fn test_preview_empty_diffs() -> Result<()> {
 #[test]
 fn test_preview_missing_target_file() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:
@@ -409,7 +409,7 @@ fn test_preview_identifies_changed_files() -> Result<()> {
     fs::write(&file1, "no changes\n")?;
     fs::write(&file2, "will change\n")?;
 
-    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf());
+    let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf())?;
 
     let review_content = r#"
 FIXUP PLAN:

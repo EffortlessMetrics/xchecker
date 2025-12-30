@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::fs;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 use xchecker::paths;
+use xchecker::test_support;
 
 /// Test that debug packet is written when --debug-packet flag is set (FR-PKT-006)
 #[tokio::test]
@@ -125,9 +126,13 @@ async fn test_debug_packet_not_written_on_secret_detection() -> Result<()> {
     // This is where the packet builder looks for files to include
     let spec_context_dir = paths::spec_root(spec_id).join("context");
     fs::create_dir_all(&spec_context_dir)?;
+    let token = test_support::github_pat();
     fs::write(
         spec_context_dir.join("problem-statement.md"),
-        "# Problem Statement\n\nThis file contains a secret: ghp_1234567890abcdefghijklmnopqrstuvwxyz",
+        format!(
+            "# Problem Statement\n\nThis file contains a secret: {}",
+            token
+        ),
     )?;
 
     // Create orchestrator

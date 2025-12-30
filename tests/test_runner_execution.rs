@@ -13,10 +13,10 @@
 //! - Stdout/stderr capture
 
 use std::env;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::Duration;
 use xchecker::error::RunnerError;
-use xchecker::runner::{ClaudeResponse, Runner, WslOptions};
+use xchecker::runner::{ClaudeResponse, CommandSpec, Runner, WslOptions};
 use xchecker::types::RunnerMode;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -280,12 +280,12 @@ fn test_stdin_piping_to_process() -> Result<()> {
 
     // Use a command that reads from stdin and echoes it back
     #[cfg(target_os = "windows")]
-    let mut cmd = Command::new("cmd");
-    #[cfg(target_os = "windows")]
-    cmd.args(["/C", "findstr", ".*"]);
+    let mut cmd = CommandSpec::new("cmd")
+        .args(["/C", "findstr", ".*"])
+        .to_command();
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = Command::new("cat");
+    let mut cmd = CommandSpec::new("cat").to_command();
 
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -318,14 +318,14 @@ fn test_stdout_stderr_capture() -> Result<()> {
     // Test that we can capture both stdout and stderr
 
     #[cfg(target_os = "windows")]
-    let mut cmd = Command::new("cmd");
-    #[cfg(target_os = "windows")]
-    cmd.args(["/C", "echo stdout_test && echo stderr_test 1>&2"]);
+    let mut cmd = CommandSpec::new("cmd")
+        .args(["/C", "echo stdout_test && echo stderr_test 1>&2"])
+        .to_command();
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = Command::new("sh");
-    #[cfg(not(target_os = "windows"))]
-    cmd.args(["-c", "echo stdout_test && echo stderr_test >&2"]);
+    let mut cmd = CommandSpec::new("sh")
+        .args(["-c", "echo stdout_test && echo stderr_test >&2"])
+        .to_command();
 
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 

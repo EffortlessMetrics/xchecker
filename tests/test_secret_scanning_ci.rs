@@ -13,15 +13,27 @@
 use anyhow::Result;
 use std::fs;
 use xchecker::redaction::SecretRedactor;
+use xchecker::test_support;
+
+fn positive_control_content() -> String {
+    let github_token = test_support::github_pat();
+    let aws_access_key = test_support::aws_access_key_id();
+    let aws_secret = test_support::aws_secret_access_key();
+    let slack_token = test_support::slack_bot_token();
+    let bearer_token = test_support::bearer_token();
+
+    format!(
+        "github_token: {}\naws_access_key: {}\n{}\nslack_token: {}\nAuthorization: {}",
+        github_token, aws_access_key, aws_secret, slack_token, bearer_token
+    )
+}
 
 /// Test positive control - file with fake secrets MUST fail scanner
 #[test]
 fn test_positive_control_fake_secrets_detected() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    // Read the positive control file (contains fake secrets)
-    let content = fs::read_to_string("tests/quarantine/positive-control-fake-secrets.txt")
-        .expect("Positive control file should exist");
+    let content = positive_control_content();
 
     // Scanner MUST detect secrets in this file
     let has_secrets = redactor.has_secrets(&content, "positive-control-fake-secrets.txt")?;
@@ -61,8 +73,7 @@ fn test_negative_control_clean_file_passes() -> Result<()> {
 fn test_scanner_identifies_all_patterns_in_positive_control() -> Result<()> {
     let redactor = SecretRedactor::new()?;
 
-    let content = fs::read_to_string("tests/quarantine/positive-control-fake-secrets.txt")
-        .expect("Positive control file should exist");
+    let content = positive_control_content();
 
     // Test individual patterns
     let patterns = vec![
@@ -196,17 +207,21 @@ fn scan_json_strings(redactor: &SecretRedactor, raw: &str, path: &str) -> Result
 #[test]
 fn test_scanner_detects_leaked_secret_in_receipt() -> Result<()> {
     let redactor = SecretRedactor::new()?;
+    let token = test_support::github_pat();
 
     // Simulate a receipt that accidentally leaked a secret (should never happen)
     // GitHub PAT must be exactly 36 characters after ghp_
-    let bad_receipt = r#"{
+    let bad_receipt = format!(
+        r#"{{
         "schema_version": "1",
         "spec_id": "test-spec",
-        "stderr_tail": "Error: Failed to authenticate with token ghp_123456789012345678901234567890123456"
-    }"#;
+        "stderr_tail": "Error: Failed to authenticate with token {}"
+    }}"#,
+        token
+    );
 
     // Scan JSON strings recursively
-    let has_secrets = scan_json_strings(&redactor, bad_receipt, "bad-receipt.json")?;
+    let has_secrets = scan_json_strings(&redactor, &bad_receipt, "bad-receipt.json")?;
 
     assert!(
         has_secrets,
@@ -221,16 +236,20 @@ fn test_scanner_detects_leaked_secret_in_receipt() -> Result<()> {
 #[test]
 fn test_scanner_detects_leaked_secret_in_packet_preview() -> Result<()> {
     let redactor = SecretRedactor::new()?;
+    let aws_key = test_support::aws_access_key_id();
 
     // Simulate a packet preview that accidentally included a secret (should never happen)
-    let bad_preview = r"
+    let bad_preview = format!(
+        r"
 # Packet Preview
 ## config.yaml
-aws_access_key: AKIAFAKE1234567890AB
-";
+aws_access_key: {}
+",
+        aws_key
+    );
 
     assert!(
-        redactor.has_secrets(bad_preview, "bad-preview.txt")?,
+        redactor.has_secrets(&bad_preview, "bad-preview.txt")?,
         "Scanner should detect leaked secret in packet preview"
     );
 

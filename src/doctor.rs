@@ -7,10 +7,9 @@ use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::process::Command;
 
 use crate::config::Config;
-use crate::runner::{Runner, RunnerMode, WslOptions};
+use crate::runner::{CommandSpec, Runner, RunnerMode, WslOptions};
 use crate::wsl;
 
 /// Doctor output structure for JSON emission (schema v1)
@@ -218,7 +217,8 @@ impl DoctorCommand {
 
     /// Check claude version
     fn check_claude_version(&self) -> DoctorCheck {
-        match Command::new("claude").arg("--version").output() {
+        // Use CommandSpec for secure argv-style execution
+        match CommandSpec::new("claude").arg("--version").to_command().output() {
             Ok(output) if output.status.success() => {
                 let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 DoctorCheck {
@@ -263,7 +263,8 @@ impl DoctorCommand {
     /// Check gemini help (requirement 3.4.4 - use gemini -h to verify binary presence)
     /// Never sends a real completion request
     fn check_gemini_help(&self) -> DoctorCheck {
-        match Command::new("gemini").arg("-h").output() {
+        // Use CommandSpec for secure argv-style execution
+        match CommandSpec::new("gemini").arg("-h").to_command().output() {
             Ok(output) if output.status.success() => DoctorCheck {
                 name: "gemini_help".to_string(),
                 status: CheckStatus::Pass,
@@ -380,7 +381,8 @@ impl DoctorCommand {
             };
         }
 
-        match Command::new("wsl").args(["-l", "-v"]).output() {
+        // Use CommandSpec for secure argv-style execution
+        match CommandSpec::new("wsl").args(["-l", "-v"]).to_command().output() {
             Ok(output) if output.status.success() => {
                 // Normalize WSL output (may be UTF-16LE on some Windows locales)
                 let distros = Self::normalize_wsl_output(&output.stdout);
@@ -450,8 +452,8 @@ impl DoctorCommand {
             };
         }
 
-        // Get list of all WSL distros
-        match Command::new("wsl").args(["-l", "-q"]).output() {
+        // Get list of all WSL distros using CommandSpec for secure argv-style execution
+        match CommandSpec::new("wsl").args(["-l", "-q"]).to_command().output() {
             Ok(output) if output.status.success() => {
                 match wsl::parse_distro_list(&output.stdout) {
                     Ok(distros) if !distros.is_empty() => {
@@ -508,7 +510,7 @@ impl DoctorCommand {
     fn normalize_wsl_output(raw: &[u8]) -> String {
         // Check if this looks like UTF-16LE (every other byte is 0x00 for ASCII)
         let looks_like_utf16le = raw.len() >= 4
-            && raw.len() % 2 == 0
+            && raw.len().is_multiple_of(2)
             && raw
                 .iter()
                 .skip(1)
@@ -704,7 +706,7 @@ impl DoctorCommand {
         #[cfg(target_os = "windows")]
         {
             // On Windows, use 'where' command
-            match Command::new("where").arg("claude").output() {
+            match CommandSpec::new("where").arg("claude").to_command().output() {
                 Ok(output) if output.status.success() => {
                     let path = String::from_utf8_lossy(&output.stdout)
                         .lines()
@@ -742,7 +744,7 @@ impl DoctorCommand {
         #[cfg(not(target_os = "windows"))]
         {
             // On Unix-like systems, use 'which' command
-            match Command::new("which").arg("claude").output() {
+            match CommandSpec::new("which").arg("claude").to_command().output() {
                 Ok(output) if output.status.success() => {
                     let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                     DoctorCheck {
