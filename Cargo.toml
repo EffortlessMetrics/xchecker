@@ -113,8 +113,6 @@ features = [
 [dev-dependencies]
 # Dev Dependencies (coarse minima)
 proptest = "1.9.0"
-criterion = { version = "0.8.1", features = ["html_reports"] }
-tokio-test = "0.4.4"
 serial_test = "3.2.0"
 jsonschema = "0.37.4"
 pulldown-cmark = "0.13.0"
