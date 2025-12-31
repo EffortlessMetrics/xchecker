@@ -1,0 +1,75 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in xchecker
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the form below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: Describe what went wrong...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior.
+      placeholder: |
+        1. Run `xchecker ...`
+        2. With this configuration...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+      placeholder: Describe what should have happened...
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened instead.
+      placeholder: Describe what actually happened...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide information about your environment.
+      placeholder: |
+        - OS: [e.g., Windows 11, Ubuntu 22.04, macOS 14]
+        - Rust version: [e.g., 1.75.0]
+        - xchecker version: [e.g., 0.1.0 or commit hash]
+        - Claude CLI version: [if applicable]
+      value: |
+        - OS:
+        - Rust version:
+        - xchecker version:
+        - Claude CLI version:
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, logs, or screenshots about the problem.
+      placeholder: Add any other context here...
+    validations:
+      required: false

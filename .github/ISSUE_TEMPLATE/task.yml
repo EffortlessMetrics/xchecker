@@ -1,0 +1,61 @@
+name: Roadmap Task
+description: Track a planned task or milestone for the xchecker roadmap
+title: "[Vxx] "
+labels: ["roadmap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for tracking planned work items on the xchecker roadmap.
+        Replace `Vxx` in the title with the appropriate version number (e.g., V15, V16).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the task and its goals.
+      placeholder: |
+        This task implements...
+        The goal is to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this task to be considered complete.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+        - [ ] Tests pass
+        - [ ] Documentation updated
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+        - [ ] Tests pass
+        - [ ] Documentation updated (if applicable)
+    validations:
+      required: true
+
+  - type: textarea
+    id: related-issues
+    attributes:
+      label: Related Issues
+      description: Link any related issues or dependencies.
+      placeholder: |
+        - Depends on #123
+        - Related to #456
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: Additional Notes
+      description: Any other notes or context for this task.
+      placeholder: Add any other notes here...
+    validations:
+      required: false
