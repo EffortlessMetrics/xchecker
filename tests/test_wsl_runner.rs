@@ -154,7 +154,10 @@ mod wsl_runner_tests {
             }
         } else {
             // No WSL: validation should fail with something WSL-related.
-            assert!(result.is_err(), "expected validation to fail when WSL is not available");
+            assert!(
+                result.is_err(),
+                "expected validation to fail when WSL is not available"
+            );
             let s = format!("{:?}", result.unwrap_err());
             assert!(
                 s.contains("WslNotAvailable") || s.contains("WSL") || s.contains("wsl"),
