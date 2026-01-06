@@ -103,8 +103,13 @@ jobs:
 
       - name: Update dependencies and test
         run: |
+          # Back up Cargo.lock to restore after test (keeps repo clean)
+          cp Cargo.lock Cargo.lock.bak
           cargo update
           cargo test --all-features
+          # Restore original lockfile and assert cleanliness
+          mv Cargo.lock.bak Cargo.lock
+          git diff --exit-code
 
   # ============================================================================
   # DEPENDENCY DUPLICATION CHECKS
@@ -375,11 +380,11 @@ jobs:
                   sys.exit(2)
 
           SECURITY_CRITICAL = {
-              "reqwest": "0.12.26",
-              "tokio": "1.48.0",
-              "serde": "1.0.228",
-              "serde_json": "1.0.145",
-              "blake3": "1.8.2",
+              "reqwest": "=0.12.28",
+              "tokio": "=1.49.0",
+              "serde": "=1.0.228",
+              "serde_json": "=1.0.148",
+              "blake3": "=1.8.2",
           }
 
           CORE_DEPS = {
@@ -415,10 +420,10 @@ jobs:
               if version is None:
                   errors.append(f"{name}: missing from Cargo.toml")
                   continue
-              if version != expected and version != f"={expected}":
-                  errors.append(f"{name}: expected exact {expected}, found {version}")
+              if version != expected:
+                  errors.append(f"{name}: expected {expected}, found {version}")
               else:
-                  print(f"OK {name}: exact version {expected}")
+                  print(f"OK {name}: pinned version {expected}")
 
           print("\nChecking core dependency coarse minima...")
           for name, minimum in CORE_DEPS.items():

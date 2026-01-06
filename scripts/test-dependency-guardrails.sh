@@ -55,11 +55,11 @@ except ModuleNotFoundError:  # Python < 3.11
         sys.exit(2)
 
 SECURITY_CRITICAL = {
-    "reqwest": "0.12.26",
-    "tokio": "1.48.0",
-    "serde": "1.0.228",
-    "serde_json": "1.0.145",
-    "blake3": "1.8.2",
+    "reqwest": "=0.12.28",
+    "tokio": "=1.49.0",
+    "serde": "=1.0.228",
+    "serde_json": "=1.0.148",
+    "blake3": "=1.8.2",
 }
 
 CORE_DEPS = {
@@ -96,10 +96,10 @@ for name, expected in SECURITY_CRITICAL.items():
     if version is None:
         errors.append(f"{name}: missing from Cargo.toml")
         continue
-    if version != expected and version != f"={expected}":
-        errors.append(f"{name}: expected exact {expected}, found {version}")
+    if version != expected:
+        errors.append(f"{name}: expected {expected}, found {version}")
     else:
-        print(f"  ✅ {name}: exact version {expected}")
+        print(f"  ✅ {name}: pinned version {expected}")
 
 def parse_major_minor(s: str) -> Optional[Tuple[int, int]]:
     parts = s.split(".")
@@ -152,9 +152,13 @@ fi
 
 echo ""
 echo "3. Testing fresh dependency resolution..."
+# Back up Cargo.lock to restore after test (keeps repo clean)
+cp Cargo.lock Cargo.lock.bak
 if cargo update && cargo test --lib --bins; then
+    mv Cargo.lock.bak Cargo.lock
     print_status 0 "Fresh resolve testing"
 else
+    mv Cargo.lock.bak Cargo.lock
     print_status 1 "Fresh resolve testing"
 fi
 

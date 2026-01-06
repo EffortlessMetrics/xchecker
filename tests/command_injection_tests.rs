@@ -320,19 +320,26 @@ fn test_commandspec_builder_api() {
 
     let mut command = spec.to_command();
     // We can't inspect the command easily, but we can verify it runs (if echo exists)
-    // On Windows, echo is a builtin, so this might fail if we don't use cmd /c,
-    // which is exactly what we want to verify (that we ARE NOT using cmd /c implicitly).
+    // On Linux/Mac, /bin/echo usually exists.
 
-    if cfg!(target_os = "windows") {
-        // On Windows, "echo" is not an executable. So this should fail to spawn.
-        // This proves we are not wrapping in "cmd /c".
-        assert!(command.output().is_err());
-    } else {
-        // On Linux/Mac, /bin/echo usually exists.
+    if !cfg!(target_os = "windows") {
         let output = command.output();
         if let Ok(out) = output {
             let stdout = String::from_utf8_lossy(&out.stdout);
             assert_eq!(stdout.trim(), "hello world !");
         }
+    }
+
+    // On Windows, verify we are NOT using cmd /c implicitly by testing a cmd.exe builtin.
+    // "copy" is a true cmd.exe builtin with no standalone executable (unlike echo/dir which
+    // Git for Windows provides as echo.exe/dir.exe). If we were wrapping in "cmd /c",
+    // this would succeed; since we don't, it should fail to spawn.
+    if cfg!(target_os = "windows") {
+        let builtin_spec = CommandSpec::new("copy").arg("/?");
+        let mut builtin_cmd = builtin_spec.to_command();
+        assert!(
+            builtin_cmd.output().is_err(),
+            "copy should fail without cmd /c wrapper - proves we don't use cmd /c implicitly"
+        );
     }
 }
