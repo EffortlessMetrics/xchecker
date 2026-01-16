@@ -105,13 +105,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Back up Cargo.lock to restore after test (keeps repo clean)
           cp Cargo.lock Cargo.lock.bak
           restore_lock() { rm -f Cargo.lock; mv -f Cargo.lock.bak Cargo.lock; }
           trap restore_lock EXIT
 
           cargo update
           cargo test --all-features
-
+          # Restore original lockfile and assert cleanliness
           restore_lock
           trap - EXIT
           git diff --exit-code
