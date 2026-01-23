@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Integration tests for secret redaction in error paths (AT-SEC-003)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`receipt::ReceiptManager`,

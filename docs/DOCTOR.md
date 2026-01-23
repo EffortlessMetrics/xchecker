@@ -48,9 +48,10 @@ xchecker doctor --strict-exit
 - This check should always pass unless there's a critical system issue
 - If failing, try reinstalling xchecker
 
-### claude_path
+### claude_path (Provider: claude-cli)
 
 **Purpose:** Checks if the Claude CLI is available in your system PATH.
+**Run Condition:** Only when `provider = "claude-cli"` (default).
 
 **Pass Criteria:** The `claude` command is found in the system PATH.
 
@@ -60,9 +61,10 @@ xchecker doctor --strict-exit
 - Restart your terminal after installation
 - On Windows, try WSL if native installation fails
 
-### claude_version
+### claude_version (Provider: claude-cli)
 
 **Purpose:** Verifies that the Claude CLI can be executed and returns version information.
+**Run Condition:** Only when `provider = "claude-cli"` (default).
 
 **Pass Criteria:** Running `claude --version` succeeds and returns version information.
 
@@ -71,6 +73,29 @@ xchecker doctor --strict-exit
 - Check that you have execute permissions for the `claude` binary
 - Verify Claude CLI authentication: `claude auth status`
 - Update Claude CLI to the latest version if needed
+
+### gemini_path (Provider: gemini-cli)
+
+**Purpose:** Checks if the Gemini CLI is available in your system PATH.
+**Run Condition:** Only when `provider = "gemini-cli"`.
+
+**Pass Criteria:** The `gemini` command is found in the system PATH.
+
+**Remediation:**
+- Install Gemini CLI
+- Ensure `gemini` is in your PATH
+- Verify installation with `gemini --version`
+
+### gemini_help (Provider: gemini-cli)
+
+**Purpose:** Verifies that the Gemini CLI can be executed.
+**Run Condition:** Only when `provider = "gemini-cli"`.
+
+**Pass Criteria:** Running `gemini -h` succeeds.
+
+**Remediation:**
+- Ensure Gemini CLI is properly installed
+- Check execute permissions
 
 ### config_parse
 
@@ -83,6 +108,21 @@ xchecker doctor --strict-exit
 - Validate TOML syntax using an online validator
 - Compare with example configuration in documentation
 - Remove invalid configuration options
+
+### llm_provider
+
+**Purpose:** Validates the configured LLM provider and its dependencies.
+
+**Pass Criteria:**
+- **claude-cli**: Binary found/configured
+- **gemini-cli**: Binary found/configured
+- **openrouter**: API key environment variable present and model configured
+- **anthropic**: API key environment variable present and model configured
+
+**Remediation:**
+- Check [llm] section in configuration file
+- Verify required environment variables are set (e.g., OPENROUTER_API_KEY)
+- Verify binary paths if using custom locations
 
 ### lock_manager
 

@@ -3,7 +3,7 @@
 xchecker uses a hierarchical configuration system with the following precedence:
 
 1. **CLI flags** (highest priority)
-2. **Configuration file** 
+2. **Configuration file**
 3. **Built-in defaults** (lowest priority)
 
 ## State Directory (XCHECKER_HOME)
@@ -102,13 +102,27 @@ claude_path = "/usr/local/bin/claude"  # Custom Claude path (optional)
 strict_validation = false
 
 [llm]
-# LLM provider configuration (V11-V14: only claude-cli supported)
+# LLM provider configuration
 provider = "claude-cli"
 execution_strategy = "controlled"
 
 [llm.claude]
 # Optional: Custom Claude CLI binary path
 binary = "/usr/local/bin/claude"
+
+[llm.gemini]
+# Optional: Custom Gemini CLI binary path
+binary = "/usr/local/bin/gemini"
+# Optional: Default model
+default_model = "gemini-2.0-flash-lite"
+
+[llm.anthropic]
+# Anthropic API configuration
+model = "sonnet"
+# Optional: API key environment variable (default: ANTHROPIC_API_KEY)
+api_key_env = "ANTHROPIC_API_KEY"
+# Optional: Base URL
+base_url = "https://api.anthropic.com/v1/messages"
 
 [selectors]
 # File inclusion patterns (glob syntax)
@@ -189,6 +203,30 @@ xchecker spec my-feature --no-strict-validation
 
 **Applicable phases:** Requirements, Design, Tasks (generative phases only)
 
+### [phases]
+
+Per-phase overrides for model, max_turns, and phase_timeout.
+
+Phase keys: `requirements`, `design`, `tasks`, `review`, `fixup`, `final`.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `model` | String | `null` | Override `defaults.model` for the phase |
+| `max_turns` | Integer | `null` | Override `defaults.max_turns` for the phase |
+| `phase_timeout` | Integer | `null` | Override `defaults.phase_timeout` for the phase |
+
+**Example configuration:**
+
+```toml
+[phases.requirements]
+model = "haiku"
+
+[phases.design]
+model = "sonnet"
+max_turns = 8
+phase_timeout = 900
+```
+
 ### [selectors]
 
 Controls which files are included in context packets.
@@ -207,27 +245,36 @@ Controls which files are included in context packets.
 
 ### [llm]
 
-LLM provider and execution strategy configuration (V11+ multi-provider support).
-
-**⚠️ V11-V14 Constraints:** Only `claude-cli` provider and `controlled` execution strategy are supported. Other values will cause configuration validation errors.
+LLM provider and execution strategy configuration.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `provider` | String | `"claude-cli"` | LLM provider to use (**must be `"claude-cli"` in V11-V14**) |
-| `execution_strategy` | String | `"controlled"` | Execution strategy (**must be `"controlled"` in V11-V14**) |
+| `provider` | String | `"claude-cli"` | LLM provider to use |
+| `fallback_provider` | String | `null` | Provider to use if the primary provider fails to initialize |
+| `execution_strategy` | String | `"controlled"` | Execution strategy |
+| `prompt_template` | String | `"default"` | Prompt template selection (see below) |
 
-**Supported Values (V11-V14):**
+**Supported Values:**
 
-- **`provider`**: Only `"claude-cli"` is supported
-  - Uses the official Claude CLI tool for invocations
-  - Automatically selected if omitted
-  - Attempting other values (e.g., `"gemini-cli"`, `"openrouter"`, `"anthropic"`) will fail validation
+- **`provider`**:
+  - `claude-cli` (default): Uses the official Claude CLI tool
+  - `gemini-cli`: Uses Gemini CLI
+  - `openrouter`: Uses OpenRouter HTTP API
+  - `anthropic`: Uses Anthropic HTTP API
 
-- **`execution_strategy`**: Only `"controlled"` is supported
-  - LLMs propose changes via structured output (e.g., fixups)
-  - All file modifications go through xchecker's fixup pipeline
-  - No direct disk writes or external tool invocation by LLMs
-  - Attempting `"externaltool"` or other values will fail validation
+- **`execution_strategy`**:
+  - `controlled` (default): LLMs propose changes via structured output and xchecker applies them.
+  - `externaltool`: (Planned V15+) Allows direct tool use.
+
+- **`fallback_provider`**:
+  - Optional provider name used if the primary provider fails to construct.
+  - Does not retry individual requests; it only switches providers during initialization.
+
+- **`prompt_template`**:
+  - `default`: Works across all providers
+  - `claude-optimized`: For `claude-cli` and `anthropic`
+  - `openai-compatible`: For `openrouter` and `gemini-cli`
+  - Incompatible combinations are rejected during config validation.
 
 **Valid Configuration Example:**
 
@@ -235,7 +282,9 @@ LLM provider and execution strategy configuration (V11+ multi-provider support).
 # Explicit configuration (can be omitted, uses defaults)
 [llm]
 provider = "claude-cli"
+fallback_provider = "anthropic"
 execution_strategy = "controlled"
+prompt_template = "claude-optimized"
 
 # Optional: Claude CLI binary path
 [llm.claude]
@@ -249,42 +298,14 @@ binary = "/usr/local/bin/claude"
 [llm]
 provider = "claude-cli"
 execution_strategy = "controlled"
+prompt_template = "default"
 ```
-
-**Validation Errors:**
-
-Attempting unsupported values will result in clear error messages:
-
-```bash
-# ❌ Invalid provider
-[llm]
-provider = "gemini-cli"
-# Error: llm.provider 'gemini-cli' is not supported.
-# Currently only 'claude-cli' is supported in V11
-
-# ❌ Invalid execution strategy
-[llm]
-execution_strategy = "externaltool"
-# Error: llm.execution_strategy 'externaltool' is not supported.
-# Currently only 'controlled' is supported in V11-V14
-```
-
-**Reserved for Future Versions (V15+):**
-
-The following values are reserved for future implementation:
-
-- **Providers**: `gemini-cli`, `openrouter`, `anthropic`
-- **Execution Strategies**: `externaltool` (for agentic workflows with direct writes/tool use)
 
 For detailed information on all providers, including authentication, testing, and cost control, see [LLM_PROVIDERS.md](LLM_PROVIDERS.md).
 
-See [ORCHESTRATOR.md](ORCHESTRATOR.md) "LLM Layer (V11 Skeleton)" section for more details on these constraints.
-
-### [llm.openrouter] (Reserved for V13+)
+### [llm.openrouter]
 
 OpenRouter-specific configuration for HTTP API access and budget control.
-
-**⚠️ V11-V14 Note:** OpenRouter is reserved for V13+. This configuration section is documented for future reference.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -332,7 +353,7 @@ XCHECKER_OPENROUTER_BUDGET=30 xchecker spec my-feature
 - Budget resets per xchecker process (not persistent across runs)
 - Budget exhaustion is recorded in receipts with `budget_exhausted: true`
 
-For more details on OpenRouter configuration, authentication, and usage, see [LLM_PROVIDERS.md](LLM_PROVIDERS.md#provider-openrouter-reserved-for-v13).
+For more details on OpenRouter configuration, authentication, and usage, see [LLM_PROVIDERS.md](LLM_PROVIDERS.md#provider-openrouter).
 
 ### [runner]
 
@@ -351,6 +372,46 @@ Platform-specific execution configuration.
 - `auto`: Auto-detect best available option (tries native first, falls back to WSL on Windows)
 
 **Note:** For production use, explicitly specifying `native` or `wsl` is recommended for predictable behavior. The `auto` mode is useful for development environments where the runner may vary.
+
+### [hooks]
+
+Configure pre-phase and post-phase hooks (optional). Hook entries are keyed by phase name:
+`requirements`, `design`, `tasks`, `review`, `fixup`, `final`.
+
+Hooks run from the invocation working directory and are executed via the platform shell
+(`sh -c` on Unix, `cmd /C` on Windows). Each hook receives context through environment
+variables and a JSON payload on stdin.
+
+**Environment variables:**
+- `XCHECKER_SPEC_ID`
+- `XCHECKER_PHASE`
+- `XCHECKER_HOOK_TYPE` (`pre_phase` or `post_phase`)
+
+**Stdin JSON payload fields:**
+- `spec_id`
+- `phase`
+- `hook_type`
+
+**Hook configuration keys:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `command` | String | Required | Shell command or script to execute |
+| `on_fail` | String | `"warn"` | `warn` logs and continues, `fail` aborts the phase |
+| `timeout` | Integer | `60` | Timeout in seconds |
+
+**Example configuration:**
+
+```toml
+[hooks.pre_phase.design]
+command = "./scripts/pre_design.sh"
+on_fail = "warn"
+timeout = 60
+
+[hooks.post_phase.requirements]
+command = "./scripts/post_requirements.sh"
+on_fail = "fail"
+```
 
 ### [security]
 
@@ -383,6 +444,15 @@ All configuration options can be overridden via CLI flags:
 ```bash
 # Override model
 xchecker spec my-feature --model claude-3-opus-20240229
+
+# Override LLM provider and fallback
+xchecker spec my-feature --llm-provider openrouter --llm-fallback-provider anthropic
+
+# Override prompt template
+xchecker spec my-feature --prompt-template claude-optimized
+
+# Override Gemini default model
+xchecker spec my-feature --llm-gemini-default-model gemini-2.0-pro
 
 # Override packet limits
 xchecker spec my-feature --packet-max-bytes 32768 --packet-max-lines 800
@@ -430,7 +500,7 @@ xchecker validates configuration on startup and provides helpful error messages:
 xchecker status my-spec
 
 # This shows:
-# - Source of each setting (CLI > config > defaults)
+# - Source of each setting (CLI > config > programmatic > defaults)
 # - Effective values being used
 # - Any validation warnings
 ```
@@ -459,7 +529,7 @@ max_turns = 6  # Allow thorough exploration
 [selectors]
 include = [
     "src/**/*.rs",
-    "tests/**/*.rs", 
+    "tests/**/*.rs",
     "docs/**/*.md",
     "*.md",
     "Cargo.toml",

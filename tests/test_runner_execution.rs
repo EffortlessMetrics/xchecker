@@ -12,6 +12,7 @@
 //! - Stdin piping to Claude process
 //! - Stdout/stderr capture
 
+use serial_test::serial;
 use std::env;
 use std::process::Stdio;
 use std::time::Duration;
@@ -205,6 +206,7 @@ fn test_wsl_distro_name_from_wsl_command() {
 }
 
 #[test]
+#[serial]
 fn test_wsl_distro_name_from_env_var() {
     // Set WSL_DISTRO_NAME environment variable
     unsafe {

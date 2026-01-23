@@ -103,6 +103,60 @@ fn test_runner_distro_flag() {
     assert_eq!(cli.runner_distro, Some("Ubuntu-22.04".to_string()));
 }
 
+/// Test --llm-fallback-provider flag is properly wired
+#[test]
+fn test_llm_fallback_provider_flag() {
+    use clap::Parser;
+
+    let args = vec![
+        "xchecker",
+        "--llm-fallback-provider",
+        "openrouter",
+        "status",
+        "test-spec",
+    ];
+    let cli = xchecker::cli::Cli::try_parse_from(args).unwrap();
+
+    assert_eq!(cli.llm_fallback_provider, Some("openrouter".to_string()));
+}
+
+/// Test --prompt-template flag is properly wired
+#[test]
+fn test_prompt_template_flag() {
+    use clap::Parser;
+
+    let args = vec![
+        "xchecker",
+        "--prompt-template",
+        "claude-optimized",
+        "status",
+        "test-spec",
+    ];
+    let cli = xchecker::cli::Cli::try_parse_from(args).unwrap();
+
+    assert_eq!(cli.prompt_template, Some("claude-optimized".to_string()));
+}
+
+/// Test --llm-gemini-default-model flag is properly wired
+#[test]
+fn test_llm_gemini_default_model_flag() {
+    use clap::Parser;
+
+    let args = vec![
+        "xchecker",
+        "--llm-gemini-default-model",
+        "gemini-2.0-pro",
+        "status",
+        "test-spec",
+    ];
+    let cli = xchecker::cli::Cli::try_parse_from(args).unwrap();
+
+    assert_eq!(
+        cli.llm_gemini_default_model,
+        Some("gemini-2.0-pro".to_string())
+    );
+}
+
 /// Test --phase-timeout flag is properly wired
 #[test]
 fn test_phase_timeout_flag() {
@@ -284,6 +338,9 @@ fn test_cli_flags_override_config() -> Result<()> {
         llm_provider: None,
         llm_claude_binary: None,
         llm_gemini_binary: None,
+        llm_gemini_default_model: None,
+        llm_fallback_provider: None,
+        prompt_template: None,
         execution_strategy: None,
     };
 
@@ -428,6 +485,9 @@ fn test_new_flags_in_config_system() -> Result<()> {
         llm_provider: None,
         llm_claude_binary: None,
         llm_gemini_binary: None,
+        llm_gemini_default_model: None,
+        llm_fallback_provider: None,
+        prompt_template: None,
         execution_strategy: None,
     };
 

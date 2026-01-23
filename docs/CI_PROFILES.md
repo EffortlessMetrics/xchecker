@@ -825,6 +825,9 @@ To convert from the smoke pattern to strict enforcement:
 xchecker gate <spec-id> [OPTIONS]
 
 Options:
+  --policy <path>            Load gate policy from a TOML file
+                             Defaults to .xchecker/policy.toml or ~/.config/xchecker/policy.toml
+
   --min-phase <phase>         Require at least this phase completed
                               Values: requirements, design, tasks, review, fixup, final
 

@@ -48,23 +48,29 @@ cargo test --test test_end_to_end_workflows -- --ignored
 XCHECKER_DEFAULTS_MODEL=haiku cargo test --test test_end_to_end_workflows -- --ignored
 ```
 
-### Required Environment Variable
+### Required Environment Variables
 
 Real LLM tests require explicit opt-in to prevent accidental runs that incur costs:
 
 ```bash
 # Windows PowerShell
-$env:XCHECKER_RUN_REAL_LLM_TESTS = "1"
+$env:XCHECKER_REAL_LLM_TESTS = "1"
 $env:XCHECKER_DEFAULTS_MODEL = "haiku"
 cargo test --test test_end_to_end_workflows -- --ignored
 
 # Unix/WSL
-XCHECKER_RUN_REAL_LLM_TESTS=1 \
+XCHECKER_REAL_LLM_TESTS=1 \
 XCHECKER_DEFAULTS_MODEL=haiku \
 cargo test --test test_end_to_end_workflows -- --ignored
 ```
 
-Without `XCHECKER_RUN_REAL_LLM_TESTS=1`, the tests will panic with a helpful message directing you here.
+To explicitly skip real LLM tests (even if you run with `--ignored`), set:
+
+```bash
+XCHECKER_SKIP_LLM_TESTS=1
+```
+
+Without `XCHECKER_REAL_LLM_TESTS=1`, the tests will skip with a message directing you here.
 
 ## Available Model Aliases
 

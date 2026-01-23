@@ -252,35 +252,9 @@ impl TuiApp {
     }
 }
 
-/// Count pending fixups for a spec (reused from cli.rs)
+/// Count pending fixups for a spec
 fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
-    use crate::fixup::{FixupMode, FixupParser};
-
-    let base_path = crate::paths::spec_root(spec_id);
-    let review_md_path = base_path.join("artifacts").join("30-review.md");
-
-    if !review_md_path.exists() {
-        return 0;
-    }
-
-    let review_content = match std::fs::read_to_string(&review_md_path) {
-        Ok(content) => content,
-        Err(_) => return 0,
-    };
-
-    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.into()) {
-        Ok(parser) => parser,
-        Err(_) => return 0,
-    };
-
-    if !fixup_parser.has_fixup_markers(&review_content) {
-        return 0;
-    }
-
-    match fixup_parser.parse_diffs(&review_content) {
-        Ok(diffs) => diffs.len() as u32,
-        Err(_) => 0,
-    }
+    crate::fixup::pending_fixups_for_spec(spec_id).targets
 }
 
 /// Run the TUI application
@@ -313,10 +287,10 @@ pub fn run_tui(workspace_path: &Path) -> Result<()> {
 }
 
 /// Main application loop
-fn run_app<B: ratatui::backend::Backend>(
-    terminal: &mut Terminal<B>,
-    app: &mut TuiApp,
-) -> Result<()> {
+fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut TuiApp) -> Result<()>
+where
+    B::Error: Send + Sync + 'static,
+{
     loop {
         terminal.draw(|f| ui(f, app))?;
 

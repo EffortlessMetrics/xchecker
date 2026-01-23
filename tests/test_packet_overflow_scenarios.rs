@@ -470,12 +470,13 @@ fn test_manifest_includes_file_priorities() -> Result<()> {
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create files with different priorities
-    fs::write(base_path.join("upstream.core.yaml"), "x".repeat(100))?;
+    // Create files with different priorities - use large content to ensure overflow
+    // on all platforms (temp paths vary in length between Windows and Linux/macOS)
+    fs::write(base_path.join("upstream.core.yaml"), "x".repeat(500))?;
     fs::write(base_path.join("SPEC.md"), "x".repeat(100))?;
 
-    // Trigger overflow
-    let mut builder = PacketBuilder::with_limits(150, 15)?;
+    // Trigger overflow with small budget that will definitely be exceeded
+    let mut builder = PacketBuilder::with_limits(100, 5)?;
     let _result = builder.build_packet(&base_path, "test", &context_dir, None);
 
     // Read manifest

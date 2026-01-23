@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_claude")]
 //! Simple M1 Gate Validation Test
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`claude::ClaudeWrapper`,
@@ -10,7 +11,6 @@
 //! for the key functionality without complex orchestration.
 
 use anyhow::Result;
-use std::env;
 use tempfile::TempDir;
 
 use xchecker::claude::ClaudeWrapper;
@@ -18,13 +18,17 @@ use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 use xchecker::runner::{Runner, WslOptions};
 use xchecker::types::{PhaseId, RunnerMode};
 
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
 /// Test the complete Requirements phase with Claude integration
 #[tokio::test]
 #[ignore = "requires_claude_stub"]
 async fn test_m1_gate_requirements_phase_integration() -> Result<()> {
     // Setup test environment
     let temp_dir = TempDir::new()?;
-    env::set_current_dir(temp_dir.path())?;
+    let _cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
 
     let spec_id = "m1-gate-test";
     let orchestrator = PhaseOrchestrator::new(spec_id)?;
@@ -42,9 +46,11 @@ async fn test_m1_gate_requirements_phase_integration() -> Result<()> {
             map.insert("verbose".to_string(), "true".to_string());
             map
         },
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute Requirements phase

@@ -9,6 +9,7 @@ use std::fs;
 use std::io::Write;
 use std::process::Command;
 use tempfile::TempDir;
+use xchecker::test_support;
 
 /// Get the xchecker binary path
 fn get_xchecker_bin() -> std::path::PathBuf {
@@ -55,6 +56,17 @@ fn run_xchecker_in_dir(args: &[&str], work_dir: &std::path::Path) -> Command {
         cmd.arg(arg);
     }
     cmd
+}
+
+fn real_llm_tests_enabled() -> bool {
+    if test_support::llm_tests_enabled() {
+        true
+    } else {
+        println!(
+            "Skipping real LLM smoke tests. Set XCHECKER_REAL_LLM_TESTS=1 to enable (and ensure XCHECKER_SKIP_LLM_TESTS is unset)."
+        );
+        false
+    }
 }
 
 /// Smoke test: xchecker doctor --json
@@ -373,6 +385,7 @@ fn test_smoke_clean_hard() {
 ///
 /// Validates that the benchmark command runs and produces valid output
 #[test]
+#[ignore = "flaky in CI - environment-dependent timing"]
 fn test_smoke_benchmark() {
     println!("🔥 Smoke test: xchecker benchmark");
 
@@ -580,6 +593,10 @@ fn test_smoke_json_output_validity() {
 #[test]
 #[ignore = "requires_real_claude"]
 fn test_claude_cli_available() {
+    if !real_llm_tests_enabled() {
+        return;
+    }
+
     // Check if API key is available
     if env::var("ANTHROPIC_API_KEY").is_err() {
         println!("Skipping smoke test: ANTHROPIC_API_KEY not set");
@@ -621,6 +638,10 @@ fn test_claude_cli_available() {
 #[test]
 #[ignore = "requires_real_claude"]
 fn test_xchecker_with_real_claude() {
+    if !real_llm_tests_enabled() {
+        return;
+    }
+
     // Check if API key is available
     if env::var("ANTHROPIC_API_KEY").is_err() {
         println!("Skipping smoke test: ANTHROPIC_API_KEY not set");

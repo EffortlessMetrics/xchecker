@@ -19,6 +19,7 @@
 // These imports demonstrate the stable public API surface.
 // External consumers should be able to use these exact imports.
 
+use serial_test::serial;
 use xchecker::{
     // Additional stable re-exports
     CliArgs,
@@ -64,7 +65,7 @@ fn test_public_api_types_accessible() {
     let _: PhaseId = PhaseId::Final;
 
     // Verify Config is accessible
-    let _: fn(&CliArgs) -> Result<Config, anyhow::Error> = Config::discover;
+    let _: fn(&CliArgs) -> Result<Config, XCheckerError> = Config::discover;
 
     // Verify ExitCode constants are accessible
     let _: ExitCode = ExitCode::SUCCESS;
@@ -439,6 +440,7 @@ fn get_xchecker_bin() -> Option<std::path::PathBuf> {
 ///
 /// **Validates: Requirements 1.7**
 #[tokio::test]
+#[serial]
 async fn test_library_vs_cli_behavior_equivalence() {
     use std::fs;
     use std::process::Command;
@@ -634,6 +636,7 @@ async fn test_library_vs_cli_behavior_equivalence() {
 ///
 /// **Validates: Requirements 1.7, FR-CONTRACT-2**
 #[tokio::test]
+#[serial]
 async fn test_library_vs_cli_status_schema_validation() {
     use std::fs;
     use std::process::Command;
@@ -763,6 +766,7 @@ async fn test_library_vs_cli_status_schema_validation() {
 ///
 /// **Validates: Requirements 1.7**
 #[tokio::test]
+#[serial]
 async fn test_library_phase_sequence_matches_cli() {
     use tempfile::TempDir;
 
@@ -800,7 +804,11 @@ async fn test_library_phase_sequence_matches_cli() {
 
         // Execute Requirements phase
         let req_result = handle.run_phase(PhaseId::Requirements).await;
-        assert!(req_result.is_ok(), "Requirements phase should succeed");
+        assert!(
+            req_result.is_ok(),
+            "Requirements phase should succeed: {:?}",
+            req_result.as_ref().err()
+        );
         let req_result = req_result.unwrap();
         assert_eq!(req_result.phase, PhaseId::Requirements);
         assert!(req_result.success);
@@ -830,7 +838,11 @@ async fn test_library_phase_sequence_matches_cli() {
 
         // Execute Design phase
         let design_result = handle.run_phase(PhaseId::Design).await;
-        assert!(design_result.is_ok(), "Design phase should succeed");
+        assert!(
+            design_result.is_ok(),
+            "Design phase should succeed: {:?}",
+            design_result.as_ref().err()
+        );
         let design_result = design_result.unwrap();
         assert_eq!(design_result.phase, PhaseId::Design);
         assert!(design_result.success);

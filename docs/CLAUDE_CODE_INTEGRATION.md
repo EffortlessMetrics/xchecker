@@ -386,7 +386,7 @@ When xchecker encounters errors, it returns non-zero exit codes with structured 
 | 8 | Secret detected | Remove secrets from input |
 | 9 | Lock held | Wait or use `--force` |
 | 10 | Phase timeout | Increase timeout or simplify |
-| 70 | Claude failure | Check Claude CLI status |
+| 70 | LLM Provider failure | Check provider CLI/API status |
 
 ### Error Response Example
 

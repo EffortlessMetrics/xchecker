@@ -153,7 +153,7 @@
 /// phases programmatically. It is the canonical way to use xchecker outside of the CLI.
 ///
 /// See [`OrchestratorHandle`] documentation for usage examples and threading semantics.
-pub use orchestrator::OrchestratorHandle;
+pub use xchecker_engine::orchestrator::OrchestratorHandle;
 
 /// Phase identifiers for the spec generation workflow.
 ///
@@ -161,7 +161,7 @@ pub use orchestrator::OrchestratorHandle;
 /// Requirements → Design → Tasks → Review → Fixup → Final.
 ///
 /// See [`PhaseId`] documentation for phase dependencies and serialization details.
-pub use types::PhaseId;
+pub use xchecker_utils::types::PhaseId;
 
 /// Configuration for xchecker operations.
 ///
@@ -170,7 +170,7 @@ pub use types::PhaseId;
 ///
 /// Use [`Config::discover()`] for CLI-like behavior or [`Config::builder()`]
 /// for programmatic configuration in embedding scenarios.
-pub use config::Config;
+pub use xchecker_config::Config;
 
 /// Builder for programmatic configuration.
 ///
@@ -191,7 +191,7 @@ pub use config::Config;
 ///     .build()
 ///     .expect("Failed to build config");
 /// ```
-pub use config::ConfigBuilder;
+pub use xchecker_config::ConfigBuilder;
 
 /// Library-level error type with rich context.
 ///
@@ -201,7 +201,7 @@ pub use config::ConfigBuilder;
 /// - Exit code mapping via [`to_exit_code()`](XCheckerError::to_exit_code)
 ///
 /// Library code returns `XCheckerError` and does NOT call `std::process::exit()`.
-pub use error::XCheckerError;
+pub use xchecker_utils::error::XCheckerError;
 
 /// Exit codes matching the documented exit code table.
 ///
@@ -211,7 +211,7 @@ pub use error::XCheckerError;
 ///
 /// This is a stable public type. The numeric values are part of the public API
 /// and will not change in 1.x releases.
-pub use exit_codes::ExitCode;
+pub use xchecker_utils::exit_codes::ExitCode;
 
 /// Status output for a spec, matching `schemas/status.v1.json`.
 ///
@@ -219,14 +219,14 @@ pub use exit_codes::ExitCode;
 /// including artifacts, configuration, and any detected drift from locked values.
 ///
 /// This is a stable public type. Changes in 1.x releases are additive only.
-pub use types::StatusOutput;
+pub use xchecker_utils::types::StatusOutput;
 
 /// JCS (RFC 8785) canonical JSON emission for JSON contracts.
 ///
 /// Use this function to emit JSON in canonical form for receipts, status, and
 /// other JSON contracts. Canonical JSON ensures deterministic output for
 /// stable diffs and hash verification.
-pub use canonicalization::emit_jcs;
+pub use xchecker_utils::canonicalization::emit_jcs;
 
 // Additional stable re-exports for convenience
 
@@ -234,17 +234,17 @@ pub use canonicalization::emit_jcs;
 ///
 /// Used internally by the CLI and for programmatic configuration via
 /// [`Config::discover()`].
-pub use config::CliArgs;
+pub use xchecker_config::CliArgs;
 
 /// Error categories for grouping similar errors.
 ///
 /// Used with [`XCheckerError`] for programmatic error handling.
-pub use error::ErrorCategory;
+pub use xchecker_utils::error::ErrorCategory;
 
 /// Trait for providing user-friendly error reporting.
 ///
 /// Implemented by [`XCheckerError`] and its component error types.
-pub use error::UserFriendlyError;
+pub use xchecker_utils::error::UserFriendlyError;
 
 // ============================================================================
 // Internal modules - accessible but not stable
@@ -260,94 +260,41 @@ pub fn xchecker_version() -> String {
 
 #[cfg(any(test, feature = "test-utils"))]
 #[doc(hidden)]
-pub mod test_support;
+pub use xchecker_utils::test_support;
 
 #[doc(hidden)]
-pub mod paths;
+pub use xchecker_utils::{
+    atomic_write, cache, canonicalization, error, exit_codes, lock, logging, paths, process_memory,
+    redaction, ring_buffer, source, spec_id, types,
+};
 
 #[doc(hidden)]
-pub mod artifact;
+pub use xchecker_config as config;
+
 #[doc(hidden)]
-pub mod atomic_write;
+pub use xchecker_llm as llm;
+
 #[doc(hidden)]
-pub mod benchmark;
-#[doc(hidden)]
-pub mod cache;
-#[doc(hidden)]
-pub mod canonicalization;
+pub use xchecker_engine::{
+    artifact, benchmark, doctor, example_generators, extraction, fixup, gate, hooks,
+    integration_tests, orchestrator, packet, phase, phases, receipt, runner, status, template,
+    validation, workspace, wsl,
+};
+
 // Legacy wrapper; follow-up spec (V19+) to delete once tests migrate
-#[cfg(any(test, feature = "legacy_claude"))]
+#[cfg(feature = "legacy_claude")]
 #[doc(hidden)]
-pub mod claude;
+pub use xchecker_engine::claude;
+
 // CLI module - internal implementation detail, not part of stable public API
 // Exported with #[doc(hidden)] to allow white-box testing of CLI flag parsing
 // External consumers should use OrchestratorHandle, not CLI internals
 #[doc(hidden)]
 pub mod cli;
 #[doc(hidden)]
-pub mod config;
-#[doc(hidden)]
-pub mod doctor;
-#[doc(hidden)]
-pub mod error;
-#[doc(hidden)]
 pub mod error_reporter;
 #[doc(hidden)]
-pub mod example_generators;
-#[doc(hidden)]
-pub mod exit_codes;
-#[doc(hidden)]
-pub mod extraction;
-#[doc(hidden)]
-pub mod fixup;
-#[doc(hidden)]
-pub mod gate;
-#[doc(hidden)]
-pub mod hooks;
-#[doc(hidden)]
-pub mod integration_tests;
-#[doc(hidden)]
-pub mod llm;
-#[doc(hidden)]
-pub mod lock;
-#[doc(hidden)]
-pub mod logging;
-#[doc(hidden)]
-pub mod orchestrator;
-#[doc(hidden)]
-pub mod packet;
-#[doc(hidden)]
-pub mod phase;
-#[doc(hidden)]
-pub mod phases;
-#[doc(hidden)]
-pub mod process_memory;
-#[doc(hidden)]
-pub mod receipt;
-#[doc(hidden)]
-pub mod redaction;
-#[doc(hidden)]
-pub mod ring_buffer;
-#[doc(hidden)]
-pub mod runner;
-#[doc(hidden)]
-pub mod source;
-#[doc(hidden)]
-pub mod spec_id;
-#[doc(hidden)]
-pub mod status;
-#[doc(hidden)]
-pub mod template;
-#[doc(hidden)]
 pub mod tui;
-#[doc(hidden)]
-pub mod types;
-#[doc(hidden)]
-pub mod validation;
-#[doc(hidden)]
-pub mod workspace;
-#[doc(hidden)]
-pub mod wsl;
 
 // Legacy re-exports for backward compatibility (will be deprecated)
 #[doc(hidden)]

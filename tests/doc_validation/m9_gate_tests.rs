@@ -142,8 +142,14 @@ mod tests {
             .expect("Should find docs-conformance job");
 
         // Get the section (next 500 chars should be enough)
-        let docs_section = &ci_content[docs_section_start
-            ..docs_section_start + 500.min(ci_content.len() - docs_section_start)];
+        // Use safe UTF-8 slicing by finding the nearest valid char boundary
+        let end_byte = docs_section_start + 500.min(ci_content.len() - docs_section_start);
+        let safe_end = ci_content
+            .char_indices()
+            .map(|(i, _)| i)
+            .find(|&i| i >= end_byte)
+            .unwrap_or(ci_content.len());
+        let docs_section = &ci_content[docs_section_start..safe_end];
 
         assert!(
             docs_section.contains("ubuntu-latest"),

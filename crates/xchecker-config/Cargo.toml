@@ -1,0 +1,19 @@
+[package]
+name = "xchecker-config"
+version = "1.0.0"
+edition = "2024"
+publish = false
+
+[features]
+test-utils = []
+
+[dependencies]
+xchecker-utils = { path = "../xchecker-utils" }
+serde = { workspace = true }
+toml = { workspace = true }
+globset = { workspace = true }
+camino = { workspace = true }
+
+[dev-dependencies]
+xchecker-utils = { path = "../xchecker-utils", features = ["test-utils"] }
+tempfile = { workspace = true }

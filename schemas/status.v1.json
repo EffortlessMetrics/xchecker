@@ -82,7 +82,7 @@
           },
           "source": {
             "type": "string",
-            "enum": ["cli", "config", "default"],
+            "enum": ["cli", "env", "config", "programmatic", "default"],
             "description": "Source of this configuration value"
           }
         },

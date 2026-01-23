@@ -17,7 +17,6 @@
 //! - R7.5: Verbose logging provides detailed operation logs
 
 use anyhow::Result;
-use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -25,8 +24,17 @@ use xchecker::fixup::{FixupMode, FixupParser};
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 use xchecker::types::PhaseId;
 
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
 /// Test environment setup for M4 Gate validation
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
 struct M4TestEnvironment {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
     temp_dir: TempDir,
     orchestrator: PhaseOrchestrator,
     spec_id: String,
@@ -35,12 +43,13 @@ struct M4TestEnvironment {
 impl M4TestEnvironment {
     fn new(test_name: &str) -> Result<Self> {
         let temp_dir = TempDir::new()?;
-        env::set_current_dir(temp_dir.path())?;
+        let cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
 
         let spec_id = format!("m4-gate-{test_name}");
         let orchestrator = PhaseOrchestrator::new(&spec_id)?;
 
         Ok(Self {
+            _cwd_guard: cwd_guard,
             temp_dir,
             orchestrator,
             spec_id,
@@ -63,7 +72,8 @@ impl M4TestEnvironment {
 /// Validates R5.1 requirements for fixup detection and parsing
 #[test]
 fn test_review_detects_fixup_plan_with_unified_diffs() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test content with FIXUP PLAN: marker and unified diff blocks
     let review_content_with_fixups = r#"
@@ -197,7 +207,8 @@ These changes will ensure the specification is complete and implementable.
 /// Validates R5.1 requirements for alternative fixup marker detection
 #[test]
 fn test_review_detects_needs_fixups_marker() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test content with "needs fixups" marker
     let review_content_needs_fixups = r"
@@ -275,14 +286,17 @@ async fn test_status_command_shows_complete_phase_information() -> Result<()> {
             let mut map = std::collections::HashMap::new();
             map.insert(
                 "claude_cli_path".to_string(),
-                "cargo run --bin claude-stub --".to_string(),
+                test_support::claude_stub_path()
+                    .expect("claude-stub path is required for M4 gate tests"),
             );
             map.insert("claude_scenario".to_string(), "success".to_string());
             map
         },
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute Requirements and Design phases to create artifacts and receipts
@@ -407,21 +421,38 @@ async fn test_status_command_shows_complete_phase_information() -> Result<()> {
 async fn test_verbose_logging_provides_debugging_information() -> Result<()> {
     let env = M4TestEnvironment::new("verbose-logging")?;
 
+    // Create sample files that match the packet builder's default patterns.
+    // The packet builder scans the spec directory (spec_dir = .xchecker/specs/<id>/),
+    // not the project root. So we need to create files in the spec directory.
+    let spec_dir = env.spec_dir();
+    std::fs::create_dir_all(&spec_dir)?;
+    std::fs::write(
+        spec_dir.join("README.md"),
+        "# Sample Spec\n\nThis is a test spec for verbose logging validation.\n",
+    )?;
+    std::fs::write(
+        spec_dir.join("context.yaml"),
+        "description: Test context for verbose logging\n",
+    )?;
+
     let config = OrchestratorConfig {
         dry_run: false,
         config: {
             let mut map = std::collections::HashMap::new();
             map.insert(
                 "claude_cli_path".to_string(),
-                "cargo run --bin claude-stub --".to_string(),
+                test_support::claude_stub_path()
+                    .expect("claude-stub path is required for M4 gate tests"),
             );
             map.insert("claude_scenario".to_string(), "success".to_string());
             map.insert("verbose".to_string(), "true".to_string()); // Enable verbose logging
             map
         },
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Capture logging output during phase execution
@@ -585,7 +616,7 @@ fn test_fixup_validation_with_git_apply_check() -> Result<()> {
 #[test]
 fn test_status_command_handles_empty_spec() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    env::set_current_dir(temp_dir.path())?;
+    let _cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
 
     let spec_id = "empty-spec";
     let orchestrator = PhaseOrchestrator::new(spec_id)?;
@@ -622,14 +653,17 @@ async fn test_review_phase_integration_with_fixup_detection() -> Result<()> {
             let mut map = std::collections::HashMap::new();
             map.insert(
                 "claude_cli_path".to_string(),
-                "cargo run --bin claude-stub --".to_string(),
+                test_support::claude_stub_path()
+                    .expect("claude-stub path is required for M4 gate tests"),
             );
             map.insert("claude_scenario".to_string(), "fixup_needed".to_string()); // Scenario that produces fixups
             map
         },
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute Requirements, Design, and Tasks phases first

@@ -198,11 +198,7 @@ fn test_execution_strategy_externaltool_rejected() {
     );
 
     let error = result.unwrap_err();
-    let xchecker_error = error
-        .downcast_ref::<XCheckerError>()
-        .expect("Should be XCheckerError");
-
-    match xchecker_error {
+    match error {
         XCheckerError::Config(ConfigError::InvalidValue { key, value }) => {
             assert_eq!(
                 key, "llm.execution_strategy",
@@ -244,11 +240,7 @@ fn test_execution_strategy_external_tool_rejected() {
     );
 
     let error = result.unwrap_err();
-    let xchecker_error = error
-        .downcast_ref::<XCheckerError>()
-        .expect("Should be XCheckerError");
-
-    match xchecker_error {
+    match error {
         XCheckerError::Config(ConfigError::InvalidValue { key, value }) => {
             assert_eq!(
                 key, "llm.execution_strategy",
@@ -340,11 +332,7 @@ fn test_unknown_provider_rejected() {
     );
 
     let error = result.unwrap_err();
-    let xchecker_error = error
-        .downcast_ref::<XCheckerError>()
-        .expect("Should be XCheckerError");
-
-    match xchecker_error {
+    match error {
         XCheckerError::Config(ConfigError::InvalidValue { key, value }) => {
             assert_eq!(key, "llm.provider");
             assert!(
@@ -409,11 +397,10 @@ fn test_case_sensitivity_in_provider_names() {
 
         // Verify it's a ConfigError::InvalidValue
         let error = result.unwrap_err();
-        let xchecker_error = error.downcast_ref::<XCheckerError>();
         assert!(
             matches!(
-                xchecker_error,
-                Some(XCheckerError::Config(ConfigError::InvalidValue { .. }))
+                error,
+                XCheckerError::Config(ConfigError::InvalidValue { .. })
             ),
             "Should get ConfigError::InvalidValue for provider '{}'",
             provider
@@ -437,11 +424,10 @@ fn test_multiple_invalid_configs_together() {
 
     // Verify it's a config error
     let error = result.unwrap_err();
-    let xchecker_error = error.downcast_ref::<XCheckerError>();
     assert!(
         matches!(
-            xchecker_error,
-            Some(XCheckerError::Config(ConfigError::InvalidValue { .. }))
+            error,
+            XCheckerError::Config(ConfigError::InvalidValue { .. })
         ),
         "Should get ConfigError::InvalidValue"
     );
@@ -496,11 +482,7 @@ fn test_error_messages_are_actionable() {
         );
 
         let error = result.unwrap_err();
-        let xchecker_error = error
-            .downcast_ref::<XCheckerError>()
-            .expect("Should be XCheckerError");
-
-        if let XCheckerError::Config(ConfigError::InvalidValue { key: _, value }) = xchecker_error {
+        if let XCheckerError::Config(ConfigError::InvalidValue { key: _, value }) = error {
             // Error should mention the provider
             assert!(
                 value.contains(expected_in_msg),
@@ -543,11 +525,7 @@ fn test_execution_strategy_error_messages() {
         );
 
         let error = result.unwrap_err();
-        let xchecker_error = error
-            .downcast_ref::<XCheckerError>()
-            .expect("Should be XCheckerError");
-
-        if let XCheckerError::Config(ConfigError::InvalidValue { key: _, value }) = xchecker_error {
+        if let XCheckerError::Config(ConfigError::InvalidValue { key: _, value }) = error {
             // Error should mention the strategy
             assert!(
                 value.contains(strategy),

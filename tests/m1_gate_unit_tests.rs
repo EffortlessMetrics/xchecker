@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_claude")]
 //! M1 Gate Unit Tests
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`claude::ClaudeWrapper`,

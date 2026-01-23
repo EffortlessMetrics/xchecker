@@ -9,10 +9,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Unified Phase Execution Engine**: Introduced `execute_phase_core()` for consistent execution across all phases
-- **LLM Backend Abstraction**: Config-driven provider selection with `LlmBackend` trait
-- **Execution Strategy Configuration**: V11-V14 supports only "controlled" strategy
-- **Comprehensive Engine Invariant Tests**: Test suite B3.7-B3.14 for execution engine validation
+- **Ecosystem Features (V16/V18)**:
+  - **Workspace Management**: `project init`, `project add-spec`, `project status`, `project history`, and `project list` commands for multi-spec orchestration.
+  - **Template System**: `template init` and `template list` commands with built-in templates (Next.js, Rust Microservice, Python FastAPI, Docs Refactor).
+  - **Policy Gates**: `gate` command for CI/CD enforcement with JSON output support.
+  - **Hooks System**: Pre/post-phase hooks configuration for custom automation.
+
+- **LLM Provider Support (V11-V14)**:
+  - **Gemini CLI**: Full support for Google's Gemini models via `gemini-cli` provider.
+  - **OpenRouter**: HTTP-based provider support with budget control (`budget` config, `XCHECKER_OPENROUTER_BUDGET`).
+  - **Anthropic API**: Direct HTTP support for Anthropic models.
+  - **Fallback Logic**: Robust provider fallback chain (e.g., Claude -> OpenRouter) configurable via `fallback_provider`.
+  - **Rich Metadata**: Receipts now include detailed token usage, model versions, and cost metrics.
+
+- **Core Improvements**:
+  - **JSON Output Modes**: `--json` flag support for `spec`, `status`, `resume`, `project`, and `gate` commands.
+  - **Budget Control**: Strict budget enforcement for HTTP providers to prevent cost overruns.
+  - **Error Reporting**: Enhanced `ErrorReporter` with actionable suggestions and context.
+  - **Test Infrastructure**: `XCHECKER_SKIP_LLM_TESTS` for CI cost control.
+
+### Security
+
+- **Vulnerability Fixes**:
+  - Fixed command injection in Gemini CLI backend.
+  - Fixed race conditions in lockfile creation using atomic `create_new`.
+  - Fixed path traversal vulnerabilities in `SandboxRoot` with canonicalization checks.
+  - Fixed command injection in `ProcessRunner` by enforcing argv-style execution.
+
+### Changed
+
+- **Milestones**: Renamed legacy "V11-V18" milestones to semantic names (Core Runtime, Gemini Support, HTTP Providers, Ecosystem).
+- **Configuration**: Expanded `[llm]` configuration section with provider-specific tables.
+
+## [1.1.0] - 2026-01-18
+
+### Added
+
+- **Multi-Provider Support**: Documentation and CLI updates for Gemini, OpenRouter, and Anthropic support (V14 availability).
+- **Packet Construction**: New system with priority-based file selection and configurable size limits.
+- **Receipt System**: Enhanced JCS (RFC 8785) serialization and BLAKE3 hashing for execution audit trails; added comprehensive reading/listing APIs.
+- **Configuration Model**: Comprehensive configuration model with validation, hooks support, and unified `ConfigSource` attribution.
+- **Fixup Validation**: Added validation for fixup targets and pending fixups reporting.
+- **Unified Phase Execution**: Introduced `execute_phase_core()` for consistent phase execution.
+- **Developer Guide**: Added `CLAUDE.md` for AI agent guidance and project overview.
+- **Engine Tests**: Added comprehensive engine invariant tests (Suite B3.7-B3.14).
+- **Claude CLI Improvements**: Cross-platform runner with automatic detection, output format configuration, and max turns support.
+- **NDJSON Support**: Implemented NDJSON parsing functionality for streaming responses.
+- **Security Boundaries**: Unified security boundaries and centralized pending fixups handling.
+- **Linux Compatibility**: Enhanced test workflows and CLI parsing for robust Linux support.
+
+### Changed
+
+- **Documentation**: Overhauled `README.md`, `ORCHESTRATOR.md`, `CONFIGURATION.md`, and `LLM_PROVIDERS.md`.
+- **Refactoring**: Streamlined `xchecker-utils`, consolidated E2E test support, and improved configuration source handling.
+- **Dependencies**: Updated security-critical dependencies (Reqwest, Tokio) and added `libc` for Unix support.
+
+### Fixed
+
+- **CI/Tests**: Resolved integration test failures with `claude-stub`.
+- **Configuration**: Fixed inconsistency in `ConfigSource` naming (standardized to `Default`).
+- **Path Validation**: Enhanced artifact path validation and canonicalization.
+
+## [1.0.1] - 2025-12-31
+
+### Added
+
+- **Documentation Suite**: Added `DEBUGGING_GUIDE.md`, `WORKSPACE_GUIDE.md`, and `CI_PROFILES.md` to provide comprehensive operational guidance.
+- **Installation Scripts**: Added `scripts/install.ps1` and `scripts/install.sh` for streamlined cross-platform setup.
+- **Community**: Added GitHub issue and Pull Request templates (`.github/ISSUE_TEMPLATE`, `.github/pull_request_template.md`).
+- **Packaging**: Included `crates.io` packaging specifications in project metadata.
+- **Testing Infrastructure**: 
+  - Added comprehensive fuzzy matching tests (`tests/test_fixup_fuzzy_edge_cases.rs`) covering over 800 lines of scenarios.
+  - Introduced `tests/doc_validation` for automated schema and documentation verification.
+- **Gate System**: Robust implementation of gating logic (`src/gate.rs`) to support CI/CD integration and status checks.
+
+### Changed
+
+- **Configuration System**: Major expansion of configuration loading and validation logic (Dec 6 updates), improving resilience and attribution.
+- **Fixup Engine**: 
+  - Improved cross-filesystem support for reliable fixes across different drive types.
+  - Enhanced fuzzy matching to handle complex edge cases and near-misses.
+- **Extraction Module**: Significant refactoring for better error handling and robustness in artifact parsing.
+- **Rust Version**: Bumped minimum supported Rust version to 1.89.
+- **WSL Runner**: Improved WSL runner test assertions and validation logic for better Windows/Linux interoperability.
+
+### Fixed
+
+- **Guardrails**: Fixed guardrails parsing logic for better resilience against LLM output variations (bot feedback).
+- **Dependencies**: Updated and pinned security-critical dependencies (Dec 31).
+- **Workflow**: Resolved issues in CI workflows and `release.yml`.
 
 ## [1.0.0] - 2025-12-05
 

@@ -14,6 +14,7 @@
 //! - Edge cases
 
 use anyhow::Result;
+use serial_test::serial;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -228,46 +229,35 @@ mode = "native"
     );
     assert_eq!(
         config.source_attribution.get("max_turns"),
-        Some(&ConfigSource::ConfigFile(config_path.clone()))
+        Some(&ConfigSource::Config)
     );
     assert_eq!(
         config.source_attribution.get("packet_max_bytes"),
-        Some(&ConfigSource::ConfigFile(config_path.clone()))
+        Some(&ConfigSource::Config)
     );
     assert_eq!(
         config.source_attribution.get("packet_max_lines"),
-        Some(&ConfigSource::Defaults)
+        Some(&ConfigSource::Default)
     );
     assert_eq!(
         config.source_attribution.get("runner_mode"),
-        Some(&ConfigSource::ConfigFile(config_path))
+        Some(&ConfigSource::Config)
     );
 
     // Test effective_config includes source attribution
     let effective = config.effective_config();
-    assert_eq!(effective.get("model").unwrap().1, "CLI");
-    assert_eq!(effective.get("verbose").unwrap().1, "CLI");
-    assert!(
-        effective
-            .get("max_turns")
-            .unwrap()
-            .1
-            .contains("config file")
-    );
-    assert!(
-        effective
-            .get("packet_max_bytes")
-            .unwrap()
-            .1
-            .contains("config file")
-    );
-    assert_eq!(effective.get("packet_max_lines").unwrap().1, "defaults");
+    assert_eq!(effective.get("model").unwrap().1, "cli");
+    assert_eq!(effective.get("verbose").unwrap().1, "cli");
+    assert_eq!(effective.get("max_turns").unwrap().1, "config");
+    assert_eq!(effective.get("packet_max_bytes").unwrap().1, "config");
+    assert_eq!(effective.get("packet_max_lines").unwrap().1, "default");
 
     Ok(())
 }
 
 /// Test FR-CFG-004: XCHECKER_HOME override
 #[test]
+#[serial]
 fn test_xchecker_home_override() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let custom_home = temp_dir.path().join("custom_xchecker");
@@ -329,10 +319,10 @@ max_turns = 10
     assert_eq!(config.defaults.model, Some("opus".to_string()));
     assert_eq!(config.defaults.max_turns, Some(15));
 
-    // Source attribution should point to explicit path
+    // Source attribution should point to the config file
     assert_eq!(
         config.source_attribution.get("model"),
-        Some(&ConfigSource::ConfigFile(custom_config_path.clone()))
+        Some(&ConfigSource::Config)
     );
 
     Ok(())
@@ -355,7 +345,8 @@ fn test_invalid_toml_config() -> Result<()> {
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
     assert!(
-        error_msg.contains("Failed to load config file") || error_msg.contains("parse"),
+        error_msg.contains("Invalid configuration file")
+            || error_msg.contains("Failed to parse TOML config file"),
         "Error message: {}",
         error_msg
     );

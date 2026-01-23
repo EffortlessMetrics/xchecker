@@ -1,0 +1,24 @@
+[package]
+name = "xchecker-llm"
+version = "1.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+xchecker-utils = { path = "../xchecker-utils" }
+xchecker-config = { path = "../xchecker-config" }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+which = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+xchecker-config = { path = "../xchecker-config", features = ["test-utils"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

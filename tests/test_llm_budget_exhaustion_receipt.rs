@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use xchecker::llm::{LlmBackend, LlmError, LlmInvocation, LlmResult};
 use xchecker::paths::with_isolated_home;
+use xchecker::types::LlmInfo;
 
 /// Mock LLM backend that always fails with BudgetExceeded
 #[allow(dead_code)] // Reserved for future integration tests
@@ -53,7 +54,7 @@ async fn test_budget_exhaustion_creates_receipt_with_flag() -> Result<()> {
     // and verify the receipt structure.
 
     // Test that LlmInfo::for_budget_exhaustion() creates the correct structure
-    let llm_info = xchecker::receipt::LlmInfo::for_budget_exhaustion();
+    let llm_info = LlmInfo::for_budget_exhaustion();
 
     assert_eq!(llm_info.budget_exhausted, Some(true));
     assert_eq!(llm_info.provider, None);
@@ -84,7 +85,7 @@ async fn test_budget_exhaustion_creates_receipt_with_flag() -> Result<()> {
 /// and omits all other optional fields.
 #[test]
 fn test_llm_info_for_budget_exhaustion_serialization() -> Result<()> {
-    let llm_info = xchecker::receipt::LlmInfo::for_budget_exhaustion();
+    let llm_info = LlmInfo::for_budget_exhaustion();
 
     // Serialize to JSON string
     let json_str = serde_json::to_string(&llm_info)?;

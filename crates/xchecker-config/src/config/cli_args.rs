@@ -1,0 +1,35 @@
+use std::path::PathBuf;
+
+/// CLI arguments for configuration override
+#[derive(Debug, Clone, Default)]
+pub struct CliArgs {
+    pub config_path: Option<PathBuf>,
+    pub model: Option<String>,
+    pub max_turns: Option<u32>,
+    pub packet_max_bytes: Option<usize>,
+    pub packet_max_lines: Option<usize>,
+    pub output_format: Option<String>,
+    pub verbose: Option<bool>,
+    pub runner_mode: Option<String>,
+    pub runner_distro: Option<String>,
+    pub claude_path: Option<String>,
+    pub allow: Vec<String>,
+    pub deny: Vec<String>,
+    pub dangerously_skip_permissions: bool,
+    pub ignore_secret_pattern: Vec<String>,
+    pub extra_secret_pattern: Vec<String>,
+    pub phase_timeout: Option<u64>,
+    pub stdout_cap_bytes: Option<usize>,
+    pub stderr_cap_bytes: Option<usize>,
+    pub lock_ttl_seconds: Option<u64>,
+    pub debug_packet: bool,
+    pub allow_links: bool,
+    pub strict_validation: Option<bool>,
+    pub llm_provider: Option<String>,
+    pub llm_claude_binary: Option<String>,
+    pub llm_gemini_binary: Option<String>,
+    pub llm_gemini_default_model: Option<String>,
+    pub llm_fallback_provider: Option<String>,
+    pub prompt_template: Option<String>,
+    pub execution_strategy: Option<String>,
+}

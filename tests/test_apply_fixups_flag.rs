@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use tempfile::TempDir;
 use xchecker::fixup::{FixupMode, FixupParser};
 use xchecker::orchestrator::OrchestratorConfig;
 
@@ -19,9 +19,11 @@ fn test_apply_fixups_config_handling() -> Result<()> {
     let orchestrator_config_preview = OrchestratorConfig {
         dry_run: false,
         config: config_preview,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Simulate how orchestrator determines fixup mode
@@ -45,9 +47,11 @@ fn test_apply_fixups_config_handling() -> Result<()> {
     let orchestrator_config_apply = OrchestratorConfig {
         dry_run: false,
         config: config_apply,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     let apply_fixups_apply = orchestrator_config_apply
@@ -69,7 +73,8 @@ fn test_apply_fixups_config_handling() -> Result<()> {
 /// Test that `FixupParser` respects the mode setting
 #[test]
 fn test_fixup_parser_mode_behavior() -> Result<()> {
-    let temp_dir = PathBuf::from(".");
+    let sandbox = TempDir::new()?;
+    let temp_dir = sandbox.path().to_path_buf();
 
     // Test preview mode
     let parser_preview = FixupParser::new(FixupMode::Preview, temp_dir.clone())?;

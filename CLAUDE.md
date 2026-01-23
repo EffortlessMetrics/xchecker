@@ -4,7 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xchecker is a Rust CLI tool for orchestrating spec generation workflows using Claude AI. It transforms rough feature ideas into structured requirements, designs, and implementation tasks through a multi-phase pipeline.
+xchecker is a Rust CLI tool for orchestrating spec generation workflows using LLMs. It transforms rough feature ideas into structured requirements, designs, and implementation tasks through a multi-phase pipeline.
+
+## Workspace Layout
+
+xchecker is a Cargo workspace with a stable facade in the root crate:
+
+- `crates/xchecker-utils`: foundations (paths/sandbox, atomic write, logging, redaction, runner, types)
+- `crates/xchecker-config`: config model + discovery + validation + builder + selectors
+- `crates/xchecker-llm`: provider backends (claude-cli, gemini-cli, openrouter, anthropic)
+- `crates/xchecker-engine`: orchestration + phases + packet + fixup + receipt + status + workspace + gate + hooks
+- `src/lib.rs` + `src/main.rs`: stable API re-exports and CLI entrypoint for `xchecker`
 
 ## Build & Test Commands
 
@@ -14,21 +24,21 @@ cargo build                    # Debug build
 cargo build --release          # Release build
 
 # Run all tests (fast)
-cargo test --lib --bins        # ~30s - unit tests only
+cargo test --workspace --lib --bins
 
 # Run local-green tests (no external dependencies)
-cargo test --lib && cargo test --tests -- --skip requires_claude_stub
+cargo test --workspace --lib && cargo test --workspace --tests -- --skip requires_claude_stub --skip requires_real_claude --skip requires_xchecker_binary
 
 # Run tests with claude-stub (requires building stub first)
-cargo build --bin claude-stub
-cargo test --tests -- --include-ignored --skip requires_real_claude
+cargo build --bin claude-stub --features dev-tools
+cargo test --workspace --tests -- --include-ignored --skip requires_real_claude
 
 # Run a single test
 cargo test test_name -- --nocapture
 
 # Linting and formatting
 cargo fmt -- --check
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Run benchmarks
 cargo bench
@@ -49,7 +59,7 @@ Requirements -> Design -> Tasks -> Review -> Fixup -> Final
 Each phase:
 1. Builds a **packet** (context gathered from artifacts)
 2. Scans for secrets (blocks execution if detected)
-3. Invokes LLM (Claude CLI or dry-run simulation)
+3. Invokes LLM (Claude CLI, Gemini CLI, HTTP providers, or dry-run simulation)
 4. Postprocesses response into artifacts
 5. Writes artifacts atomically via `.partial/` staging
 6. Generates receipts with BLAKE3 hashes
@@ -58,18 +68,19 @@ Each phase:
 
 | Module | Purpose |
 |--------|---------|
-| `src/orchestrator/` | Core execution engine - phase lifecycle, LLM invocation, workflows |
-| `src/phases.rs` | Phase implementations (Requirements, Design, Tasks, Review, Fixup) |
-| `src/packet.rs` | Packet building with budget enforcement and file selection |
-| `src/receipt.rs` | JSON receipt generation with cryptographic hashes |
-| `src/fixup.rs` | Diff parsing and application with preview/apply modes |
-| `src/redaction.rs` | Secret detection and redaction |
-| `src/runner.rs` | Claude CLI execution (native/WSL) |
-| `src/llm/` | LLM backend abstraction (currently claude-cli only) |
+| `crates/xchecker-engine/src/orchestrator/` | Core execution engine - phase lifecycle, LLM invocation, workflows |
+| `crates/xchecker-engine/src/phases.rs` | Phase implementations (Requirements, Design, Tasks, Review, Fixup) |
+| `crates/xchecker-engine/src/packet/` | Packet building with budget enforcement and file selection |
+| `crates/xchecker-engine/src/receipt/` | JSON receipt generation with cryptographic hashes |
+| `crates/xchecker-engine/src/fixup/` | Diff parsing and application with preview/apply modes |
+| `crates/xchecker-config/src/config/` | Config model, discovery, validation, builder, selectors |
+| `crates/xchecker-utils/src/runner/` | Process execution (native/WSL, timeouts, Job Objects) |
+| `crates/xchecker-utils/src/redaction.rs` | Secret detection and redaction |
+| `crates/xchecker-llm/src/` | LLM backends (claude-cli, gemini-cli, openrouter, anthropic) |
 
 ### Integration Rule
 
-**Outside `src/orchestrator/`, always use `OrchestratorHandle`** - the stable facade for CLI and external tools. Do not use `PhaseOrchestrator` directly except in white-box tests.
+**Outside `crates/xchecker-engine/src/orchestrator/`, always use `OrchestratorHandle`** - the stable facade for CLI and external tools. Do not use `PhaseOrchestrator` directly except in white-box tests.
 
 ```rust
 // Correct
@@ -84,7 +95,7 @@ let orch = PhaseOrchestrator::new("my-spec")?;
 
 ### Test Profiles
 
-1. **Local-Green** (~30s): No external dependencies - `cargo test --lib`
+1. **Local-Green** (~30s): No external dependencies - `cargo test --workspace --lib`
 2. **Stub Suite** (~3min): Integration with claude-stub mock
 3. **Full Firehose** (~10min): Real Claude API (set `XCHECKER_ENABLE_REAL_CLAUDE=1`)
 
@@ -110,6 +121,10 @@ cargo test packet
 # Orchestrator invariants
 cargo test --test test_engine_invariants
 ```
+
+### Test Utils Feature
+
+`xchecker-utils` helpers live behind the `test-utils` feature. If a crate's tests need them, add a dev-dependency with `features = ["test-utils"]`.
 
 ## Key Patterns
 
@@ -148,14 +163,22 @@ All JSON outputs use JCS (RFC 8785) for canonical emission. Schema versions:
 
 ## LLM Configuration (V11-V14)
 
-Only `claude-cli` provider with `controlled` execution strategy is supported. All file modifications go through the fixup pipeline - LLMs propose changes, xchecker applies them.
+Only the `controlled` execution strategy is supported. Providers supported in V14: `claude-cli`, `gemini-cli`, `openrouter`, `anthropic`. All file modifications go through the fixup pipeline - LLMs propose changes, xchecker applies them.
 
 ```toml
 # .xchecker/config.toml
 [llm]
-provider = "claude-cli"           # Only supported value
+provider = "claude-cli"           # or "gemini-cli", "openrouter", "anthropic"
 execution_strategy = "controlled"  # Only supported value
 ```
+
+## Current Sharp Edges / Follow-ups
+
+- ConfigSource attribution: env overrides are currently labeled `Config`; decide if they should be `Programmatic` and update docs/tests consistently.
+- Packet builder split is in progress: keep `packet::builder` as glue; future extractions likely cache adapter and file formatting.
+- LLM binary path precedence in `crates/xchecker-engine/src/orchestrator/llm.rs` should be explicit (`llm_claude_binary` > `claude_path` > `claude_cli_path`).
+- Process-group handling should live in the runner (`xchecker-utils`) rather than provider backends.
+- Fixup path validation routes (`SandboxRoot::join()` and `validate_fixup_target()`) should stay policy-aligned to avoid divergence.
 
 ## Documentation
 
@@ -163,3 +186,5 @@ execution_strategy = "controlled"  # Only supported value
 - [docs/TESTING.md](docs/TESTING.md) - Test lanes and CI integration
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Full config reference
 - [docs/CONTRACTS.md](docs/CONTRACTS.md) - JSON schema versioning
+- [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) - Provider configuration
+- [docs/WORKSPACE_GUIDE.md](docs/WORKSPACE_GUIDE.md) - Workspace and TUI usage

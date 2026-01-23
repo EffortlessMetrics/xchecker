@@ -275,7 +275,7 @@ The `SandboxRoot` struct in `src/paths.rs` enforces strict path validation rules
 - **Canonicalization**: `SandboxRoot::new()` canonicalizes the root path, resolving all symlinks.
 - **Join Validation**: `SandboxRoot::join()` validates every path component.
 - **Symlink Checks**: If `allow_symlinks` is false (default), every component of the path is checked to ensure it's not a symlink.
-- **Hardlink Checks**: If `allow_hardlinks` is false (default), file link counts are checked (Unix only).
+- **Hardlink Checks**: If `allow_hardlinks` is false (default), file link counts are checked (Unix: `nlink()`, Windows: `GetFileInformationByHandle`).
 - **Error Types**: Specific errors like `ParentTraversal`, `AbsolutePath`, and `EscapeAttempt` are returned for different violation types.
 
 ### Symlinks and Hardlinks
@@ -398,7 +398,7 @@ Receipts are designed to be safe for version control and sharing:
 - Redacted error messages
 - File hashes (BLAKE3)
 - Timestamps (UTC)
-- Configuration sources (cli/config/default)
+- Configuration sources (cli/env/config/programmatic/default)
 
 ### Receipt Redaction
 
@@ -485,7 +485,7 @@ By default, xchecker rejects all symlinks to ensure strict containment. When `--
 
 ### Windows Hardlink Detection
 
-On Windows, hardlink detection is currently skipped due to the complexity of Win32 API integration. While symlinks are correctly detected and rejected (unless allowed), hardlinks are not explicitly blocked on Windows. This is a known limitation for the v1 release.
+Windows hardlink detection is implemented via `GetFileInformationByHandle` Win32 API, which returns `nNumberOfLinks` for accurate link count detection. The implementation is in `src/paths.rs` as the `link_count()` function, shared with Unix.
 
 ### Fixup Engine Limitations
 

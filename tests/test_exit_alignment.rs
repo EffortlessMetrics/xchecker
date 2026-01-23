@@ -9,6 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
+use xchecker::test_support;
 
 /// Helper to run xchecker command and capture exit code
 fn run_xchecker_command(args: &[&str], temp_dir: &TempDir) -> (i32, PathBuf) {
@@ -60,7 +61,7 @@ fn read_latest_receipt(spec_base: &Path, spec_id: &str) -> Option<Value> {
 
 #[test]
 #[ignore = "requires_xchecker_binary"]
-fn test_cli_args_error_alignment() {
+fn test_cli_args_error_alignment_requires_xchecker_binary() {
     let temp_dir = TempDir::new().unwrap();
 
     // Trigger CLI args error by providing invalid spec ID
@@ -74,8 +75,8 @@ fn test_cli_args_error_alignment() {
 }
 
 #[test]
-#[ignore = "requires_real_claude"]
-fn test_packet_overflow_error_alignment() {
+#[ignore = "requires_xchecker_binary"]
+fn test_packet_overflow_error_alignment_requires_xchecker_binary() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create a large file that will cause packet overflow
@@ -123,7 +124,7 @@ fn test_packet_overflow_error_alignment() {
 
 #[test]
 #[ignore = "requires_xchecker_binary"]
-fn test_lock_held_error_alignment() {
+fn test_lock_held_error_alignment_requires_xchecker_binary() {
     let temp_dir = TempDir::new().unwrap();
 
     // Create spec directory and lock file manually
@@ -168,7 +169,14 @@ fn test_lock_held_error_alignment() {
 
 #[test]
 #[ignore = "requires_real_claude"]
-fn test_claude_failure_error_alignment() {
+fn test_claude_failure_error_alignment_requires_real_claude() {
+    if !test_support::llm_tests_enabled() {
+        println!(
+            "Skipping real LLM exit alignment test. Set XCHECKER_REAL_LLM_TESTS=1 to enable (and ensure XCHECKER_SKIP_LLM_TESTS is unset)."
+        );
+        return;
+    }
+
     let temp_dir = TempDir::new().unwrap();
 
     // Trigger Claude failure by using invalid model

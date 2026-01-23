@@ -4,45 +4,25 @@ use xchecker::OrchestratorHandle;
 use xchecker::artifact::{Artifact, ArtifactType};
 use xchecker::fixup::{DiffHunk, FixupMode, FixupParser, UnifiedDiff};
 
-use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
-
-static CWD_LOCK: Mutex<()> = Mutex::new(());
-
-struct CwdGuard {
-    _lock: MutexGuard<'static, ()>,
-    original: PathBuf,
-}
-
-impl CwdGuard {
-    fn new() -> Self {
-        let lock = CWD_LOCK.lock().unwrap();
-        let original = std::env::current_dir().unwrap();
-        Self {
-            _lock: lock,
-            original,
-        }
-    }
-}
-
-impl Drop for CwdGuard {
-    fn drop(&mut self) {
-        let _ = std::env::set_current_dir(&self.original);
-    }
-}
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
 
 /// Test environment setup
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `_temp_dir` is deleted.
 struct SecurityTestEnvironment {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
     _temp_dir: TempDir,
-    _cwd_guard: CwdGuard,
     handle: OrchestratorHandle,
 }
 
 impl SecurityTestEnvironment {
     fn new(test_name: &str) -> Result<Self> {
         let temp_dir = TempDir::new()?;
-        let cwd_guard = CwdGuard::new();
-        std::env::set_current_dir(temp_dir.path())?;
+        let cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
 
         // Create .xchecker directory structure
         std::fs::create_dir_all(temp_dir.path().join(".xchecker/specs"))?;
@@ -51,8 +31,8 @@ impl SecurityTestEnvironment {
         let handle = OrchestratorHandle::new(&spec_id)?;
 
         Ok(Self {
-            _temp_dir: temp_dir,
             _cwd_guard: cwd_guard,
+            _temp_dir: temp_dir,
             handle,
         })
     }

@@ -18,16 +18,36 @@ use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout};
 use xchecker::types::{ErrorKind, PhaseId};
 
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
+/// Test environment for phase timeout tests
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
+struct TimeoutTestEnv {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
+    #[allow(dead_code)]
+    temp_dir: TempDir,
+    orchestrator: PhaseOrchestrator,
+}
+
 /// Helper to set up test environment with isolated home
-fn setup_test_environment(test_name: &str) -> (PhaseOrchestrator, TempDir) {
-    // Use isolated home for each test to avoid conflicts
-    let temp_dir = xchecker::paths::with_isolated_home();
+fn setup_test_environment(test_name: &str) -> TimeoutTestEnv {
+    let temp_dir = TempDir::new().unwrap();
+    let cwd_guard = test_support::CwdGuard::new(temp_dir.path()).unwrap();
 
     // Create spec directory structure
     let spec_id = format!("test-timeout-{}", test_name);
     let orchestrator = PhaseOrchestrator::new(&spec_id).unwrap();
 
-    (orchestrator, temp_dir)
+    TimeoutTestEnv {
+        _cwd_guard: cwd_guard,
+        temp_dir,
+        orchestrator,
+    }
 }
 
 /// Helper to create config with specific timeout
@@ -38,10 +58,33 @@ fn create_config_with_timeout(timeout_secs: u64, dry_run: bool) -> OrchestratorC
     OrchestratorConfig {
         dry_run,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     }
+}
+
+/// Helper to create config for stub-based timeout tests.
+/// Configures the stub to hang for longer than the timeout.
+fn create_stub_timeout_config(timeout_secs: u64) -> Option<OrchestratorConfig> {
+    let stub_path = test_support::claude_stub_path()?;
+
+    let mut config_map = HashMap::new();
+    config_map.insert("phase_timeout".to_string(), timeout_secs.to_string());
+    config_map.insert("claude_cli_path".to_string(), stub_path);
+    config_map.insert("claude_scenario".to_string(), "hang".to_string());
+
+    Some(OrchestratorConfig {
+        dry_run: false,
+        config: config_map,
+        full_config: None,
+        selectors: None,
+        strict_validation: false,
+        redactor: Default::default(),
+        hooks: None,
+    })
 }
 
 /// Test that PhaseTimeout configuration is correctly applied
@@ -79,7 +122,7 @@ fn test_timeout_configuration() {
 /// This simulates a scenario where packet assembly takes too long
 #[tokio::test]
 async fn test_timeout_during_packet_building() -> Result<()> {
-    let (orchestrator, _temp_dir) = setup_test_environment("packet-building");
+    let env = setup_test_environment("packet-building");
 
     // Use a very short timeout to trigger timeout during packet building
     // In a real scenario, this would happen with very large codebases
@@ -87,7 +130,7 @@ async fn test_timeout_during_packet_building() -> Result<()> {
 
     // Execute phase - in dry run mode, this should complete quickly
     // but we're testing the timeout infrastructure
-    let result = orchestrator.execute_requirements_phase(&config).await;
+    let result = env.orchestrator.execute_requirements_phase(&config).await;
 
     // In dry run mode, this should succeed quickly
     // For a real timeout test, we'd need to mock a slow packet builder
@@ -103,24 +146,44 @@ async fn test_timeout_during_packet_building() -> Result<()> {
 /// This is the most common timeout scenario
 #[tokio::test]
 #[ignore = "requires_claude_stub"]
-async fn test_timeout_during_claude_execution() -> Result<()> {
-    let (orchestrator, _temp_dir) = setup_test_environment("claude-execution");
+async fn test_timeout_during_claude_execution_requires_claude_stub() -> Result<()> {
+    // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
+    let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
 
-    // Use a short timeout to trigger during Claude execution
-    let config = create_config_with_timeout(PhaseTimeout::MIN_SECS, false);
+    let env = setup_test_environment("claude-execution");
 
-    // Execute phase - this would timeout if Claude takes too long
-    let result = orchestrator.execute_requirements_phase(&config).await;
+    // Get stub config - skip if stub not available
+    let config = match create_stub_timeout_config(PhaseTimeout::MIN_SECS) {
+        Some(c) => c,
+        None => {
+            eprintln!("Skipping: claude-stub not available");
+            return Ok(());
+        }
+    };
 
-    // Should fail with timeout error
-    assert!(result.is_err(), "Phase should timeout");
+    // Execute phase - this should timeout after 5 seconds while stub hangs for 10
+    let result = env.orchestrator.execute_requirements_phase(&config).await;
 
-    let err = result.unwrap_err();
-    let err_msg = err.to_string();
+    // The orchestrator handles timeouts gracefully - it returns Ok(ExecutionResult)
+    // with success=false and exit_code=10 (PHASE_TIMEOUT), not Err(...)
     assert!(
-        err_msg.contains("timeout") || err_msg.contains("timed out"),
-        "Error should mention timeout: {}",
-        err_msg
+        result.is_ok(),
+        "Phase execution should complete (with timeout result)"
+    );
+
+    let exec_result = result.unwrap();
+    assert!(!exec_result.success, "Phase should not succeed (timed out)");
+    assert_eq!(
+        exec_result.exit_code, 10,
+        "Exit code should be PHASE_TIMEOUT (10)"
+    );
+    assert!(
+        exec_result
+            .error
+            .as_ref()
+            .is_some_and(|e| e.contains("timed out")),
+        "Error should mention timeout: {:?}",
+        exec_result.error
     );
 
     Ok(())
@@ -129,7 +192,7 @@ async fn test_timeout_during_claude_execution() -> Result<()> {
 /// Test that timeout creates partial artifact with correct naming
 #[tokio::test]
 async fn test_timeout_creates_partial_artifact() -> Result<()> {
-    let (_orchestrator, _temp_dir) = setup_test_environment("partial-artifact");
+    let _env = setup_test_environment("partial-artifact");
 
     // Simulate timeout by using orchestrator's handle_phase_timeout directly
     // This is a unit test of the timeout handling logic
@@ -248,24 +311,37 @@ fn test_timeout_error_serialization() {
 /// This simulates a scenario where writing the artifact takes too long
 #[tokio::test]
 #[ignore = "requires_claude_stub"]
-async fn test_timeout_during_artifact_writing() -> Result<()> {
-    let (orchestrator, _temp_dir) = setup_test_environment("artifact-writing");
+async fn test_timeout_during_artifact_writing_requires_claude_stub() -> Result<()> {
+    // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
+    let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
 
-    // Use a short timeout
-    let config = create_config_with_timeout(PhaseTimeout::MIN_SECS, false);
+    let env = setup_test_environment("artifact-writing");
+
+    // Get stub config - skip if stub not available
+    let config = match create_stub_timeout_config(PhaseTimeout::MIN_SECS) {
+        Some(c) => c,
+        None => {
+            eprintln!("Skipping: claude-stub not available");
+            return Ok(());
+        }
+    };
 
     // Execute phase - would timeout if artifact writing is slow
-    let result = orchestrator.execute_requirements_phase(&config).await;
+    let result = env.orchestrator.execute_requirements_phase(&config).await;
 
-    // Should handle timeout gracefully
-    if let Err(err) = result {
-        let err_msg = err.to_string();
-        assert!(
-            err_msg.contains("timeout") || err_msg.contains("timed out"),
-            "Error should mention timeout: {}",
-            err_msg
-        );
-    }
+    // The orchestrator handles timeouts gracefully - it returns Ok(ExecutionResult)
+    // with success=false and exit_code=10 (PHASE_TIMEOUT)
+    assert!(
+        result.is_ok(),
+        "Phase execution should complete (with timeout result)"
+    );
+
+    let exec_result = result.unwrap();
+    assert!(!exec_result.success, "Phase should not succeed (timed out)");
+    assert_eq!(
+        exec_result.exit_code, 10,
+        "Exit code should be PHASE_TIMEOUT (10)"
+    );
 
     Ok(())
 }
@@ -273,13 +349,13 @@ async fn test_timeout_during_artifact_writing() -> Result<()> {
 /// Test that multiple timeouts are handled independently
 #[tokio::test]
 async fn test_multiple_phase_timeouts() -> Result<()> {
-    let (orchestrator, _temp_dir) = setup_test_environment("multiple-timeouts");
+    let env = setup_test_environment("multiple-timeouts");
 
     let config = create_config_with_timeout(PhaseTimeout::MIN_SECS, true);
 
     // Execute multiple phases - each should have independent timeout
-    let result1 = orchestrator.execute_requirements_phase(&config).await;
-    let result2 = orchestrator.execute_design_phase(&config).await;
+    let result1 = env.orchestrator.execute_requirements_phase(&config).await;
+    let result2 = env.orchestrator.execute_design_phase(&config).await;
 
     // Both should complete (in dry run mode) or timeout independently
     // The key is that one timeout doesn't affect the other
@@ -339,9 +415,11 @@ fn test_timeout_invalid_config_uses_default() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     let timeout = PhaseTimeout::from_config(&config);
@@ -361,9 +439,11 @@ fn test_timeout_negative_config_uses_default() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     let timeout = PhaseTimeout::from_config(&config);
@@ -496,34 +576,57 @@ mod integration_tests {
     /// This test requires a mock setup and is ignored by default
     #[tokio::test]
     #[ignore = "requires_claude_stub"]
-    async fn test_full_timeout_flow_with_mock_claude() -> Result<()> {
-        let (orchestrator, _temp_dir) = setup_test_environment("full-flow");
+    async fn test_full_timeout_flow_with_mock_claude_requires_claude_stub() -> Result<()> {
+        // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
+        let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
 
-        // Configure with short timeout
-        let config = create_config_with_timeout(PhaseTimeout::MIN_SECS, false);
+        let env = setup_test_environment("full-flow");
 
-        // Execute phase - should timeout with mock Claude that sleeps
-        let result = orchestrator.execute_requirements_phase(&config).await;
+        // Get stub config - skip if stub not available
+        let config = match create_stub_timeout_config(PhaseTimeout::MIN_SECS) {
+            Some(c) => c,
+            None => {
+                eprintln!("Skipping: claude-stub not available");
+                return Ok(());
+            }
+        };
 
-        // Verify timeout occurred
-        assert!(result.is_err(), "Phase should timeout");
+        // Execute phase - should timeout with mock Claude that hangs
+        let result = env.orchestrator.execute_requirements_phase(&config).await;
 
-        let err = result.unwrap_err();
+        // The orchestrator handles timeouts gracefully - it returns Ok(ExecutionResult)
+        // with success=false and exit_code=10 (PHASE_TIMEOUT)
+        assert!(
+            result.is_ok(),
+            "Phase execution should complete (with timeout result)"
+        );
 
-        // Verify error is timeout
-        if let Some(xchecker_err) = err.downcast_ref::<xchecker::error::XCheckerError>() {
-            let (exit_code, error_kind) = xchecker_err.into();
-            assert_eq!(exit_code, 10, "Exit code should be 10");
-            assert_eq!(
-                error_kind,
-                ErrorKind::PhaseTimeout,
-                "Error kind should be PhaseTimeout"
-            );
-        }
+        let exec_result = result.unwrap();
+        assert!(!exec_result.success, "Phase should not succeed (timed out)");
+        assert_eq!(
+            exec_result.exit_code, 10,
+            "Exit code should be PHASE_TIMEOUT (10)"
+        );
+        assert!(
+            exec_result
+                .error
+                .as_ref()
+                .is_some_and(|e| e.contains("timed out")),
+            "Error should mention timeout: {:?}",
+            exec_result.error
+        );
 
-        // TODO: Verify partial artifact was created
-        // TODO: Verify receipt was written with correct fields
-        // TODO: Verify warning includes timeout duration
+        // Verify partial artifact was created
+        assert!(
+            !exec_result.artifact_paths.is_empty(),
+            "Should have created partial artifact"
+        );
+        let artifact_path_str = exec_result.artifact_paths[0].to_string_lossy();
+        assert!(
+            artifact_path_str.contains(".partial."),
+            "Artifact should be partial: {}",
+            artifact_path_str
+        );
 
         Ok(())
     }
@@ -531,20 +634,55 @@ mod integration_tests {
     /// Test timeout recovery - can we continue after a timeout?
     #[tokio::test]
     #[ignore = "requires_claude_stub"]
-    async fn test_timeout_recovery() -> Result<()> {
-        let (orchestrator, _temp_dir) = setup_test_environment("recovery");
+    async fn test_timeout_recovery_requires_claude_stub() -> Result<()> {
+        // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
+        let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
 
-        // First execution times out
-        let config_short = create_config_with_timeout(PhaseTimeout::MIN_SECS, false);
-        let result1 = orchestrator.execute_requirements_phase(&config_short).await;
-        assert!(result1.is_err(), "First execution should timeout");
+        let env = setup_test_environment("recovery");
 
-        // Second execution with longer timeout should succeed
-        let config_long = create_config_with_timeout(PhaseTimeout::DEFAULT_SECS, true);
-        let result2 = orchestrator.execute_requirements_phase(&config_long).await;
+        // First execution times out (using stub with hang scenario)
+        let config_short = match create_stub_timeout_config(PhaseTimeout::MIN_SECS) {
+            Some(c) => c,
+            None => {
+                eprintln!("Skipping: claude-stub not available");
+                return Ok(());
+            }
+        };
+        let result1 = env
+            .orchestrator
+            .execute_requirements_phase(&config_short)
+            .await;
+
+        // The orchestrator handles timeouts gracefully - it returns Ok(ExecutionResult)
+        // with success=false and exit_code=10 (PHASE_TIMEOUT)
+        assert!(
+            result1.is_ok(),
+            "First execution should complete (with timeout result)"
+        );
+        let exec_result1 = result1.unwrap();
+        assert!(
+            !exec_result1.success,
+            "First execution should not succeed (timed out)"
+        );
+        assert_eq!(
+            exec_result1.exit_code, 10,
+            "Exit code should be PHASE_TIMEOUT (10)"
+        );
+
+        // Second execution with dry_run should succeed (no stub needed)
+        let config_dry = create_config_with_timeout(PhaseTimeout::DEFAULT_SECS, true);
+        let result2 = env
+            .orchestrator
+            .execute_requirements_phase(&config_dry)
+            .await;
         assert!(
             result2.is_ok(),
-            "Second execution with longer timeout should succeed"
+            "Second execution with dry_run should complete"
+        );
+        let exec_result2 = result2.unwrap();
+        assert!(
+            exec_result2.success,
+            "Second execution with dry_run should succeed"
         );
 
         Ok(())

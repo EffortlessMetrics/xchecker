@@ -3,8 +3,14 @@
 //! These tests verify WSL execution, path translation, environment translation,
 //! and `runner_distro` capture. Most tests are Windows-only since WSL is a Windows feature.
 
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
 #[cfg(test)]
 mod wsl_runner_tests {
+    #[cfg(target_os = "windows")]
+    use super::test_support::EnvVarGuard;
     #[cfg(target_os = "windows")]
     use serial_test::serial;
     #[allow(unused_imports)]
@@ -14,52 +20,6 @@ mod wsl_runner_tests {
     use xchecker::wsl::{
         is_wsl_available, translate_env_for_wsl, translate_win_to_wsl, validate_claude_in_wsl,
     };
-
-    /// Restores an env var on drop to keep tests isolated when mutating process env.
-    #[cfg(target_os = "windows")]
-    struct EnvVarGuard {
-        key: String,
-        original: Option<String>,
-    }
-
-    #[cfg(target_os = "windows")]
-    impl EnvVarGuard {
-        fn set(key: &str, value: &str) -> Self {
-            let original = std::env::var(key).ok();
-            // SAFETY: Tests serialize access and restore the prior value.
-            unsafe {
-                std::env::set_var(key, value);
-            }
-
-            Self {
-                key: key.to_string(),
-                original,
-            }
-        }
-
-        fn cleared(key: &str) -> Self {
-            let original = std::env::var(key).ok();
-            // SAFETY: Tests serialize access and restore the prior value.
-            unsafe {
-                std::env::remove_var(key);
-            }
-
-            Self {
-                key: key.to_string(),
-                original,
-            }
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.original {
-                Some(value) => unsafe { std::env::set_var(&self.key, value) },
-                None => unsafe { std::env::remove_var(&self.key) },
-            }
-        }
-    }
 
     /// Test that WSL runner can be created with default options
     #[test]

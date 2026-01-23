@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Comprehensive secret redaction tests (FR-SEC)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`redaction::{...}`,

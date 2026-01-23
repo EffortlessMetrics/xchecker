@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Integration tests for structured logging (FR-OBS-001)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`logging::{...}`) and may break

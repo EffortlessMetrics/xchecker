@@ -85,11 +85,11 @@ fn test_github_validation_empty_owner() {
     assert!(result.is_err(), "Empty owner should fail validation");
 
     match result.unwrap_err() {
-        SourceError::InvalidConfiguration { reason } => {
+        SourceError::InvalidFormat { reason } => {
             assert!(reason.contains("owner"));
             assert!(reason.contains("repo"));
         }
-        _ => panic!("Expected InvalidConfiguration error"),
+        _ => panic!("Expected InvalidFormat error"),
     }
 }
 
@@ -101,11 +101,11 @@ fn test_github_validation_empty_repo() {
     assert!(result.is_err(), "Empty repo should fail validation");
 
     match result.unwrap_err() {
-        SourceError::InvalidConfiguration { reason } => {
+        SourceError::InvalidFormat { reason } => {
             assert!(reason.contains("owner"));
             assert!(reason.contains("repo"));
         }
-        _ => panic!("Expected InvalidConfiguration error"),
+        _ => panic!("Expected InvalidFormat error"),
     }
 }
 
@@ -120,10 +120,10 @@ fn test_github_validation_invalid_issue_id_non_numeric() {
     );
 
     match result.unwrap_err() {
-        SourceError::GitHubResolutionFailed { reason } => {
+        SourceError::InvalidFormat { reason } => {
             assert!(reason.contains("valid number"));
         }
-        _ => panic!("Expected GitHubResolutionFailed error"),
+        _ => panic!("Expected InvalidFormat error"),
     }
 }
 
@@ -138,10 +138,10 @@ fn test_github_validation_invalid_issue_id_with_letters() {
     );
 
     match result.unwrap_err() {
-        SourceError::GitHubResolutionFailed { reason } => {
+        SourceError::InvalidFormat { reason } => {
             assert!(reason.contains("valid number"));
         }
-        _ => panic!("Expected GitHubResolutionFailed error"),
+        _ => panic!("Expected InvalidFormat error"),
     }
 }
 
@@ -339,13 +339,13 @@ fn test_stdin_validation_empty_input() {
 
     // The actual stdin test would require process spawning or mocking
     // We verify the error handling logic exists
-    let error = SourceError::StdinInvalid;
+    let error = SourceError::EmptyInput;
 
     match error {
-        SourceError::StdinInvalid => {
+        SourceError::EmptyInput => {
             // Correct error type
         }
-        _ => panic!("Expected StdinInvalid error"),
+        _ => panic!("Expected EmptyInput error"),
     }
 }
 
@@ -355,19 +355,21 @@ fn test_stdin_validation_empty_input() {
 
 #[test]
 fn test_github_error_user_friendly_message() {
-    let error = SourceError::GitHubResolutionFailed {
-        reason: "Repository not found".to_string(),
+    let error = SourceError::GitHubRepoNotFound {
+        owner: "owner".to_string(),
+        repo: "repo".to_string(),
     };
 
     let message = error.user_message();
-    assert!(message.contains("Could not resolve GitHub source"));
-    assert!(message.contains("Repository not found"));
+    assert!(message.contains("GitHub repository"));
+    assert!(message.contains("owner/repo"));
 }
 
 #[test]
 fn test_github_error_context() {
-    let error = SourceError::GitHubResolutionFailed {
-        reason: "API error".to_string(),
+    let error = SourceError::GitHubRepoNotFound {
+        owner: "owner".to_string(),
+        repo: "repo".to_string(),
     };
 
     let context = error.context();
@@ -377,20 +379,21 @@ fn test_github_error_context() {
 
 #[test]
 fn test_github_error_suggestions_authentication() {
-    let error = SourceError::GitHubResolutionFailed {
+    let error = SourceError::GitHubAuthFailed {
         reason: "authentication failed".to_string(),
     };
 
     let suggestions = error.suggestions();
     assert!(!suggestions.is_empty());
-    assert!(suggestions.iter().any(|s| s.contains("authentication")));
-    assert!(suggestions.iter().any(|s| s.contains("credentials")));
+    assert!(suggestions.iter().any(|s| s.contains("gh auth login")));
+    assert!(suggestions.iter().any(|s| s.contains("token")));
 }
 
 #[test]
 fn test_github_error_suggestions_not_found() {
-    let error = SourceError::GitHubResolutionFailed {
-        reason: "repository not found".to_string(),
+    let error = SourceError::GitHubRepoNotFound {
+        owner: "owner".to_string(),
+        repo: "repo".to_string(),
     };
 
     let suggestions = error.suggestions();
@@ -398,19 +401,25 @@ fn test_github_error_suggestions_not_found() {
     assert!(
         suggestions
             .iter()
-            .any(|s| s.contains("not found") || s.contains("exists"))
+            .any(|s| s.contains("https://github.com/owner/repo"))
     );
+    assert!(suggestions.iter().any(|s| s.contains("public")));
 }
 
 #[test]
 fn test_github_error_suggestions_rate_limit() {
-    let error = SourceError::GitHubResolutionFailed {
-        reason: "rate limit exceeded".to_string(),
+    let error = SourceError::GitHubApiError {
+        status: 403,
+        message: "rate limit exceeded".to_string(),
     };
 
     let suggestions = error.suggestions();
     assert!(!suggestions.is_empty());
-    assert!(suggestions.iter().any(|s| s.contains("rate limit")));
+    assert!(
+        suggestions
+            .iter()
+            .any(|s| s.contains("Rate limit exceeded"))
+    );
 }
 
 #[test]
@@ -420,7 +429,7 @@ fn test_filesystem_error_user_friendly_message() {
     };
 
     let message = error.user_message();
-    assert!(message.contains("Source file or directory not found"));
+    assert!(message.contains("does not exist"));
     assert!(message.contains("/path/to/file.txt"));
 }
 
@@ -432,7 +441,7 @@ fn test_filesystem_error_context() {
 
     let context = error.context();
     assert!(context.is_some());
-    assert!(context.unwrap().contains("Filesystem sources"));
+    assert!(context.unwrap().contains("Filesystem source resolution"));
 }
 
 #[test]
@@ -443,63 +452,59 @@ fn test_filesystem_error_suggestions() {
 
     let suggestions = error.suggestions();
     assert!(!suggestions.is_empty());
+    assert!(suggestions.iter().any(|s| s.contains("mkdir -p")));
     assert!(suggestions.iter().any(|s| s.contains("/path/to/file.txt")));
-    assert!(suggestions.iter().any(|s| s.contains("exists")));
-    assert!(suggestions.iter().any(|s| s.contains("permissions")));
+    assert!(suggestions.iter().any(|s| s.contains("absolute path")));
 }
 
 #[test]
 fn test_stdin_error_user_friendly_message() {
-    let error = SourceError::StdinInvalid;
+    let error = SourceError::EmptyInput;
 
     let message = error.user_message();
-    assert!(message.contains("No input provided via stdin"));
+    assert!(message.contains("No input provided"));
 }
 
 #[test]
 fn test_stdin_error_context() {
-    let error = SourceError::StdinInvalid;
+    let error = SourceError::EmptyInput;
 
     let context = error.context();
     assert!(context.is_some());
-    assert!(context.unwrap().contains("Stdin input"));
+    assert!(context.unwrap().contains("problem statement"));
 }
 
 #[test]
 fn test_stdin_error_suggestions() {
-    let error = SourceError::StdinInvalid;
+    let error = SourceError::EmptyInput;
 
     let suggestions = error.suggestions();
     assert!(!suggestions.is_empty());
-    assert!(suggestions.iter().any(|s| s.contains("Pipe input")));
     assert!(suggestions.iter().any(|s| s.contains("stdin")));
+    assert!(suggestions.iter().any(|s| s.contains("--source fs")));
 }
 
 #[test]
 fn test_invalid_configuration_error_user_friendly_message() {
-    let error = SourceError::InvalidConfiguration {
+    let error = SourceError::InvalidFormat {
         reason: "Missing required parameter".to_string(),
     };
 
     let message = error.user_message();
-    assert!(message.contains("Source configuration is invalid"));
+    assert!(message.contains("Input format is invalid"));
     assert!(message.contains("Missing required parameter"));
 }
 
 #[test]
 fn test_invalid_configuration_error_suggestions() {
-    let error = SourceError::InvalidConfiguration {
+    let error = SourceError::InvalidFormat {
         reason: "Unknown source type".to_string(),
     };
 
     let suggestions = error.suggestions();
     assert!(!suggestions.is_empty());
-    assert!(suggestions.iter().any(|s| s.contains("--source")));
-    assert!(
-        suggestions
-            .iter()
-            .any(|s| s.contains("gh") || s.contains("fs") || s.contains("stdin"))
-    );
+    assert!(suggestions.iter().any(|s| s.contains("single-line")));
+    assert!(suggestions.iter().any(|s| s.contains("plain English")));
 }
 
 // ============================================================================
@@ -577,14 +582,15 @@ fn test_error_category_configuration() {
     use xchecker::error::ErrorCategory;
 
     let errors = vec![
-        SourceError::GitHubResolutionFailed {
-            reason: "test".to_string(),
+        SourceError::GitHubRepoNotFound {
+            owner: "owner".to_string(),
+            repo: "repo".to_string(),
         },
         SourceError::FileSystemNotFound {
             path: "test".to_string(),
         },
-        SourceError::StdinInvalid,
-        SourceError::InvalidConfiguration {
+        SourceError::EmptyInput,
+        SourceError::InvalidFormat {
             reason: "test".to_string(),
         },
     ];

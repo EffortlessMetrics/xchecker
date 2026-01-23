@@ -233,6 +233,9 @@ jobs:
 # ============================================================================
 #
 # Policy Parameters:
+#   --policy <path>            Load gate policy from a TOML file
+#                              Defaults to .xchecker/policy.toml or ~/.config/xchecker/policy.toml
+#
 #   --min-phase <phase>        Require at least this phase completed
 #                              Values: requirements, design, tasks, review, fixup, final
 #                              Default: tasks

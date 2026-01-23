@@ -27,7 +27,7 @@ use crate::spec_id::sanitize_spec_id;
 /// xchecker - Claude orchestration tool for spec generation
 #[derive(Parser)]
 #[command(name = "xchecker")]
-#[command(about = "A CLI tool for orchestrating spec generation workflows using the Claude CLI")]
+#[command(about = "A CLI tool for orchestrating spec generation workflows using LLM providers")]
 #[command(long_about = r#"
 xchecker is a deterministic, token-efficient pipeline that transforms rough ideas
 into detailed implementation plans through a structured phase-based approach.
@@ -68,7 +68,7 @@ CONFIGURATION:
 PHASES:
   Requirements → Design → Tasks → Review → Fixup → Final
   Each phase produces artifacts and receipts for auditability
-  Use --dry-run to see planned execution without making Claude calls
+  Use --dry-run to see planned execution without making LLM calls
 
 For more information, see: https://github.com/your-org/xchecker
 "#)]
@@ -78,7 +78,7 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub config: Option<PathBuf>,
 
-    /// Model to use for Claude CLI calls
+    /// Model to use for LLM provider calls
     #[arg(long, global = true)]
     pub model: Option<String>,
 
@@ -172,9 +172,25 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub llm_provider: Option<String>,
 
+    /// Fallback LLM provider to use if primary provider fails to initialize
+    #[arg(long, global = true)]
+    pub llm_fallback_provider: Option<String>,
+
+    /// Prompt template to use for LLM interactions
+    #[arg(long, global = true)]
+    pub prompt_template: Option<String>,
+
     /// Path to Claude CLI binary (for claude-cli provider)
     #[arg(long, global = true)]
     pub llm_claude_binary: Option<String>,
+
+    /// Path to Gemini CLI binary (for gemini-cli provider)
+    #[arg(long, global = true)]
+    pub llm_gemini_binary: Option<String>,
+
+    /// Default Gemini model to use when no per-phase override is set
+    #[arg(long, global = true)]
+    pub llm_gemini_default_model: Option<String>,
 
     /// Execution strategy: controlled (default, LLMs cannot write directly)
     #[arg(long, global = true)]
@@ -212,7 +228,7 @@ pub enum Commands {
         #[arg(long, help = "Path to local repository directory")]
         repo: Option<String>,
 
-        /// Run in dry-run mode (show what would be executed without making Claude calls)
+        /// Run in dry-run mode (show what would be executed without making LLM calls)
         #[arg(long)]
         dry_run: bool,
 
@@ -267,7 +283,7 @@ pub enum Commands {
         #[arg(long, value_parser = ["requirements", "design", "tasks", "review", "fixup", "final"])]
         phase: String,
 
-        /// Run in dry-run mode (show what would be executed without making Claude calls)
+        /// Run in dry-run mode (show what would be executed without making LLM calls)
         #[arg(long)]
         dry_run: bool,
 
@@ -432,6 +448,7 @@ pub enum Commands {
     ///   xchecker gate my-spec --min-phase design
     ///   xchecker gate my-spec --fail-on-pending-fixups
     ///   xchecker gate my-spec --max-phase-age 7d
+    ///   xchecker gate my-spec --policy .xchecker/policy.toml
     ///   xchecker gate my-spec --json
     ///
     /// Per FR-GATE (Requirements 4.5.1, 4.5.2, 4.5.3, 4.5.4)
@@ -439,10 +456,15 @@ pub enum Commands {
         /// Spec ID to evaluate
         id: String,
 
+        /// Policy file path (TOML)
+        /// Defaults to .xchecker/policy.toml in the repo or ~/.config/xchecker/policy.toml
+        #[arg(long)]
+        policy: Option<PathBuf>,
+
         /// Minimum phase that must be completed (default: tasks)
         /// Valid phases: requirements, design, tasks, review, fixup, final
-        #[arg(long, default_value = "tasks")]
-        min_phase: String,
+        #[arg(long)]
+        min_phase: Option<String>,
 
         /// Fail if any pending fixups exist
         #[arg(long)]
@@ -670,18 +692,18 @@ pub fn run() -> Result<(), ExitCode> {
             None
         },
         llm_provider: cli.llm_provider.clone(),
+        llm_fallback_provider: cli.llm_fallback_provider.clone(),
+        prompt_template: cli.prompt_template.clone(),
         llm_claude_binary: cli.llm_claude_binary.clone(),
-        llm_gemini_binary: None, // TODO: Add CLI flag for Gemini binary in future
+        llm_gemini_binary: cli.llm_gemini_binary.clone(),
+        llm_gemini_default_model: cli.llm_gemini_default_model.clone(),
         execution_strategy: cli.execution_strategy.clone(),
     };
 
     // Discover and load configuration
     let config = match Config::discover(&cli_args) {
         Ok(config) => config,
-        Err(e) => {
-            let err = XCheckerError::Config(ConfigError::DiscoveryFailed {
-                reason: e.to_string(),
-            });
+        Err(err) => {
             let contextual_report = error_utils::create_contextual_report(&err, "config");
             eprintln!("{contextual_report}");
             return Err(err.to_exit_code());
@@ -864,6 +886,7 @@ pub fn run() -> Result<(), ExitCode> {
             Commands::Project(project_cmd) => execute_project_command(project_cmd),
             Commands::Gate {
                 id,
+                policy,
                 min_phase,
                 fail_on_pending_fixups,
                 max_phase_age,
@@ -878,7 +901,8 @@ pub fn run() -> Result<(), ExitCode> {
                 })?;
                 execute_gate_command(
                     &sanitized_id,
-                    &min_phase,
+                    policy.as_deref(),
+                    min_phase.as_deref(),
                     fail_on_pending_fixups,
                     max_phase_age.as_deref(),
                     json,
@@ -1466,38 +1490,7 @@ fn emit_resume_json(output: &crate::types::ResumeJsonOutput) -> Result<String> {
 /// Count pending fixups for a spec
 /// Returns the number of target files with pending fixups
 fn count_pending_fixups(handle: &OrchestratorHandle) -> u32 {
-    use crate::fixup::{FixupMode, FixupParser};
-
-    // Check if Review phase is completed and has fixup markers
-    let base_path = handle.artifact_manager().base_path();
-    let review_md_path = base_path.join("artifacts").join("30-review.md");
-
-    if !review_md_path.exists() {
-        return 0; // No review phase completed yet
-    }
-
-    // Read the review content
-    let review_content = match std::fs::read_to_string(&review_md_path) {
-        Ok(content) => content,
-        Err(_) => return 0, // Can't read review file, assume no fixups
-    };
-
-    // Create fixup parser in preview mode to check for targets
-    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.clone().into()) {
-        Ok(parser) => parser,
-        Err(_) => return 0, // Can't create parser, assume no fixups
-    };
-
-    // Check if there are fixup markers
-    if !fixup_parser.has_fixup_markers(&review_content) {
-        return 0; // No fixups needed
-    }
-
-    // Parse diffs to get intended targets
-    match fixup_parser.parse_diffs(&review_content) {
-        Ok(diffs) => diffs.len() as u32,
-        Err(_) => 0, // Failed to parse diffs, assume no fixups
-    }
+    crate::fixup::pending_fixups_from_handle(handle).targets
 }
 
 /// Execute the status command
@@ -1631,7 +1624,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
             let source = config
                 .source_attribution
                 .get("provider")
-                .map(|s| s.clone().into())
+                .cloned()
                 .unwrap_or(ConfigSource::Config);
             effective_config.insert(
                 "provider".to_string(),
@@ -1647,7 +1640,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
             let source = config
                 .source_attribution
                 .get("model")
-                .map(|s| s.clone().into())
+                .cloned()
                 .unwrap_or(ConfigSource::Config);
             effective_config.insert(
                 "model".to_string(),
@@ -1663,7 +1656,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
             let source = config
                 .source_attribution
                 .get("max_turns")
-                .map(|s| s.clone().into())
+                .cloned()
                 .unwrap_or(ConfigSource::Config);
             effective_config.insert(
                 "max_turns".to_string(),
@@ -1679,7 +1672,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
             let source = config
                 .source_attribution
                 .get("phase_timeout")
-                .map(|s| s.clone().into())
+                .cloned()
                 .unwrap_or(ConfigSource::Config);
             effective_config.insert(
                 "phase_timeout".to_string(),
@@ -1695,7 +1688,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
             let source = config
                 .source_attribution
                 .get("execution_strategy")
-                .map(|s| s.clone().into())
+                .cloned()
                 .unwrap_or(ConfigSource::Config);
             effective_config.insert(
                 "execution_strategy".to_string(),
@@ -2401,6 +2394,83 @@ fn create_default_config(
         config_map.insert("output_format".to_string(), output_format.clone());
     }
 
+    if let Some(phase_timeout) = config.defaults.phase_timeout {
+        config_map.insert("phase_timeout".to_string(), phase_timeout.to_string());
+    }
+
+    if let Some(stdout_cap_bytes) = config.defaults.stdout_cap_bytes {
+        config_map.insert("stdout_cap_bytes".to_string(), stdout_cap_bytes.to_string());
+    }
+
+    if let Some(stderr_cap_bytes) = config.defaults.stderr_cap_bytes {
+        config_map.insert("stderr_cap_bytes".to_string(), stderr_cap_bytes.to_string());
+    }
+
+    if let Some(lock_ttl_seconds) = config.defaults.lock_ttl_seconds {
+        config_map.insert("lock_ttl_seconds".to_string(), lock_ttl_seconds.to_string());
+    }
+
+    if let Some(debug_packet) = config.defaults.debug_packet
+        && debug_packet
+    {
+        config_map.insert("debug_packet".to_string(), "true".to_string());
+    }
+
+    if let Some(allow_links) = config.defaults.allow_links
+        && allow_links
+    {
+        config_map.insert("allow_links".to_string(), "true".to_string());
+    }
+
+    if let Some(runner_mode) = &config.runner.mode {
+        config_map.insert("runner_mode".to_string(), runner_mode.clone());
+    }
+
+    if let Some(runner_distro) = &config.runner.distro {
+        config_map.insert("runner_distro".to_string(), runner_distro.clone());
+    }
+
+    if let Some(claude_path) = &config.runner.claude_path {
+        config_map.insert("claude_path".to_string(), claude_path.clone());
+    }
+
+    if let Some(provider) = &config.llm.provider {
+        config_map.insert("llm_provider".to_string(), provider.clone());
+    }
+
+    if let Some(fallback_provider) = &config.llm.fallback_provider {
+        config_map.insert(
+            "llm_fallback_provider".to_string(),
+            fallback_provider.clone(),
+        );
+    }
+
+    if let Some(execution_strategy) = &config.llm.execution_strategy {
+        config_map.insert("execution_strategy".to_string(), execution_strategy.clone());
+    }
+
+    if let Some(prompt_template) = &config.llm.prompt_template {
+        config_map.insert("prompt_template".to_string(), prompt_template.clone());
+    }
+
+    if let Some(claude_config) = &config.llm.claude
+        && let Some(binary) = &claude_config.binary
+    {
+        config_map.insert("llm_claude_binary".to_string(), binary.clone());
+    }
+
+    if let Some(gemini_config) = &config.llm.gemini {
+        if let Some(binary) = &gemini_config.binary {
+            config_map.insert("llm_gemini_binary".to_string(), binary.clone());
+        }
+        if let Some(default_model) = &gemini_config.default_model {
+            config_map.insert(
+                "llm_gemini_default_model".to_string(),
+                default_model.clone(),
+            );
+        }
+    }
+
     // Add new CLI arguments (R7.2, R7.4, R9.2)
     if !cli_args.allow.is_empty() {
         config_map.insert("allowed_tools".to_string(), cli_args.allow.join(","));
@@ -2431,7 +2501,7 @@ fn create_default_config(
         );
     }
 
-    // Add debug_packet flag (FR-PKT-006, FR-PKT-007)
+    // Add debug_packet flag (FR-PKT-006, FR-PKT-007) for CLI-only overrides
     if cli_args.debug_packet {
         config_map.insert("debug_packet".to_string(), "true".to_string());
     }
@@ -2472,9 +2542,11 @@ fn build_orchestrator_config(
     OrchestratorConfig {
         dry_run,
         config: config_map,
+        full_config: Some(config.clone()),
         selectors: Some(config.selectors.clone()),
         strict_validation: config.strict_validation(),
         redactor,
+        hooks: Some(config.hooks.clone()),
     }
 }
 
@@ -2701,39 +2773,56 @@ fn execute_doctor_command(json: bool, strict_exit: bool, config: &Config) -> Res
 /// Per FR-GATE (Requirements 4.5.1, 4.5.2, 4.5.3, 4.5.4)
 fn execute_gate_command(
     spec_id: &str,
-    min_phase: &str,
+    policy_path: Option<&std::path::Path>,
+    min_phase: Option<&str>,
     fail_on_pending_fixups: bool,
     max_phase_age: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    use crate::gate::{GateCommand, GatePolicy, emit_gate_json, parse_duration, parse_phase};
+    use crate::gate::{
+        GateCommand, GatePolicy, emit_gate_json, load_policy_from_path, parse_duration,
+        parse_phase, resolve_policy_path,
+    };
 
-    // Parse min_phase
-    let min_phase_id = parse_phase(min_phase).map_err(|e| {
+    let policy_path = resolve_policy_path(policy_path).map_err(|e| {
         XCheckerError::Config(ConfigError::InvalidValue {
-            key: "min_phase".to_string(),
+            key: "policy".to_string(),
             value: e.to_string(),
         })
     })?;
 
-    // Parse max_phase_age if provided
-    let max_age = if let Some(age_str) = max_phase_age {
-        Some(parse_duration(age_str).map_err(|e| {
+    let mut policy = if let Some(path) = policy_path {
+        load_policy_from_path(&path).map_err(|e| {
+            XCheckerError::Config(ConfigError::InvalidValue {
+                key: "policy".to_string(),
+                value: e.to_string(),
+            })
+        })?
+    } else {
+        GatePolicy::default()
+    };
+
+    if let Some(min_phase) = min_phase {
+        policy.min_phase = parse_phase(min_phase).map_err(|e| {
+            XCheckerError::Config(ConfigError::InvalidValue {
+                key: "min_phase".to_string(),
+                value: e.to_string(),
+            })
+        })?;
+    }
+
+    if fail_on_pending_fixups {
+        policy.fail_on_pending_fixups = true;
+    }
+
+    if let Some(age_str) = max_phase_age {
+        policy.max_phase_age = Some(parse_duration(age_str).map_err(|e| {
             XCheckerError::Config(ConfigError::InvalidValue {
                 key: "max_phase_age".to_string(),
                 value: e.to_string(),
             })
-        })?)
-    } else {
-        None
-    };
-
-    // Build policy
-    let policy = GatePolicy {
-        min_phase: min_phase_id,
-        fail_on_pending_fixups,
-        max_phase_age: max_age,
-    };
+        })?);
+    }
 
     // Execute gate evaluation
     let gate = GateCommand::new(spec_id.to_string(), policy);
@@ -5193,33 +5282,7 @@ fn execute_project_status_command(
 
 /// Count pending fixups for a spec
 fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
-    use crate::fixup::{FixupMode, FixupParser};
-
-    let base_path = crate::paths::spec_root(spec_id);
-    let review_md_path = base_path.join("artifacts").join("30-review.md");
-
-    if !review_md_path.exists() {
-        return 0;
-    }
-
-    let review_content = match std::fs::read_to_string(&review_md_path) {
-        Ok(content) => content,
-        Err(_) => return 0,
-    };
-
-    let fixup_parser = match FixupParser::new(FixupMode::Preview, base_path.into()) {
-        Ok(parser) => parser,
-        Err(_) => return 0,
-    };
-
-    if !fixup_parser.has_fixup_markers(&review_content) {
-        return 0;
-    }
-
-    match fixup_parser.parse_diffs(&review_content) {
-        Ok(diffs) => diffs.len() as u32,
-        Err(_) => 0,
-    }
+    crate::fixup::pending_fixups_for_spec(spec_id).targets
 }
 
 /// Emit workspace status output as canonical JSON using JCS (RFC 8785)
