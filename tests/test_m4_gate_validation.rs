@@ -10,7 +10,6 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -20,19 +19,41 @@ use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout
 use xchecker::receipt::ReceiptManager;
 use xchecker::types::{ErrorKind, PhaseId};
 
-/// Helper to set up test environment
-fn setup_test_environment(test_name: &str) -> (PhaseOrchestrator, TempDir, PathBuf) {
-    let temp_dir = TempDir::new().unwrap();
-    let _original_dir = env::current_dir().unwrap();
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
 
-    env::set_current_dir(temp_dir.path()).unwrap();
+/// Test environment for M4 gate tests
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
+struct TestEnv {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
+    #[allow(dead_code)]
+    temp_dir: TempDir,
+    #[allow(dead_code)]
+    spec_base: PathBuf,
+    #[allow(dead_code)]
+    orchestrator: PhaseOrchestrator,
+}
+
+/// Helper to set up test environment
+fn setup_test_environment(test_name: &str) -> TestEnv {
+    let temp_dir = TempDir::new().unwrap();
+    let cwd_guard = test_support::CwdGuard::new(temp_dir.path()).unwrap();
 
     let spec_id = format!("test-m4-{test_name}");
     let orchestrator = PhaseOrchestrator::new(&spec_id).unwrap();
 
     let spec_base = temp_dir.path().join(".xchecker/specs").join(&spec_id);
 
-    (orchestrator, temp_dir, spec_base)
+    TestEnv {
+        _cwd_guard: cwd_guard,
+        temp_dir,
+        spec_base,
+        orchestrator,
+    }
 }
 
 /// Test that `write_error_receipt_and_exit` creates receipt with matching exit code
@@ -188,7 +209,8 @@ fn test_error_receipt_exit_code_alignment() {
 /// Test that timeout creates partial artifact with correct naming
 #[tokio::test]
 async fn test_timeout_creates_partial_artifact() -> Result<()> {
-    let (_orchestrator, _temp_dir, spec_base) = setup_test_environment("timeout-partial");
+    let env = setup_test_environment("timeout-partial");
+    let spec_base = env.spec_base;
 
     // Simulate timeout by calling handle_phase_timeout directly
     // (This is a private method, so we test the public behavior through execute_phase)
@@ -367,9 +389,11 @@ fn test_phase_timeout_configuration() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: HashMap::new(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), PhaseTimeout::DEFAULT_SECS);
@@ -380,9 +404,11 @@ fn test_phase_timeout_configuration() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), 300);
@@ -393,9 +419,11 @@ fn test_phase_timeout_configuration() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), PhaseTimeout::MIN_SECS);
@@ -565,18 +593,74 @@ fn test_m4_gate_comprehensive_validation() {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use std::fs;
+    use xchecker::types::Receipt;
 
     /// Integration test for timeout behavior (requires mock or stub)
     #[tokio::test]
     #[ignore = "requires_claude_stub"]
     async fn test_timeout_full_integration() -> Result<()> {
-        // This test would require:
-        // 1. A mock Claude CLI that sleeps longer than timeout
-        // 2. Verification that partial.md is created
-        // 3. Verification that receipt contains phase_timeout warning
-        // 4. Verification that exit code is 10
+        let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
+        let env = setup_test_environment("timeout-full-integration");
 
-        // TODO: Implement with proper mocking infrastructure
+        let stub_path = match test_support::claude_stub_path() {
+            Some(path) => path,
+            None => {
+                eprintln!("Skipping: claude-stub not available");
+                return Ok(());
+            }
+        };
+
+        let mut config_map = HashMap::new();
+        config_map.insert(
+            "phase_timeout".to_string(),
+            PhaseTimeout::MIN_SECS.to_string(),
+        );
+        config_map.insert("claude_cli_path".to_string(), stub_path);
+        config_map.insert("claude_scenario".to_string(), "hang".to_string());
+
+        let config = OrchestratorConfig {
+            dry_run: false,
+            config: config_map,
+            full_config: None,
+            selectors: None,
+            strict_validation: false,
+            redactor: Default::default(),
+            hooks: None,
+        };
+
+        let result = env.orchestrator.execute_requirements_phase(&config).await?;
+
+        assert!(!result.success, "Phase should time out");
+        assert_eq!(result.exit_code, codes::PHASE_TIMEOUT);
+
+        let receipt_path = result.receipt_path.expect("Receipt path should be present");
+        let receipt_contents = fs::read_to_string(&receipt_path)?;
+        let receipt: Receipt = serde_json::from_str(&receipt_contents)?;
+
+        assert_eq!(receipt.error_kind, Some(ErrorKind::PhaseTimeout));
+        let expected_warning = format!("phase_timeout:{}", PhaseTimeout::MIN_SECS);
+        assert!(
+            receipt.warnings.iter().any(|w| w == &expected_warning),
+            "Receipt should include timeout warning"
+        );
+
+        let partial_path = result
+            .artifact_paths
+            .first()
+            .expect("Partial artifact path should be present");
+        assert!(partial_path.exists(), "Partial artifact should exist");
+        assert!(
+            partial_path
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().ends_with(".partial.md")),
+            "Partial artifact should have .partial.md suffix"
+        );
+        assert!(
+            partial_path.starts_with(env.spec_base.join("artifacts")),
+            "Partial artifact should live under spec artifacts directory"
+        );
+
         Ok(())
     }
 }

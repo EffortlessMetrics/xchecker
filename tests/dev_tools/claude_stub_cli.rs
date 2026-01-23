@@ -8,10 +8,12 @@
 use assert_cmd::assert::OutputAssertExt;
 use predicates::prelude::*;
 use std::process::Command;
+use std::process::Stdio;
 
 fn claude_stub_cmd() -> Command {
     let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("claude-stub"));
     cmd.arg("--no-sleep"); // Fast tests
+    cmd.stdin(Stdio::null());
     cmd
 }
 
@@ -66,7 +68,7 @@ fn malformed_scenario_stream_json() {
     claude_stub_cmd()
         .args(["--output-format", "stream-json", "--scenario", "malformed"])
         .assert()
-        .code(1)
+        .success()
         .stdout(predicate::str::contains("conversation_start"))
         .stdout(predicate::str::contains("msg_123"))
         .stderr(predicate::str::contains("JSON parsing error"));

@@ -233,7 +233,7 @@ As a developer, I want status outputs with effective configuration and source at
 **Acceptance Criteria**
 
 1. `xchecker status <spec-id> --json` emits JCS JSON including `artifacts`, `effective_config`, and `lock_drift`.
-2. Each effective_config entry includes `{ value, source }` with source in `{"cli","config","default"}`.
+2. Each effective_config entry includes `{ value, source }` with source in `{"cli","env","config","programmatic","default"}`.
 3. Each artifact entry includes `path` and `blake3_first8`.
 4. On a fresh spec with no receipts, status emits sensible defaults without errors.
 5. With a lockfile present, drift in `model_full_name`, `claude_cli_version`, `schema_version` is reported.

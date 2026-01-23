@@ -13,23 +13,40 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use std::env;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout};
 use xchecker::types::PhaseId;
 
-/// Helper to set up test environment
-fn setup_test_environment(test_name: &str) -> (PhaseOrchestrator, TempDir) {
-    let temp_dir = TempDir::new().unwrap();
-    let _original_dir = env::current_dir().unwrap();
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
 
-    env::set_current_dir(temp_dir.path()).unwrap();
+/// Test environment for phase timeout tests
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
+struct TimeoutTestEnv {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
+    #[allow(dead_code)]
+    temp_dir: TempDir,
+    #[allow(dead_code)]
+    orchestrator: PhaseOrchestrator,
+}
+
+/// Helper to set up test environment
+fn setup_test_environment(test_name: &str) -> TimeoutTestEnv {
+    let temp_dir = TempDir::new().unwrap();
+    let cwd_guard = test_support::CwdGuard::new(temp_dir.path()).unwrap();
 
     let spec_id = format!("test-timeout-{}", test_name);
     let orchestrator = PhaseOrchestrator::new(&spec_id).unwrap();
 
-    // Keep temp directory as current for test duration
-    (orchestrator, temp_dir)
+    TimeoutTestEnv {
+        _cwd_guard: cwd_guard,
+        temp_dir,
+        orchestrator,
+    }
 }
 
 /// Test that PhaseTimeout struct has correct constants
@@ -61,9 +78,11 @@ fn test_phase_timeout_from_config() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), 300);
@@ -74,9 +93,11 @@ fn test_phase_timeout_from_config() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), PhaseTimeout::MIN_SECS);
@@ -85,9 +106,11 @@ fn test_phase_timeout_from_config() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: HashMap::new(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), PhaseTimeout::DEFAULT_SECS);
@@ -98,9 +121,11 @@ fn test_phase_timeout_from_config() {
     let config = OrchestratorConfig {
         dry_run: false,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
     let timeout = PhaseTimeout::from_config(&config);
     assert_eq!(timeout.duration.as_secs(), PhaseTimeout::DEFAULT_SECS);
@@ -110,7 +135,7 @@ fn test_phase_timeout_from_config() {
 /// This is a smoke test that validates the core timeout behavior
 #[tokio::test]
 async fn test_timeout_creates_partial_and_receipt() -> Result<()> {
-    let (_orchestrator, _temp_dir) = setup_test_environment("partial");
+    let _env = setup_test_environment("partial");
 
     // Configure with a very short timeout to trigger it
     let mut config_map = HashMap::new();
@@ -120,9 +145,11 @@ async fn test_timeout_creates_partial_and_receipt() -> Result<()> {
     let _config = OrchestratorConfig {
         dry_run: false, // Use real execution to test timeout
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Note: This test would need a way to simulate a slow Claude response
@@ -201,14 +228,72 @@ fn test_timeout_error_serialization() {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use std::fs;
+    use xchecker::exit_codes::codes;
+    use xchecker::types::{ErrorKind, Receipt};
 
     /// This test would require a mock Claude CLI that sleeps longer than the timeout
     /// For now, it's a placeholder for future integration testing
     #[tokio::test]
     #[ignore = "requires_claude_stub"]
     async fn test_full_timeout_flow_with_mock() -> Result<()> {
-        // TODO: Implement full integration test with mock Claude CLI
-        // that sleeps longer than the timeout to trigger the timeout path
+        let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");
+        let env = setup_test_environment("full-timeout-flow");
+
+        let stub_path = match test_support::claude_stub_path() {
+            Some(path) => path,
+            None => {
+                eprintln!("Skipping: claude-stub not available");
+                return Ok(());
+            }
+        };
+
+        let mut config_map = HashMap::new();
+        config_map.insert(
+            "phase_timeout".to_string(),
+            PhaseTimeout::MIN_SECS.to_string(),
+        );
+        config_map.insert("claude_cli_path".to_string(), stub_path);
+        config_map.insert("claude_scenario".to_string(), "hang".to_string());
+
+        let config = OrchestratorConfig {
+            dry_run: false,
+            config: config_map,
+            full_config: None,
+            selectors: None,
+            strict_validation: false,
+            redactor: Default::default(),
+            hooks: None,
+        };
+
+        let result = env.orchestrator.execute_requirements_phase(&config).await?;
+
+        assert!(!result.success, "Phase should time out");
+        assert_eq!(result.exit_code, codes::PHASE_TIMEOUT);
+
+        let receipt_path = result.receipt_path.expect("Receipt path should be present");
+        let receipt_contents = fs::read_to_string(&receipt_path)?;
+        let receipt: Receipt = serde_json::from_str(&receipt_contents)?;
+
+        assert_eq!(receipt.error_kind, Some(ErrorKind::PhaseTimeout));
+        let expected_warning = format!("phase_timeout:{}", PhaseTimeout::MIN_SECS);
+        assert!(
+            receipt.warnings.iter().any(|w| w == &expected_warning),
+            "Receipt should include timeout warning"
+        );
+
+        let partial_path = result
+            .artifact_paths
+            .first()
+            .expect("Partial artifact path should be present");
+        assert!(partial_path.exists(), "Partial artifact should exist");
+        assert!(
+            partial_path
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().ends_with(".partial.md")),
+            "Partial artifact should have .partial.md suffix"
+        );
+
         Ok(())
     }
 }

@@ -187,6 +187,55 @@
       "type": ["integer", "null"],
       "minimum": 0,
       "description": "Number of context lines for diff operations (0 when --unidiff-zero is enabled)"
+    },
+    "llm": {
+      "type": ["object", "null"],
+      "properties": {
+        "provider": {
+          "type": ["string", "null"],
+          "description": "LLM provider used for the invocation"
+        },
+        "model_used": {
+          "type": ["string", "null"],
+          "description": "Model that was actually used"
+        },
+        "tokens_input": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Input tokens consumed (if available)"
+        },
+        "tokens_output": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Output tokens generated (if available)"
+        },
+        "timed_out": {
+          "type": ["boolean", "null"],
+          "description": "Whether the invocation timed out"
+        },
+        "timeout_seconds": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Timeout duration in seconds (if applicable)"
+        },
+        "budget_exhausted": {
+          "type": ["boolean", "null"],
+          "description": "Whether a provider budget was exhausted"
+        }
+      },
+      "additionalProperties": true,
+      "description": "LLM metadata for this invocation (optional)"
+    },
+    "pipeline": {
+      "type": ["object", "null"],
+      "properties": {
+        "execution_strategy": {
+          "type": ["string", "null"],
+          "description": "Execution strategy used for the invocation"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Pipeline configuration metadata (optional)"
     }
   },
   "additionalProperties": true

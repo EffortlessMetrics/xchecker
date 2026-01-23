@@ -15,7 +15,7 @@
 //! - R7.5: Verbose logging provides detailed operation logs
 
 use anyhow::Result;
-use std::path::PathBuf;
+use tempfile::TempDir;
 
 use xchecker::fixup::{FixupMode, FixupParser};
 
@@ -23,7 +23,8 @@ use xchecker::fixup::{FixupMode, FixupParser};
 /// Validates R5.1 requirements for fixup detection and parsing
 #[test]
 fn test_review_detects_fixup_plan_with_unified_diffs() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test content with FIXUP PLAN: marker and unified diff blocks
     let review_content_with_fixups = r#"
@@ -150,7 +151,8 @@ These changes will ensure the specification is complete and implementable.
 /// Validates R5.1 requirements for alternative fixup marker detection
 #[test]
 fn test_review_detects_needs_fixups_marker() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test content with "needs fixups" marker
     let review_content_needs_fixups = r#"
@@ -219,7 +221,8 @@ These changes are essential for a complete specification.
 /// Tests that unified diffs are properly parsed in different scenarios
 #[test]
 fn test_fixup_parser_handles_various_diff_formats() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test with multiple files and complex diffs
     let complex_diff_content = r#"
@@ -287,7 +290,8 @@ Multiple files need updates:
 /// Tests that parser handles malformed diffs gracefully
 #[test]
 fn test_fixup_parser_error_handling() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     // Test with malformed diff (missing headers)
     let malformed_diff = r#"
@@ -340,7 +344,8 @@ No specific diffs needed, just general improvements.
 /// Tests that fixup markers work regardless of case
 #[test]
 fn test_case_insensitive_marker_detection() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     let test_cases = vec![
         "FIXUP PLAN:",

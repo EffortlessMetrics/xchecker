@@ -39,8 +39,9 @@ mod tests {
 
         assert!(variants.contains(&"Cli"));
         assert!(variants.contains(&"Config"));
+        assert!(variants.contains(&"Programmatic"));
         assert!(variants.contains(&"Default"));
-        assert_eq!(variants.len(), 3);
+        assert_eq!(variants.len(), 4);
     }
 
     #[test]
@@ -86,6 +87,7 @@ mod tests {
         // Verify lowercase transformation matches serde serialization
         assert!(transformed.contains("cli"));
         assert!(transformed.contains("config"));
+        assert!(transformed.contains("programmatic"));
         assert!(transformed.contains("default"));
     }
 }

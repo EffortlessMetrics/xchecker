@@ -14,27 +14,50 @@ use anyhow::Result;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 
-fn setup_test(test_name: &str) -> (PhaseOrchestrator, TempDir) {
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
+/// Test environment for workflow receipt tests
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
+struct ReceiptTestEnv {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
+    #[allow(dead_code)]
+    temp_dir: TempDir,
+    orchestrator: PhaseOrchestrator,
+}
+
+fn setup_test(test_name: &str) -> ReceiptTestEnv {
     let temp_dir = xchecker::paths::with_isolated_home();
-    std::env::set_current_dir(temp_dir.path()).unwrap();
+    let cwd_guard = test_support::CwdGuard::new(temp_dir.path()).unwrap();
     let spec_id = format!("test-workflow-receipt-{test_name}");
     let orchestrator = PhaseOrchestrator::new(&spec_id).unwrap();
-    (orchestrator, temp_dir)
+    ReceiptTestEnv {
+        _cwd_guard: cwd_guard,
+        temp_dir,
+        orchestrator,
+    }
 }
 
 fn dry_run_config() -> OrchestratorConfig {
     OrchestratorConfig {
         dry_run: true,
         config: Default::default(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     }
 }
 
 #[tokio::test]
 async fn test_requirements_receipt_has_llm_info() -> Result<()> {
-    let (orchestrator, _temp) = setup_test("llm-info");
+    let env = setup_test("llm-info");
+    let orchestrator = env.orchestrator;
     let config = dry_run_config();
 
     let result = orchestrator.execute_requirements_phase(&config).await?;
@@ -61,7 +84,8 @@ async fn test_requirements_receipt_has_llm_info() -> Result<()> {
 
 #[tokio::test]
 async fn test_requirements_receipt_has_pipeline_info() -> Result<()> {
-    let (orchestrator, _temp) = setup_test("pipeline-info");
+    let env = setup_test("pipeline-info");
+    let orchestrator = env.orchestrator;
     let config = dry_run_config();
 
     let result = orchestrator.execute_requirements_phase(&config).await?;
@@ -86,7 +110,8 @@ async fn test_requirements_receipt_has_pipeline_info() -> Result<()> {
 
 #[tokio::test]
 async fn test_receipt_packet_evidence_preserved() -> Result<()> {
-    let (orchestrator, _temp) = setup_test("packet-evidence");
+    let env = setup_test("packet-evidence");
+    let orchestrator = env.orchestrator;
     let config = dry_run_config();
 
     let result = orchestrator.execute_requirements_phase(&config).await?;
@@ -114,7 +139,8 @@ async fn test_receipt_packet_evidence_preserved() -> Result<()> {
 
 #[tokio::test]
 async fn test_multi_phase_receipts_consistent_metadata() -> Result<()> {
-    let (orchestrator, _temp) = setup_test("multi-phase");
+    let env = setup_test("multi-phase");
+    let orchestrator = env.orchestrator;
     let config = dry_run_config();
 
     // Execute requirements
@@ -147,7 +173,8 @@ async fn test_multi_phase_receipts_consistent_metadata() -> Result<()> {
 #[tokio::test]
 async fn test_single_phase_vs_workflow_receipt_parity() -> Result<()> {
     // Run Requirements via single-phase path
-    let (orchestrator_single, _temp_single) = setup_test("single-phase-parity");
+    let env_single = setup_test("single-phase-parity");
+    let orchestrator_single = env_single.orchestrator;
     let config = dry_run_config();
 
     let single_result = orchestrator_single
@@ -173,9 +200,11 @@ async fn test_single_phase_vs_workflow_receipt_parity() -> Result<()> {
         xchecker::orchestrator::OrchestratorConfig {
             dry_run: true,
             config: Default::default(),
+            full_config: None,
             selectors: None,
             strict_validation: false,
             redactor: Default::default(),
+            hooks: None,
         },
         false,
     )?;

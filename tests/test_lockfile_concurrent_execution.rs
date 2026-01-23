@@ -8,9 +8,9 @@
 //! actual child processes to test real concurrent execution scenarios.
 
 use anyhow::Result;
-use std::sync::{Arc, Mutex};
+use serial_test::serial;
+use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
 use tempfile::TempDir;
 use xchecker::lock::{FileLock, LockError};
 
@@ -164,52 +164,91 @@ fn test_lock_file_contains_correct_info() -> Result<()> {
     Ok(())
 }
 
+/// Test that multiple threads cannot acquire the same lock simultaneously.
+///
+/// This test is deterministic: the main thread holds the lock while
+/// spawned threads attempt acquisition (they should all fail).
+/// No sleep-based timing that could cause flaky behavior on macOS.
+///
+/// Note: Uses XCHECKER_HOME env var instead of TLS-based with_isolated_home
+/// because spawned threads don't inherit TLS state. Env vars are shared.
 #[test]
+#[serial]
 fn test_concurrent_threads_same_process() -> Result<()> {
-    let _temp_dir = setup_test_env();
-    let spec_id = "test-concurrent-threads";
+    // Create temp dir and set XCHECKER_HOME env var (shared across threads)
+    let temp_dir = TempDir::new()?;
+    let original_home = std::env::var("XCHECKER_HOME").ok();
+    // SAFETY: This is a single-threaded test setup; env var is set before spawning threads
+    unsafe { std::env::set_var("XCHECKER_HOME", temp_dir.path()) };
 
-    let success_count = Arc::new(Mutex::new(0));
-    let error_count = Arc::new(Mutex::new(0));
-
-    let mut handles = vec![];
-
-    // Spawn multiple threads trying to acquire the same lock
-    for i in 0..5 {
-        let success_count = Arc::clone(&success_count);
-        let error_count = Arc::clone(&error_count);
-
-        let handle = thread::spawn(move || {
-            // Add small delay to increase chance of concurrent attempts
-            thread::sleep(Duration::from_millis(i * 10));
-
-            match FileLock::acquire(spec_id, false, None) {
-                Ok(lock) => {
-                    *success_count.lock().unwrap() += 1;
-                    // Hold lock briefly
-                    thread::sleep(Duration::from_millis(50));
-                    lock.release().ok();
-                }
-                Err(_) => {
-                    *error_count.lock().unwrap() += 1;
+    // Cleanup guard to restore env var on exit (including panic)
+    struct EnvGuard(Option<String>);
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            // SAFETY: This runs after all spawned threads have been joined
+            unsafe {
+                match &self.0 {
+                    Some(val) => std::env::set_var("XCHECKER_HOME", val),
+                    None => std::env::remove_var("XCHECKER_HOME"),
                 }
             }
-        });
+        }
+    }
+    let _guard = EnvGuard(original_home);
 
+    let spec_id = "test-concurrent-threads";
+
+    // Main thread acquires and holds the lock for the duration of the test
+    let lock = FileLock::acquire(spec_id, false, None)?;
+    assert!(
+        FileLock::exists(spec_id),
+        "Lock should exist after acquisition"
+    );
+
+    let spec_id_arc = Arc::new(spec_id.to_string());
+    let mut handles = vec![];
+
+    // Spawn multiple threads that try to acquire the same lock while it's held
+    for _ in 0..5 {
+        let spec_id = Arc::clone(&spec_id_arc);
+        let handle = thread::spawn(move || {
+            // Try to acquire - should fail immediately since lock is held
+            FileLock::acquire(&spec_id, false, None)
+        });
         handles.push(handle);
     }
 
-    // Wait for all threads
+    // Collect results - all should be errors (lock is held)
+    let mut error_count = 0;
     for handle in handles {
-        handle.join().unwrap();
+        match handle.join().unwrap() {
+            Ok(_) => panic!("Thread should not have acquired lock while it's held"),
+            Err(LockError::ConcurrentExecution { .. }) => {
+                error_count += 1;
+            }
+            Err(other) => panic!("Expected ConcurrentExecution error, got: {:?}", other),
+        }
     }
 
-    let success = *success_count.lock().unwrap();
-    let errors = *error_count.lock().unwrap();
+    assert_eq!(
+        error_count, 5,
+        "All 5 threads should fail with ConcurrentExecution"
+    );
 
-    // Exactly one thread should succeed, others should fail
-    assert_eq!(success, 1, "Exactly one thread should acquire the lock");
-    assert_eq!(errors, 4, "Four threads should fail to acquire the lock");
+    // Now release the lock
+    lock.release()?;
+    assert!(
+        !FileLock::exists(spec_id),
+        "Lock should not exist after release"
+    );
+
+    // Verify we can acquire again after release
+    let lock2 = FileLock::acquire(spec_id, false, None)?;
+    assert!(
+        FileLock::exists(spec_id),
+        "Lock should be acquirable after release"
+    );
+    lock2.release()?;
 
     Ok(())
 }

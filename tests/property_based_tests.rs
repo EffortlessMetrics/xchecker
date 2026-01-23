@@ -1,3 +1,5 @@
+#![cfg(feature = "test-utils")]
+#![allow(clippy::duplicated_attributes)]
 //! Property-Based Tests for xchecker
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`canonicalization::Canonicalizer`,

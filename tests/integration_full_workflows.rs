@@ -15,40 +15,41 @@
 //! - R4.2: Resume scenarios and failure recovery
 
 use anyhow::Result;
-use std::env;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 use xchecker::types::{PhaseId, Receipt};
 
-/// Check if we should run E2E tests that require Claude CLI
-///
-/// E2E tests are skipped by default unless:
-/// - Claude CLI is found in PATH, OR
-/// - WSL is available with Claude installed, OR
-/// - `XCHECKER_E2E` environment variable is set
-fn should_run_e2e() -> bool {
-    // Check if Claude is in PATH
-    if which::which("claude").is_ok() {
-        return true;
-    }
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
 
-    // Check if WSL is available (heuristic for Windows)
-    if std::env::var_os("WSL_DISTRO_NAME").is_some() {
-        return true;
-    }
-
-    // Check if explicitly enabled via environment variable
-    if std::env::var_os("XCHECKER_E2E").is_some() {
-        return true;
-    }
-
-    false
+fn normalize_core_yaml_for_determinism(content: &str) -> String {
+    content
+        .lines()
+        .map(|line| {
+            if line.starts_with("spec_id:") {
+                "spec_id: \"deterministic\"".to_string()
+            } else if line.starts_with("generated_at:") {
+                "generated_at: \"1970-01-01T00:00:00Z\"".to_string()
+            } else if line.starts_with("# Core requirements data for spec") {
+                "# Core requirements data for spec deterministic".to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Test environment setup for full workflow validation
+///
+/// Note: Field order matters for drop semantics. Fields drop in declaration order,
+/// so `_cwd_guard` must be declared first to restore CWD before `temp_dir` is deleted.
 struct WorkflowTestEnvironment {
+    #[allow(dead_code)]
+    _cwd_guard: test_support::CwdGuard,
     temp_dir: TempDir,
     orchestrator: PhaseOrchestrator,
     spec_id: String,
@@ -57,7 +58,7 @@ struct WorkflowTestEnvironment {
 impl WorkflowTestEnvironment {
     fn new(test_name: &str) -> Result<Self> {
         let temp_dir = TempDir::new()?;
-        env::set_current_dir(temp_dir.path())?;
+        let cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
 
         // Create .xchecker directory structure
         std::fs::create_dir_all(temp_dir.path().join(".xchecker/specs"))?;
@@ -66,6 +67,7 @@ impl WorkflowTestEnvironment {
         let orchestrator = PhaseOrchestrator::new(&spec_id)?;
 
         Ok(Self {
+            _cwd_guard: cwd_guard,
             temp_dir,
             orchestrator,
             spec_id,
@@ -81,25 +83,42 @@ impl WorkflowTestEnvironment {
 
     fn create_success_config(&self) -> OrchestratorConfig {
         OrchestratorConfig {
-            dry_run: true,
+            dry_run: false,
             config: {
                 let mut map = std::collections::HashMap::new();
+                map.insert("runner_mode".to_string(), "native".to_string());
+                let stub_path = test_support::claude_stub_path()
+                    .expect("claude-stub path is required for workflow tests");
+                map.insert("claude_cli_path".to_string(), stub_path);
+                map.insert("claude_scenario".to_string(), "success".to_string());
                 map.insert("verbose".to_string(), "true".to_string());
                 map
             },
+            full_config: None,
             selectors: None,
             strict_validation: false,
             redactor: Default::default(),
+            hooks: None,
         }
     }
 
     fn create_error_config(&self) -> OrchestratorConfig {
         OrchestratorConfig {
-            dry_run: true,
-            config: std::collections::HashMap::new(),
+            dry_run: false,
+            config: {
+                let mut map = std::collections::HashMap::new();
+                map.insert("runner_mode".to_string(), "native".to_string());
+                let stub_path = test_support::claude_stub_path()
+                    .expect("claude-stub path is required for workflow tests");
+                map.insert("claude_cli_path".to_string(), stub_path);
+                map.insert("claude_scenario".to_string(), "error".to_string());
+                map
+            },
+            full_config: None,
             selectors: None,
             strict_validation: false,
             redactor: Default::default(),
+            hooks: None,
         }
     }
 }
@@ -349,9 +368,11 @@ async fn test_determinism_with_identical_inputs() -> Result<()> {
             map.insert("verbose".to_string(), "false".to_string());
             map
         },
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute Requirements phase in both environments
@@ -378,6 +399,8 @@ async fn test_determinism_with_identical_inputs() -> Result<()> {
 
     let req_yaml1 = std::fs::read_to_string(artifacts1_dir.join("00-requirements.core.yaml"))?;
     let req_yaml2 = std::fs::read_to_string(artifacts2_dir.join("00-requirements.core.yaml"))?;
+    let req_yaml1 = normalize_core_yaml_for_determinism(&req_yaml1);
+    let req_yaml2 = normalize_core_yaml_for_determinism(&req_yaml2);
 
     // In dry-run mode with identical configs, outputs should be identical
     assert_eq!(
@@ -432,13 +455,24 @@ async fn test_determinism_with_identical_inputs() -> Result<()> {
     );
 
     // Output hashes should be identical (R2.2)
+    let outputs1: Vec<_> = receipt1
+        .outputs
+        .iter()
+        .filter(|output| !output.path.ends_with(".core.yaml"))
+        .collect();
+    let outputs2: Vec<_> = receipt2
+        .outputs
+        .iter()
+        .filter(|output| !output.path.ends_with(".core.yaml"))
+        .collect();
+
     assert_eq!(
-        receipt1.outputs.len(),
-        receipt2.outputs.len(),
-        "Should have same number of outputs"
+        outputs1.len(),
+        outputs2.len(),
+        "Should have same number of deterministic outputs"
     );
 
-    for (output1, output2) in receipt1.outputs.iter().zip(receipt2.outputs.iter()) {
+    for (output1, output2) in outputs1.iter().zip(outputs2.iter()) {
         assert_eq!(output1.path, output2.path, "Output paths should match");
         assert_eq!(
             output1.blake3_canonicalized, output2.blake3_canonicalized,
@@ -652,7 +686,7 @@ async fn test_artifact_content_validation() -> Result<()> {
 #[tokio::test]
 #[ignore = "requires_claude_stub"]
 async fn test_error_propagation_and_recovery() -> Result<()> {
-    if !should_run_e2e() {
+    if !test_support::should_run_e2e() {
         eprintln!("(skipped) E2E test requires Claude CLI or XCHECKER_E2E=1");
         return Ok(());
     }

@@ -41,3 +41,10 @@ Thumbs.db
 
 # Local configuration (keep defaults, ignore local overrides)
 *.local.toml
+
+issue_work/
+
+# xchecker runtime state (local config/cache/specs)
+# These should not be committed - they contain machine-specific paths and timestamps
+.xchecker/
+**/.xchecker/

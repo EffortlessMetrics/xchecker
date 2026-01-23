@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Comprehensive tests for PacketBuilder (FR-PKT-001 through FR-PKT-007)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`packet::{...}`, `types::Priority`)

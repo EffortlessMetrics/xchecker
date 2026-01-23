@@ -1,0 +1,46 @@
+[package]
+name = "xchecker-utils"
+version = "1.0.0"
+edition = "2024"
+publish = false
+
+[features]
+test-utils = ["dep:strum"]
+dev-tools = []
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_json_canonicalizer = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+sysinfo = { workspace = true }
+tempfile = { workspace = true }
+camino = { workspace = true }
+fd-lock = { workspace = true }
+unicode-normalization = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+serde_yaml = { workspace = true }
+crossterm = { workspace = true }
+strum = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+strum = { workspace = true }  # For test access to VariantNames trait
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true }
+dunce = { workspace = true }
+
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true

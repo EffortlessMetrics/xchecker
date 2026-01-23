@@ -67,8 +67,12 @@ fn test_artifact_manager_path_traversal() -> Result<()> {
 
 /// Test that ArtifactManager rejects absolute paths in artifact names
 ///
-/// **Property: Path Traversal Rejection**
+/// **Property: Path Validation - artifact names must be relative**
 /// **Validates: Requirements FR-TEST-6**
+///
+/// Artifact names must be relative paths. Absolute paths (e.g., "/tmp/evil.md"
+/// or "C:\Windows\...") are explicitly rejected before any path prefixing occurs,
+/// ensuring consistent security behavior across platforms.
 #[test]
 fn test_artifact_manager_absolute_path() -> Result<()> {
     let _temp_home = xchecker::paths::with_isolated_home();
@@ -88,17 +92,13 @@ fn test_artifact_manager_absolute_path() -> Result<()> {
 
     let result = manager.store_artifact(&artifact);
 
-    // Should fail
-    // Note: ArtifactManager prepends "artifacts/", so absolute paths become relative paths
-    // (e.g. "artifacts//tmp/evil.md" or "artifacts/C:\...").
-    // On Windows, "artifacts/C:\..." is an invalid path, so write fails.
-    // On Unix, "artifacts//tmp/evil.md" is valid but inside artifacts/, so it's safe.
-    // However, SandboxRoot might reject it if it detects absolute path components?
-    // SandboxRoot::join rejects absolute paths.
-    // But "artifacts/..." is not absolute.
-    // So the failure comes from filesystem or other validation.
-    // In any case, it should not succeed in writing to the absolute path.
+    // Must fail: artifact names must be relative paths
     assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("absolute path"),
+        "Error should mention absolute path rejection: {err_msg}"
+    );
 
     Ok(())
 }

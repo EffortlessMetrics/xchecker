@@ -300,9 +300,9 @@ mod tests {
 
         // Verify that the paths module implementation uses thread-local storage
         // Read the paths.rs source file
-        let paths_source_path = Path::new("src/paths.rs");
+        let paths_source_path = Path::new("crates/xchecker-utils/src/paths.rs");
         let paths_source =
-            std::fs::read_to_string(paths_source_path).expect("Failed to read src/paths.rs");
+            std::fs::read_to_string(paths_source_path).expect("Failed to read paths.rs");
 
         // Verify thread-local storage is used (not process-global set_var)
         assert!(

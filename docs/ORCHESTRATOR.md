@@ -530,73 +530,38 @@ Multiple executions of the same phase produce:
 - Only backward rewinds allowed (e.g., Review → Design, not Design → Tasks)
 - Rewind information stored in receipt `flags`: `rewind_triggered`, `rewind_target`
 
-## LLM Layer (V11 Skeleton)
+## LLM Layer
 
-### Provider and Execution Strategy Constraints
+### Supported Providers
 
-In V11-V14, the LLM layer operates under strict constraints to maintain a focused implementation while preparing for future extensibility:
+In V14+, xchecker supports multiple LLM providers through a unified `LlmBackend` abstraction.
 
-**Supported Provider:**
-- **`claude-cli`**: The only supported LLM provider in V11-V14 (default if unspecified)
-- Uses the official Claude CLI tool for invocations
-- Automatically selected when no provider is configured
+**Supported Providers:**
+- **`claude-cli`** (default): Uses the official Claude CLI tool
+- **`gemini-cli`**: Uses Google's Gemini CLI
+- **`openrouter`**: Uses OpenRouter HTTP API
+- **`anthropic`**: Uses Anthropic HTTP API
 
 **Supported Execution Strategy:**
-- **`controlled`**: The only supported execution strategy in V11-V14 (default if unspecified)
-- LLMs propose changes via structured output (e.g., fixups)
-- All file modifications go through xchecker's fixup pipeline
-- No direct disk writes by LLMs
-- No external tool invocation by LLMs
+- **`controlled`**: The only supported execution strategy.
+  - LLMs propose changes via structured output (e.g., fixups)
+  - All file modifications go through xchecker's fixup pipeline
+  - No direct disk writes by LLMs
+  - No external tool invocation by LLMs (planned for V15+)
 
 **Configuration Validation:**
 
-If you attempt to configure unsupported values, configuration validation will fail with clear error messages:
+Attempting to use `execution_strategy = "externaltool"` will fail validation:
 
 ```toml
 # ❌ This will fail validation
 [llm]
-provider = "gemini-cli"  # Not supported in V11-V14
-execution_strategy = "externaltool"  # Not supported in V11-V14
+execution_strategy = "externaltool"  # Reserved for V15+
 ```
 
-**Error Examples:**
-
-```
-Error: Configuration validation failed
-Caused by: llm.provider 'gemini-cli' is not supported.
-Currently only 'claude-cli' is supported in V11
-```
-
-**Reserved for Future Versions (V15+):**
-
-The following providers and strategies are reserved for future implementation but will be rejected in V11-V14:
-
-- **Providers**: `gemini-cli`, `openrouter`, `anthropic`
-- **Execution Strategies**: `externaltool` (for agentic workflows)
-
-**Configuration Defaults:**
-
-If you omit LLM configuration entirely, xchecker uses safe defaults:
-
-```toml
-# Default behavior (can be omitted)
-[llm]
-provider = "claude-cli"
-execution_strategy = "controlled"
-```
-
-**Why These Constraints?**
-
-The V11-V14 LLM skeleton establishes:
-1. **Type safety**: Trait-based `LlmBackend` abstraction ready for multiple providers
-2. **Clear boundaries**: Controlled execution prevents accidental direct writes
-3. **Future-proofing**: Configuration structure supports future providers without breaking changes
-4. **Validation**: Explicit errors prevent misconfiguration
-
-See also:
+**See Also:**
 - **Configuration**: [CONFIGURATION.md](CONFIGURATION.md) for `[llm]` section details
-- **Code**: `src/llm/mod.rs` for provider factory logic
-- **Tests**: `tests/test_llm_provider_selection.rs` for validation examples
+- **Provider Details**: [LLM_PROVIDERS.md](LLM_PROVIDERS.md) for full provider guide
 
 ## LLM Behavior
 

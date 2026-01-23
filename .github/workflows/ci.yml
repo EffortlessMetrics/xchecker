@@ -35,11 +35,11 @@ jobs:
                   sys.exit(2)
 
           SECURITY_CRITICAL = {
-              "reqwest": "=0.12.28",
+              "reqwest": "=0.13.1",
               "tokio": "=1.49.0",
               "serde": "=1.0.228",
-              "serde_json": "=1.0.148",
-              "blake3": "=1.8.2",
+              "serde_json": "=1.0.149",
+              "blake3": "=1.8.3",
           }
 
           CORE_DEPS = {
@@ -49,15 +49,23 @@ jobs:
               "tracing": "0.1",
           }
 
-          def read_version(deps, name):
+          def read_version(deps, name, workspace_deps):
               spec = deps.get(name)
+              if spec is None and workspace_deps:
+                  spec = workspace_deps.get(name)
               if isinstance(spec, str):
                   return spec.strip()
               if isinstance(spec, dict):
                   version = spec.get("version")
                   if isinstance(version, str):
                       return version.strip()
+                  if spec.get("workspace") is True:
+                      return read_version(workspace_deps, name, {})
               return None
+          def normalize_exact(req):
+              if not req:
+                  return None
+              return req.strip().lstrip("=")
           def extract_version(req):
               if not req:
                   return None
@@ -66,23 +74,24 @@ jobs:
 
           data = tomllib.loads(Path("Cargo.toml").read_text())
           deps = data.get("dependencies", {})
+          workspace_deps = data.get("workspace", {}).get("dependencies", {})
 
           errors = []
 
           print("Checking security-critical dependency versions...")
           for name, expected in SECURITY_CRITICAL.items():
-              version = read_version(deps, name)
+              version = read_version(deps, name, workspace_deps)
               if version is None:
                   errors.append(f"{name}: missing from Cargo.toml")
                   continue
-              if version != expected and version != f"={expected}":
+              if normalize_exact(version) != normalize_exact(expected):
                   errors.append(f"{name}: expected exact {expected}, found {version}")
               else:
                   print(f"OK {name}: exact version {expected}")
 
           print("\nChecking core dependency coarse minima...")
           for name, minimum in CORE_DEPS.items():
-              version = read_version(deps, name)
+              version = read_version(deps, name, workspace_deps)
               if version is None:
                   errors.append(f"{name}: missing from Cargo.toml")
                   continue

@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Integration tests for comprehensive redaction coverage
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`redaction::{...}`) and may break

@@ -12,6 +12,7 @@
 //! - Fixup artifacts are created
 
 use anyhow::Result;
+use serial_test::serial;
 use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
@@ -123,6 +124,7 @@ The following changes are needed:
 
 /// Test fixup phase execution in preview mode (default)
 #[tokio::test]
+#[serial]
 async fn test_fixup_phase_preview_mode() -> Result<()> {
     let (orchestrator, _temp_dir) = setup_complete_test_environment("preview")?;
 
@@ -134,9 +136,11 @@ async fn test_fixup_phase_preview_mode() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true, // Use dry-run to avoid actual Claude calls
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute fixup phase
@@ -168,6 +172,7 @@ async fn test_fixup_phase_preview_mode() -> Result<()> {
 
 /// Test fixup phase execution in apply mode
 #[tokio::test]
+#[serial]
 async fn test_fixup_phase_apply_mode() -> Result<()> {
     let (orchestrator, _temp_dir) = setup_complete_test_environment("apply")?;
 
@@ -179,9 +184,11 @@ async fn test_fixup_phase_apply_mode() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true, // Use dry-run to avoid actual Claude calls
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute fixup phase
@@ -213,6 +220,7 @@ async fn test_fixup_phase_apply_mode() -> Result<()> {
 
 /// Test that fixup phase validates dependencies
 #[tokio::test]
+#[serial]
 async fn test_fixup_phase_validates_dependencies() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let spec_id = "test-fixup-cli-deps";
@@ -228,9 +236,11 @@ async fn test_fixup_phase_validates_dependencies() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: HashMap::new(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Try to execute fixup without dependencies - should fail
@@ -249,6 +259,7 @@ async fn test_fixup_phase_validates_dependencies() -> Result<()> {
 
 /// Test that fixup phase creates artifacts
 #[tokio::test]
+#[serial]
 async fn test_fixup_phase_creates_artifacts() -> Result<()> {
     let (orchestrator, _temp_dir) = setup_complete_test_environment("artifacts")?;
 
@@ -260,9 +271,11 @@ async fn test_fixup_phase_creates_artifacts() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute fixup phase

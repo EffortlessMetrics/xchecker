@@ -1,0 +1,21 @@
+{
+  "content_hash": "11b56ff275cf1e781f2999899d14769afbae379f649e775057c7effc58fe5db2",
+  "file_path": "/tmp/test-spec\\context\\requirements-packet.txt",
+  "priority": "Low",
+  "insights": [
+    "File: /tmp/test-spec\\context\\requirements-packet.txt (450 lines, 10043 bytes)",
+    "Priority: Low",
+    "Word count: 1026",
+    "Paragraph count: 91",
+    "Character count: 9683",
+    "Empty lines: 162",
+    "Markdown formatting detected",
+    "Additional insight #6",
+    "Additional insight #7",
+    "Additional insight #8"
+  ],
+  "phase": "requirements",
+  "cached_at": "2026-01-22T06:43:06.949751700Z",
+  "file_size": 10043,
+  "last_modified": "2026-01-22T05:26:02.319130900Z"
+}

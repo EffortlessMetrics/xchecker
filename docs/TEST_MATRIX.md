@@ -84,6 +84,7 @@ cargo test -- --skip windows_ci_only
 | `XCHECKER_ENABLE_REAL_CLAUDE` | unset | Set to `1` to enable real Claude API tests |
 | `ANTHROPIC_API_KEY` | unset | Required for real Anthropic tests |
 | `OPENROUTER_API_KEY` | unset | Required for real OpenRouter tests |
+| `GEMINI_API_KEY` | unset | Required for real Gemini tests |
 | `XCHECKER_OPENROUTER_BUDGET` | 20 | Max OpenRouter calls per process |
 
 ### Running Real LLM Tests

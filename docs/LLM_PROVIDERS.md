@@ -14,25 +14,23 @@ xchecker uses a provider-agnostic LLM backend abstraction that supports multiple
 
 ## Supported Providers (by Version)
 
-| Provider | Type | Supported Since | Status |
-|----------|------|-----------------|--------|
-| **Claude CLI** | CLI | V11 | ✅ Supported |
-| **Gemini CLI** | CLI | V12 | ✅ Supported |
-| **OpenRouter** | HTTP | V13 | ✅ Supported |
-| **Anthropic API** | HTTP | V14 | ✅ Supported |
-
-**✅ V14 Status**: All four providers (claude-cli, gemini-cli, openrouter, anthropic) are now fully supported.
+| Provider | Type | Status |
+|----------|------|--------|
+| **Claude CLI** | CLI | ✅ Supported |
+| **Gemini CLI** | CLI | ✅ Supported |
+| **OpenRouter** | HTTP | ✅ Supported |
+| **Anthropic API** | HTTP | ✅ Supported |
 
 ## Execution Strategy
 
 xchecker supports two execution strategies:
 
-| Strategy | Description | Supported Since | Status |
-|----------|-------------|-----------------|--------|
-| **Controlled** | LLMs propose changes via structured output; all writes go through xchecker's fixup pipeline | V11 | ✅ Supported |
-| **ExternalTool** | LLMs can directly write files and invoke tools (agentic workflows) | V15+ | 🚧 Reserved |
+| Strategy | Description | Status |
+|----------|-------------|--------|
+| **Controlled** | LLMs propose changes via structured output; all writes go through xchecker's fixup pipeline | ✅ Supported |
+| **ExternalTool** | LLMs can directly write files and invoke tools (agentic workflows) | 🚧 Planned (V15+) |
 
-**⚠️ V11-V14 Constraint**: Only `controlled` execution strategy is supported. This ensures all file modifications go through xchecker's validated fixup system with atomic writes and security checks.
+**Note**: Only `controlled` execution strategy is currently supported. This ensures all file modifications go through xchecker's validated fixup system with atomic writes and security checks.
 
 ---
 
@@ -54,6 +52,11 @@ xchecker supports provider-specific prompt templates to optimize LLM interaction
 [llm]
 provider = "claude-cli"
 prompt_template = "default"  # Optional, defaults to "default"
+```
+
+**CLI override:**
+```bash
+xchecker spec my-feature --prompt-template claude-optimized
 ```
 
 **Template aliases** (case-insensitive):
@@ -106,8 +109,7 @@ xchecker spec my-feature --llm-provider openrouter
 
 ## Provider: Claude CLI
 
-**Type**: CLI (Command-Line Interface)  
-**Supported Since**: V11  
+**Type**: CLI (Command-Line Interface)
 **Status**: ✅ Fully Supported
 
 ### Overview
@@ -151,6 +153,12 @@ xchecker spec my-feature --llm-provider claude-cli
 
 # Override execution strategy
 xchecker spec my-feature --execution-strategy controlled
+
+# Set fallback provider
+xchecker spec my-feature --llm-fallback-provider openrouter
+
+# Set prompt template
+xchecker spec my-feature --prompt-template claude-optimized
 ```
 
 **Environment Variables:**
@@ -160,6 +168,12 @@ export XCHECKER_LLM_PROVIDER=claude-cli
 
 # Override execution strategy
 export XCHECKER_EXECUTION_STRATEGY=controlled
+
+# Set fallback provider
+export XCHECKER_LLM_FALLBACK_PROVIDER=openrouter
+
+# Set prompt template
+export XCHECKER_LLM_PROMPT_TEMPLATE=claude-optimized
 
 xchecker spec my-feature
 ```
@@ -207,13 +221,6 @@ Claude CLI uses NDJSON (newline-delimited JSON) output format with `last_valid_j
 - **stderr**: Captured into ring buffer (≤ 256 KiB), redacted, and logged
 - **Exit codes**: Non-zero exit codes mapped to `LlmError::Transport`
 
-### Timeout Handling
-
-- **Default timeout**: 600 seconds (10 minutes)
-- **Configurable**: `--phase-timeout <seconds>` (minimum 5 seconds)
-- **Enforcement**: Uses existing Runner infrastructure (Job Objects on Windows, process groups on Linux/macOS)
-- **Graceful termination**: TERM signal → 5 second wait → KILL signal
-
 ### Receipt Metadata
 
 Successful Claude CLI invocations record the following in receipts:
@@ -231,71 +238,22 @@ Successful Claude CLI invocations record the following in receipts:
 }
 ```
 
-### Testing
-
-**Doctor Checks:**
-```bash
-# Verify Claude CLI without making LLM calls
-xchecker doctor
-
-# Checks performed:
-# - Binary resolution (PATH or config)
-# - Version detection (optional, non-fatal)
-# - Spawn test (verify binary can be invoked)
-# - No LLM completion requests sent
-```
-
-**Test Gating:**
-```bash
-# Skip tests that would call real LLMs
-XCHECKER_SKIP_LLM_TESTS=1 cargo test
-
-# Enable real LLM tests (opt-in, incurs API costs)
-XCHECKER_REAL_LLM_TESTS=1 cargo test
-```
-
-### Cost Control
-
-- **No automatic budgets**: Claude CLI does not have built-in budget limits in xchecker
-- **Manual control**: Use Claude CLI's own usage tracking and limits
-- **Test isolation**: Tests use dry-run mode or mocked responses by default
-
-### Error Handling
-
-| Error Type | LlmError Variant | Exit Code | Description |
-|------------|------------------|-----------|-------------|
-| Binary not found | `Misconfiguration` | 2 | Claude CLI binary not in PATH or config |
-| Process spawn failure | `Transport` | 2 | Failed to spawn Claude CLI process |
-| Timeout | `Timeout` | 10 | Phase exceeded timeout limit |
-| Non-zero exit | `Transport` | 70 | Claude CLI returned non-zero exit code |
-| Invalid JSON | `Transport` | 70 | stdout not valid NDJSON |
-
-### Platform Support
-
-| Platform | Support | Notes |
-|----------|---------|-------|
-| **Linux** | ✅ Full | Native execution |
-| **macOS** | ✅ Full | Native execution |
-| **Windows** | ✅ Full | Native execution with automatic WSL fallback |
-| **WSL** | ✅ Full | Automatic path translation |
-
 ---
 
-## Provider: Gemini CLI (Reserved for V12)
+## Provider: Gemini CLI
 
-**Type**: CLI (Command-Line Interface)  
-**Supported Since**: V12 (not yet released)  
-**Status**: 🚧 Reserved
+**Type**: CLI (Command-Line Interface)
+**Status**: ✅ Fully Supported
 
 ### Overview
 
-Gemini CLI is Google's command-line interface for Gemini models. Support is planned for V12.
+Gemini CLI is Google's command-line interface for Gemini models.
 
-### Configuration (Future)
+### Configuration
 
 ```toml
 [llm]
-provider = "gemini-cli"  # Not yet supported
+provider = "gemini-cli"
 
 [llm.gemini]
 binary = "/usr/local/bin/gemini"  # Optional
@@ -311,9 +269,21 @@ model = "gemini-2.0-pro"
 max_tokens = 2048
 ```
 
-### Authentication (Future)
+**CLI Flags:**
+```bash
+xchecker spec my-feature --llm-provider gemini-cli
+xchecker spec my-feature --llm-gemini-binary /usr/local/bin/gemini
+xchecker spec my-feature --llm-gemini-default-model gemini-2.0-pro
+```
 
-Gemini CLI will use environment variables for authentication:
+**Environment Variables:**
+```bash
+export XCHECKER_LLM_GEMINI_DEFAULT_MODEL=gemini-2.0-pro
+```
+
+### Authentication
+
+Gemini CLI uses environment variables for authentication:
 
 ```bash
 export GEMINI_API_KEY=your_api_key_here
@@ -321,13 +291,13 @@ export GEMINI_API_KEY=your_api_key_here
 
 xchecker will never read, log, or persist the API key.
 
-### Output Format (Future)
+### Output Format
 
 - **Invocation**: `gemini -p "<prompt>" --model <model>`
 - **stdout**: Treated as opaque text → `raw_response`
 - **stderr**: Captured into ring buffer (≤ 2 KiB), redacted, and logged
 
-### Doctor Checks (Future)
+### Doctor Checks
 
 ```bash
 xchecker doctor
@@ -338,40 +308,22 @@ xchecker doctor
 # - No LLM completion requests
 ```
 
-### Testing (Future)
-
-Same test gating flags as Claude CLI:
-- `XCHECKER_SKIP_LLM_TESTS=1`: Skip real LLM tests
-- `XCHECKER_REAL_LLM_TESTS=1`: Enable real LLM tests (opt-in)
-
-### Current Status
-
-**⚠️ Attempting to use Gemini CLI in V11-V14 will result in:**
-
-```bash
-xchecker spec my-feature --llm-provider gemini-cli
-# Error: llm.provider 'gemini-cli' is not supported.
-# Currently only 'claude-cli' is supported in V11-V14.
-# Gemini CLI support is planned for V12.
-```
-
 ---
 
-## Provider: OpenRouter (Reserved for V13)
+## Provider: OpenRouter
 
-**Type**: HTTP API  
-**Supported Since**: V13 (not yet released)  
-**Status**: 🚧 Reserved
+**Type**: HTTP API
+**Status**: ✅ Fully Supported
 
 ### Overview
 
-OpenRouter is a unified API for accessing multiple LLM providers through a single endpoint. Support is planned for V13.
+OpenRouter is a unified API for accessing multiple LLM providers through a single endpoint.
 
-### Configuration (Future)
+### Configuration
 
 ```toml
 [llm]
-provider = "openrouter"  # Not yet supported
+provider = "openrouter"
 
 [llm.openrouter]
 base_url = "https://openrouter.ai/api/v1/chat/completions"  # Optional
@@ -381,20 +333,20 @@ max_tokens = 2048  # Optional
 temperature = 0.2  # Optional
 ```
 
-### Authentication (Future)
+### Authentication
 
-OpenRouter will use API keys from environment variables:
+OpenRouter uses API keys from environment variables:
 
 ```bash
 export OPENROUTER_API_KEY=your_api_key_here
 ```
 
 **Security**:
-- xchecker will load the key from the specified env var
+- xchecker loads the key from the specified env var
 - The key will never be logged or persisted
 - HTTP requests will include `Authorization: Bearer $OPENROUTER_API_KEY`
 
-### Request Format (Future)
+### Request Format
 
 OpenRouter uses OpenAI-compatible request format:
 
@@ -416,7 +368,7 @@ OpenRouter uses OpenAI-compatible request format:
 - `HTTP-Referer: https://effortlesssteven.com/xchecker`
 - `X-Title: xchecker`
 
-### Response Format (Future)
+### Response Format
 
 OpenRouter returns OpenAI-compatible responses:
 
@@ -436,11 +388,11 @@ OpenRouter returns OpenAI-compatible responses:
 }
 ```
 
-xchecker will extract `choices[0].message.content` and `usage` for receipt metadata.
+xchecker extracts `choices[0].message.content` and `usage` for receipt metadata.
 
-### Budget Control (Future)
+### Budget Control
 
-OpenRouter will have built-in budget limits:
+OpenRouter supports built-in budget limits:
 
 - **Default limit**: 20 calls per xchecker process
 - **Configuration precedence** (highest to lowest):
@@ -483,14 +435,14 @@ XCHECKER_OPENROUTER_BUDGET=30 xchecker spec my-feature
 }
 ```
 
-### Timeout and Retry (Future)
+### Timeout and Retry
 
 - **Timeout**: `min(inv.timeout, global_max_http_timeout)` (default global max: 300s)
 - **Retry policy**: Up to 2 retries for 5xx errors and network failures
 - **Backoff**: Exponential backoff (1s, 2s)
 - **No retry**: 4xx errors (auth, quota) are not retried
 
-### Error Mapping (Future)
+### Error Mapping
 
 | HTTP Status | LlmError Variant | Exit Code | Description |
 |-------------|------------------|-----------|-------------|
@@ -500,7 +452,7 @@ XCHECKER_OPENROUTER_BUDGET=30 xchecker spec my-feature
 | Timeout | `Timeout` | 10 | Request timeout |
 | Network error | `Transport` | 70 | Network connectivity issue |
 
-### Doctor Checks (Future)
+### Doctor Checks
 
 ```bash
 xchecker doctor
@@ -511,29 +463,11 @@ xchecker doctor
 # - Optional: `--llm-online` flag for live connectivity check
 ```
 
-### Testing (Future)
-
-- **Mocked responses**: Most tests use mocked HTTP responses
-- **Real API tests**: Opt-in via `XCHECKER_REAL_LLM_TESTS=1`
-- **Budget tests**: Verify budget enforcement without real API calls
-
-### Current Status
-
-**⚠️ Attempting to use OpenRouter in V11-V14 will result in:**
-
-```bash
-xchecker spec my-feature --llm-provider openrouter
-# Error: llm.provider 'openrouter' is not supported.
-# Currently only 'claude-cli' is supported in V11-V14.
-# OpenRouter support is planned for V13.
-```
-
 ---
 
 ## Provider: Anthropic API
 
-**Type**: HTTP API  
-**Supported Since**: V14  
+**Type**: HTTP API
 **Status**: ✅ Fully Supported
 
 ### Overview
@@ -671,22 +605,7 @@ xchecker doctor
 # - API key env var present (not the value)
 # - Model configured in [llm.anthropic]
 # - No HTTP calls by default
-# - Optional: `--llm-online` flag for live connectivity check (future)
-```
-
-### Testing
-
-- **Mocked responses**: Most tests use mocked HTTP responses
-- **Real API tests**: Opt-in via `XCHECKER_REAL_LLM_TESTS=1`
-- **No budget limits**: Anthropic API does not have built-in budget limits in xchecker (unlike OpenRouter)
-
-**Test Gating:**
-```bash
-# Skip tests that would call real LLMs
-XCHECKER_SKIP_LLM_TESTS=1 cargo test
-
-# Enable real LLM tests (opt-in, incurs API costs)
-XCHECKER_REAL_LLM_TESTS=1 cargo test
+# - Optional: `--llm-online` flag for live connectivity check
 ```
 
 ### Receipt Metadata
@@ -736,16 +655,15 @@ api_key_env = "MY_ANTHROPIC_KEY"  # Custom env var name
 
 ---
 
-## Provider Fallback (Reserved for V14)
+## Provider Fallback
 
-**Supported Since**: V14 (not yet released)  
-**Status**: 🚧 Reserved
+**Status**: ✅ Supported
 
 ### Overview
 
-xchecker will support fallback providers for resilience. If the primary provider fails during construction or validation, xchecker will attempt to use a configured fallback.
+xchecker supports fallback providers for resilience. If the primary provider fails during construction or validation, xchecker will attempt to use a configured fallback.
 
-### Configuration (Future)
+### Configuration
 
 ```toml
 [llm]
@@ -753,7 +671,7 @@ provider = "claude-cli"
 fallback_provider = "openrouter"  # Optional
 ```
 
-### Fallback Behavior (Future)
+### Fallback Behavior
 
 **Triggers fallback**:
 - Missing binary (CLI providers)
@@ -769,17 +687,14 @@ fallback_provider = "openrouter"  # Optional
 
 **Rationale**: Runtime errors should fail the run to prevent silent cost/compliance issues (e.g., "OpenRouter is down, silently use Anthropic").
 
-### Receipt Recording (Future)
+### Receipt Recording
 
 Fallback usage will be recorded in receipt warnings:
 
 ```json
 {
   "warnings": [
-    {
-      "type": "llm_fallback",
-      "message": "Primary provider 'claude-cli' failed: binary not found. Using fallback 'openrouter'."
-    }
+    "llm_fallback: Primary provider 'claude-cli' failed: binary not found. Using fallback 'openrouter'."
   ]
 }
 ```
@@ -868,42 +783,22 @@ cargo test
 - ✅ Verify binary can be spawned
 - ❌ Never send LLM completion requests
 
-**HTTP Providers** (future):
+**HTTP Providers**:
 - ✅ Check API key env var present
 - ❌ Never make HTTP calls by default
-- ⚠️ Optional `--llm-online` flag for live checks (future)
+- ⚠️ Optional `--llm-online` flag for live connectivity check
 
 ### Cost Control Best Practices
 
 1. **Use dry-run mode**: `xchecker spec my-feature --dry-run`
 2. **Skip LLM tests in CI**: `XCHECKER_SKIP_LLM_TESTS=1`
-3. **Use budget limits**: `XCHECKER_OPENROUTER_BUDGET=10` (future)
+3. **Use budget limits**: `XCHECKER_OPENROUTER_BUDGET=10`
 4. **Monitor receipts**: Check token usage in `.xchecker/specs/<spec-id>/receipts/`
 5. **Use cheaper models for development**: `haiku`
 
 ---
 
 ## Troubleshooting
-
-### "Provider not supported" Error
-
-```bash
-xchecker spec my-feature --llm-provider gemini-cli
-# Error: llm.provider 'gemini-cli' is not supported.
-# Currently only 'claude-cli' is supported in V11-V14.
-```
-
-**Solution**: Use `claude-cli` or wait for V12+ release.
-
-### "Execution strategy not supported" Error
-
-```bash
-xchecker spec my-feature --execution-strategy externaltool
-# Error: llm.execution_strategy 'externaltool' is not supported.
-# Currently only 'controlled' is supported in V11-V14.
-```
-
-**Solution**: Use `controlled` or wait for V15+ release.
 
 ### "Claude CLI not found" Error
 
@@ -947,7 +842,7 @@ xchecker spec my-feature
    phase_timeout = 1200
    ```
 
-### "Budget exhausted" Error (Future)
+### "Budget exhausted" Error
 
 ```bash
 xchecker spec my-feature
@@ -975,7 +870,7 @@ xchecker spec my-feature
 | Version | Changes |
 |---------|---------|
 | V11 | Initial LLM provider system with Claude CLI support |
-| V12 | Gemini CLI support (planned) |
-| V13 | OpenRouter HTTP support with budget control (planned) |
-| V14 | Anthropic API support and fallback providers (planned) |
+| V12 | Gemini CLI support |
+| V13 | OpenRouter HTTP support with budget control |
+| V14 | Anthropic API support and fallback providers |
 | V15+ | ExternalTool execution strategy (planned) |

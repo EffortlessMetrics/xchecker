@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Integration tests for PacketBuilder and Phase system wiring (Task 9.2)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`orchestrator::{OrchestratorConfig,
@@ -176,17 +177,15 @@ async fn test_secret_scanning_integration() -> Result<()> {
 }
 
 /// Test that packet overflow is detected before Claude invocation
-/// Note: This test is currently skipped because packet limit configuration
-/// needs to be wired through the phase context to the PacketBuilder
 #[tokio::test]
-#[ignore = "requires_future_api"]
-async fn test_packet_overflow_detection() -> Result<()> {
+async fn test_packet_overflow_detection_requires_future_api() -> Result<()> {
     let (orchestrator, _temp_dir) = setup_test_environment_with_files("overflow");
 
-    // Create a very large file that will exceed packet limits
+    // Create upstream files that collectively exceed packet limits
     let spec_dir = orchestrator.artifact_manager().base_path();
-    let large_content = "x".repeat(100_000); // 100KB of content
-    fs::write(spec_dir.join("large.txt"), &large_content)?;
+    let large_content = "x".repeat(600); // Keep under single-file max, overflow in aggregate
+    fs::write(spec_dir.join("config.core.yaml"), &large_content)?;
+    fs::write(spec_dir.join("extra.core.yaml"), &large_content)?;
 
     let mut config = OrchestratorConfig {
         dry_run: true,

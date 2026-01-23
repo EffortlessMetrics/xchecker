@@ -10,8 +10,18 @@ A Rust CLI tool for orchestrating spec generation workflows with Claude AI. Tran
 - **Multi-Phase Orchestration**: Requirements -> Design -> Tasks -> Review -> Fixup -> Final with configurable phase_timeout (default: 600s). Phase execution exceeded timeout results in exit code 10.
 - **Lockfile System**: Reproducibility tracking with `--create-lock` and `--strict-lock` flags. Detects lock_drift when model or CLI versions change between executions.
 - **Fixup System**: Secure diff application with Preview Mode (default) and Apply Mode (`--apply-fixups`). Path validation prevents directory traversal attacks.
+- **Ecosystem Features**:
+  - **Workspace Orchestration**: Manage multi-spec projects with `xchecker project` commands.
+  - **Templates**: Bootstrap new specs instantly with `xchecker template init` (Next.js, Rust, Python support).
+  - **Hooks**: Customize workflows with pre/post-phase shell hooks.
+  - **Policy Gates**: Enforce quality standards in CI/CD with `xchecker gate`.
+- **Controlled Execution**: Only `controlled` strategy is supported; LLMs propose diffs and xchecker applies them.
 - **Standardized Exit Codes**: Process exit codes always match receipt exit_code field for reliable automation and monitoring.
 - **Versioned JSON Contracts**: Stable schemas for receipts, status, and health checks
+- **Multi-Provider Support**:
+  - **CLI**: Claude CLI, Gemini CLI
+  - **HTTP**: OpenRouter, Anthropic API
+  - **Resilience**: Robust fallback logic and budget control for HTTP providers
 - **Security First**: Automatic secret detection and redaction
 - **Cross-Platform**: Linux, macOS, Windows with WSL support
 
@@ -26,7 +36,7 @@ git clone https://github.com/EffortlessMetrics/xchecker.git
 cd xchecker && cargo install --path .
 ```
 
-**Requirements**: Rust 1.89+, [Claude CLI](https://claude.ai/download) installed and authenticated.
+**Requirements**: Rust 1.89+, and a configured LLM provider (e.g. [Claude CLI](https://claude.ai/download), Gemini CLI, or API key).
 
 ## Embedding xchecker
 
@@ -98,7 +108,7 @@ xchecker resume my-feature --phase fixup --apply-fixups
 ### Common Options
 
 ```bash
---dry-run              # Preview without making Claude calls
+--dry-run              # Preview without making LLM calls
 --json                 # Output as JSON
 --force                # Override stale locks
 --apply-fixups         # Apply file changes (default is preview)
@@ -119,6 +129,8 @@ phase_timeout = 600
 include = ["src/**/*.rs", "docs/**/*.md"]
 exclude = ["target/**", ".git/**"]
 ```
+
+Hooks are opt-in and configured under `[hooks]` for pre/post-phase scripts.
 
 See [Configuration Guide](docs/CONFIGURATION.md) for all options.
 
@@ -179,7 +191,7 @@ The state directory contains specs/<spec-id>/ directories for each specification
 | 8 | SECRET_DETECTED | Secret found in content |
 | 9 | LOCK_HELD | Lock already held |
 | 10 | PHASE_TIMEOUT | Phase timed out |
-| 70 | CLAUDE_FAILURE | Claude CLI failed |
+| 70 | CLAUDE_FAILURE | LLM Provider failure |
 
 ## Known Limitations & Guarantees
 
@@ -198,7 +210,7 @@ The state directory contains specs/<spec-id>/ directories for each specification
 
 | Area | Limitation |
 |------|------------|
-| **LLM provider** | Claude CLI only; no direct API or other providers |
+| **LLM provider** | Agnostic; supports Claude CLI, Gemini CLI, OpenRouter, Anthropic API |
 | **Execution strategy** | Controlled only; LLMs propose diffs, xchecker applies |
 | **Fixup engine** | Context-based fuzzy matching works for contiguous context; fails on ambiguous patterns, large shifts, or context split by deletions |
 | **Diff complexity** | Best with small, focused changes; large refactors may fail fuzzy matching |

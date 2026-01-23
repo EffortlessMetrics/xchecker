@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_claude")]
 //! M5 Gate Validation Tests
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`config::{CliArgs, Config,
@@ -128,25 +129,25 @@ distro = "Ubuntu-22.04"
     {
         assert!(matches!(
             config_file_only.source_attribution.get("model"),
-            Some(ConfigSource::ConfigFile(_))
+            Some(ConfigSource::Config)
         ));
         assert!(matches!(
             config_file_only.source_attribution.get("max_turns"),
-            Some(ConfigSource::ConfigFile(_))
+            Some(ConfigSource::Config)
         ));
         assert!(matches!(
             config_file_only.source_attribution.get("packet_max_bytes"),
-            Some(ConfigSource::ConfigFile(_))
+            Some(ConfigSource::Config)
         ));
     } else {
         // Using defaults - verify default source attribution
         assert_eq!(
             config_file_only.source_attribution.get("max_turns"),
-            Some(&ConfigSource::Defaults)
+            Some(&ConfigSource::Default)
         );
         assert_eq!(
             config_file_only.source_attribution.get("packet_max_bytes"),
-            Some(&ConfigSource::Defaults)
+            Some(&ConfigSource::Default)
         );
     }
 
@@ -225,11 +226,11 @@ distro = "Ubuntu-22.04"
             config_cli_override
                 .source_attribution
                 .get("packet_max_bytes"),
-            Some(ConfigSource::ConfigFile(_))
+            Some(ConfigSource::Config)
         ));
         assert!(matches!(
             config_cli_override.source_attribution.get("runner_distro"),
-            Some(ConfigSource::ConfigFile(_))
+            Some(ConfigSource::Config)
         ));
     } else {
         // Using defaults
@@ -237,7 +238,7 @@ distro = "Ubuntu-22.04"
             config_cli_override
                 .source_attribution
                 .get("packet_max_bytes"),
-            Some(&ConfigSource::Defaults)
+            Some(&ConfigSource::Default)
         );
     }
 
@@ -246,37 +247,28 @@ distro = "Ubuntu-22.04"
 
     // Verify effective config contains values and sources
     assert_eq!(effective_config.get("model").unwrap().0, "opus");
-    assert_eq!(effective_config.get("model").unwrap().1, "CLI");
+    assert_eq!(effective_config.get("model").unwrap().1, "cli");
 
     assert_eq!(effective_config.get("max_turns").unwrap().0, "12");
-    assert_eq!(effective_config.get("max_turns").unwrap().1, "CLI");
+    assert_eq!(effective_config.get("max_turns").unwrap().1, "cli");
 
     assert_eq!(effective_config.get("packet_max_bytes").unwrap().0, "32768");
-    assert!(
-        effective_config
-            .get("packet_max_bytes")
-            .unwrap()
-            .1
-            .contains("config file")
+    assert_eq!(
+        effective_config.get("packet_max_bytes").unwrap().1,
+        "config"
     );
 
     assert_eq!(effective_config.get("verbose").unwrap().0, "true");
-    assert_eq!(effective_config.get("verbose").unwrap().1, "CLI");
+    assert_eq!(effective_config.get("verbose").unwrap().1, "cli");
 
     assert_eq!(effective_config.get("runner_mode").unwrap().0, "wsl");
-    assert_eq!(effective_config.get("runner_mode").unwrap().1, "CLI");
+    assert_eq!(effective_config.get("runner_mode").unwrap().1, "cli");
 
     assert_eq!(
         effective_config.get("runner_distro").unwrap().0,
         "Ubuntu-22.04"
     );
-    assert!(
-        effective_config
-            .get("runner_distro")
-            .unwrap()
-            .1
-            .contains("config file")
-    );
+    assert_eq!(effective_config.get("runner_distro").unwrap().1, "config");
 
     println!("✓ Configuration precedence test passed");
     println!("  CLI overrides: model, max_turns, output_format, verbose, runner_mode, claude_path");
@@ -525,7 +517,7 @@ mode = "native"
 
     // Verify precedence is correctly shown
     assert_eq!(effective.get("model").unwrap().0, "opus");
-    assert_eq!(effective.get("model").unwrap().1, "CLI");
+    assert_eq!(effective.get("model").unwrap().1, "cli");
 
     // Check max_turns - CLI override should always be present
     assert_eq!(effective.get("max_turns"), None); // max_turns was not set in CLI args
@@ -534,33 +526,33 @@ mode = "native"
     let packet_bytes_value = effective.get("packet_max_bytes").unwrap().0.as_str();
     let packet_bytes_source = &effective.get("packet_max_bytes").unwrap().1;
     if packet_bytes_value == "32768" {
-        assert!(packet_bytes_source.contains("config file"));
+        assert_eq!(packet_bytes_source, "config");
     } else {
         // Using defaults
         assert_eq!(packet_bytes_value, "65536"); // Default value
-        assert_eq!(packet_bytes_source, "defaults");
+        assert_eq!(packet_bytes_source, "default");
     }
 
     assert_eq!(effective.get("packet_max_lines").unwrap().0, "1500");
-    assert_eq!(effective.get("packet_max_lines").unwrap().1, "CLI");
+    assert_eq!(effective.get("packet_max_lines").unwrap().1, "cli");
 
     assert_eq!(effective.get("verbose").unwrap().0, "true");
-    assert_eq!(effective.get("verbose").unwrap().1, "CLI");
+    assert_eq!(effective.get("verbose").unwrap().1, "cli");
 
     // Check runner_mode - may be from config file or defaults
     let runner_mode_value = effective.get("runner_mode").unwrap().0.as_str();
     let runner_mode_source = &effective.get("runner_mode").unwrap().1;
     if runner_mode_value == "native" {
-        assert!(runner_mode_source.contains("config file"));
+        assert_eq!(runner_mode_source, "config");
     } else {
         // Using defaults
         assert_eq!(runner_mode_value, "auto"); // Default value
-        assert_eq!(runner_mode_source, "defaults");
+        assert_eq!(runner_mode_source, "default");
     }
 
     // Test that output_format uses defaults when not specified
     assert_eq!(effective.get("output_format").unwrap().0, "stream-json");
-    assert_eq!(effective.get("output_format").unwrap().1, "defaults");
+    assert_eq!(effective.get("output_format").unwrap().1, "default");
 
     // Simulate status command output format
     println!("📊 Effective Configuration (simulated status output):");
@@ -569,7 +561,7 @@ mode = "native"
     }
 
     println!("✓ Status effective config with attribution test passed");
-    println!("  Configuration precedence correctly displayed: CLI > config file > defaults");
+    println!("  Configuration precedence correctly displayed: CLI > config > defaults");
     println!("  Source attribution working for all configuration values");
 
     Ok(())

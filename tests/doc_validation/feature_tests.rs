@@ -182,7 +182,7 @@ mod tests {
         // - Sets error_kind = "phase_timeout"
 
         // Check that exit code constant is defined
-        let exit_codes_path = Path::new("src/exit_codes.rs");
+        let exit_codes_path = Path::new("crates/xchecker-utils/src/exit_codes.rs");
         assert!(exit_codes_path.exists(), "Exit codes module should exist");
 
         let exit_codes_content = fs::read_to_string(exit_codes_path).unwrap();
@@ -201,7 +201,7 @@ mod tests {
         );
 
         // Verify lock.rs module exists
-        let lock_path = Path::new("src/lock.rs");
+        let lock_path = Path::new("crates/xchecker-utils/src/lock.rs");
         assert!(lock_path.exists(), "Lock module should exist");
 
         // Verify documented side effects:
@@ -215,7 +215,7 @@ mod tests {
         );
 
         // Verify status module handles drift detection
-        let status_path = Path::new("src/status.rs");
+        let status_path = Path::new("crates/xchecker-engine/src/status.rs");
         assert!(status_path.exists(), "Status module should exist");
 
         let status_content = fs::read_to_string(status_path).unwrap();
@@ -258,8 +258,8 @@ mod tests {
             "M4 gate tests should cover fixup functionality"
         );
 
-        // Verify fixup.rs module exists
-        let fixup_path = Path::new("src/fixup.rs");
+        // Verify fixup module exists (now a directory with mod.rs)
+        let fixup_path = Path::new("crates/xchecker-engine/src/fixup/mod.rs");
         assert!(fixup_path.exists(), "Fixup module should exist");
 
         // Verify documented side effects:
@@ -298,7 +298,7 @@ mod tests {
         );
 
         // Verify exit_codes.rs module exists
-        let exit_codes_path = Path::new("src/exit_codes.rs");
+        let exit_codes_path = Path::new("crates/xchecker-utils/src/exit_codes.rs");
         assert!(exit_codes_path.exists(), "Exit codes module should exist");
 
         // Verify documented exit codes exist
@@ -323,11 +323,11 @@ mod tests {
         // - Process exit code matches receipt.exit_code
         // - Receipt.error_kind matches exit code
         // - All error paths write receipt before exit
-        let error_path = Path::new("src/error.rs");
+        let error_path = Path::new("crates/xchecker-utils/src/error.rs");
         assert!(error_path.exists(), "Error module should exist");
 
         // ErrorKind is defined in types.rs
-        let types_path = Path::new("src/types.rs");
+        let types_path = Path::new("crates/xchecker-utils/src/types.rs");
         assert!(types_path.exists(), "Types module should exist");
 
         let types_content = fs::read_to_string(types_path).unwrap();
@@ -336,8 +336,8 @@ mod tests {
             "Types module should define ErrorKind enum"
         );
 
-        // Receipt module should handle error receipts
-        let receipt_path = Path::new("src/receipt.rs");
+        // Receipt module should handle error receipts (now a directory with mod.rs)
+        let receipt_path = Path::new("crates/xchecker-engine/src/receipt/mod.rs");
         assert!(receipt_path.exists(), "Receipt module should exist");
 
         let receipt_content = fs::read_to_string(receipt_path).unwrap();

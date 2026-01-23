@@ -4,10 +4,25 @@ This directory contains Kiro AI specification files used during xchecker's devel
 
 ## Contents
 
-- `specs/` - Specification documents for major development phases
-- `*.md` - Roadmaps and status snapshots
+- `specs/` - Implementation specs for major development phases (each with requirements.md, design.md, tasks.md)
+- `steering/` - Product, structure, and tech guidelines
+- `ROADMAP.md` - V11-V18 implementation record (historical)
+- `*.md` - Status snapshots and reference docs
 
-## Note
+## Specs Index
 
-This is an audit trail of xchecker's AI-assisted development history.
-Not intended for end-user documentation - see [docs/](../docs/) instead.
+| Spec | Purpose | Status |
+|------|---------|--------|
+| `xchecker-runtime-implementation/` | Core phase pipeline, runner, packet, fixup, receipts | ✅ Complete |
+| `xchecker-claude-orchestrator/` | Orchestrator, phase system, LLM integration | ✅ Complete |
+| `xchecker-llm-ecosystem/` | V11-V18 multi-provider LLM support | ✅ Complete |
+| `xchecker-operational-polish/` | Test fixes, warnings cleanup, benchmark, contracts | ✅ Complete |
+| `xchecker-final-cleanup/` | Test stability, code annotations, hooks | ✅ Complete |
+| `crates-io-packaging/` | Library API, crates.io packaging, security hardening | ✅ Complete |
+| `documentation-validation/` | Schema validation, doc tests, example generators | ✅ Complete |
+
+## Navigation
+
+- **Project Roadmap**: See [../ROADMAP.md](../ROADMAP.md) at repo root
+- **End-User Docs**: See [../docs/](../docs/)
+- **Development Guide**: See [../CLAUDE.md](../CLAUDE.md)

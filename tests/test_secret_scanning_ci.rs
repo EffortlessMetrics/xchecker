@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! CI Secret Scanning Tests
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`redaction::SecretRedactor`) and may

@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Integration tests for --debug-packet flag behavior (FR-PKT-006, FR-PKT-007)
 //!
 //! **WHITE-BOX TEST**: This test uses internal module APIs (`orchestrator::{OrchestratorConfig,
@@ -43,9 +44,11 @@ async fn test_debug_packet_written_with_flag() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true, // Use dry-run to avoid actual Claude invocation
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute requirements phase
@@ -91,9 +94,11 @@ async fn test_debug_packet_not_written_without_flag() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: HashMap::new(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute requirements phase
@@ -145,9 +150,11 @@ async fn test_debug_packet_not_written_on_secret_detection() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute requirements phase (will fail due to secret detection)
@@ -200,9 +207,11 @@ async fn test_debug_packet_not_in_receipts() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute requirements phase
@@ -249,9 +258,11 @@ async fn test_packet_preview_always_written() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: HashMap::new(),
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Execute requirements phase

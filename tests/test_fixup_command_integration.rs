@@ -17,7 +17,6 @@
 
 use anyhow::Result;
 use std::fs;
-use std::path::PathBuf;
 use tempfile::TempDir;
 use xchecker::fixup::{FixupMode, FixupParser};
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
@@ -50,9 +49,11 @@ async fn test_fixup_command_parsing() -> Result<()> {
     let config = OrchestratorConfig {
         dry_run: true,
         config: config_map,
+        full_config: None,
         selectors: None,
         strict_validation: false,
         redactor: Default::default(),
+        hooks: None,
     };
 
     // Create dummy artifacts for dependencies
@@ -150,15 +151,17 @@ The requirements need some updates.
 /// Test that --apply-fixups flag controls fixup mode
 #[test]
 fn test_apply_fixups_flag_handling() -> Result<()> {
+    let sandbox = TempDir::new()?;
+
     // Test preview mode (default)
-    let _parser_preview = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let _parser_preview = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
     assert_eq!(
         std::mem::discriminant(&FixupMode::Preview),
         std::mem::discriminant(&FixupMode::Preview)
     );
 
     // Test apply mode
-    let _parser_apply = FixupParser::new(FixupMode::Apply, PathBuf::from("."))?;
+    let _parser_apply = FixupParser::new(FixupMode::Apply, sandbox.path().to_path_buf())?;
     assert_eq!(
         std::mem::discriminant(&FixupMode::Apply),
         std::mem::discriminant(&FixupMode::Apply)
@@ -171,7 +174,8 @@ fn test_apply_fixups_flag_handling() -> Result<()> {
 /// Test that review output loading works
 #[test]
 fn test_review_output_loading() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     let review_content = r#"# Review Document
 
@@ -207,7 +211,8 @@ fn test_review_output_loading() -> Result<()> {
 /// Test that FixupPlan derivation from review works
 #[test]
 fn test_fixup_plan_derivation() -> Result<()> {
-    let parser = FixupParser::new(FixupMode::Preview, PathBuf::from("."))?;
+    let sandbox = TempDir::new()?;
+    let parser = FixupParser::new(FixupMode::Preview, sandbox.path().to_path_buf())?;
 
     let review_content = r#"# Review Document
 

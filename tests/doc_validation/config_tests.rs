@@ -134,6 +134,23 @@ mod tests {
         }
     }
 
+    /// RAII guard to restore CWD on drop
+    struct CwdGuard(std::path::PathBuf);
+
+    impl CwdGuard {
+        fn new(path: &std::path::Path) -> Self {
+            let prev = std::env::current_dir().expect("Failed to get current dir");
+            std::env::set_current_dir(path).expect("Failed to change dir");
+            Self(prev)
+        }
+    }
+
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+
     #[test]
     fn test_config_precedence() {
         use std::process::Command;
@@ -144,16 +161,16 @@ mod tests {
         // Create isolated test environment
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let xchecker_home = temp_dir.path().join(".xchecker");
-        
+
         // Create a test spec with a receipt so status command works
         let spec_id = "test-config-precedence";
         let spec_root = xchecker_home.join("specs").join(spec_id);
         fs::create_dir_all(&spec_root).expect("Failed to create spec root");
-        
+
         // Create receipts directory
         let receipts_dir = spec_root.join("receipts");
         fs::create_dir_all(&receipts_dir).expect("Failed to create receipts dir");
-        
+
         // Create a minimal receipt file
         let receipt_json = serde_json::json!({
             "schema_version": "1",
@@ -176,15 +193,15 @@ mod tests {
             "exit_code": 0,
             "warnings": []
         });
-        
+
         let receipt_path = receipts_dir.join("requirements-20250101_000000.json");
         fs::write(&receipt_path, serde_json::to_string_pretty(&receipt_json).unwrap())
             .expect("Failed to write receipt");
-        
+
         // Create a config file with overrides in the spec directory
         let config_dir = spec_root.join(".xchecker");
         fs::create_dir_all(&config_dir).expect("Failed to create config dir");
-        
+
         let config_content = r#"
 [defaults]
 model = "opus"
@@ -195,14 +212,14 @@ phase_timeout = 900
 [runner]
 mode = "native"
 "#;
-        
+
         let config_path = config_dir.join("config.toml");
         fs::write(&config_path, config_content).expect("Failed to write config file");
-        
+
         // Change to spec directory so config file is discovered
-        let original_dir = std::env::current_dir().expect("Failed to get current dir");
-        std::env::set_current_dir(&spec_root).expect("Failed to change dir");
-        
+        // Use CwdGuard to ensure CWD is restored even if test panics
+        let _cwd_guard = CwdGuard::new(&spec_root);
+
         // Run xchecker status --json with CLI overrides
         // CLI overrides: --verbose (overrides config file's verbose=false)
         let output = Command::new(env!("CARGO_BIN_EXE_xchecker"))
@@ -211,9 +228,6 @@ mode = "native"
             .args(&["status", spec_id, "--json", "--verbose"])
             .output()
             .expect("Failed to execute xchecker status");
-        
-        // Restore original directory
-        std::env::set_current_dir(original_dir).expect("Failed to restore dir");
         
         // Check that command succeeded
         if !output.status.success() {
