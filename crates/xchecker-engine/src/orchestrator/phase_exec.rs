@@ -7,14 +7,14 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use crate::artifact::{Artifact, ArtifactType};
 use crate::error::{PhaseError, XCheckerError};
 use crate::exit_codes;
-use crate::fixup::FixupMode;
+use crate::fixup::{FixupMode, FixupPhase};
 use crate::hooks::{HookContext, HookExecutor, HookType, execute_and_process_hook};
 use crate::packet::PacketBuilder;
 use crate::phase::{Phase, PhaseContext};
-use crate::phases::{DesignPhase, FixupPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::status::artifact::{Artifact, ArtifactType};
 use crate::types::{ErrorKind, FileType, LlmInfo, PacketEvidence, PhaseId, PipelineInfo};
 
 use super::llm::{ClaudeExecutionMetadata, LlmInvocationError};
@@ -154,7 +154,7 @@ pub(crate) struct PhaseCoreOutput {
     /// Warning message when a fallback provider was used
     pub llm_fallback_warning: Option<String>,
     /// Postprocessed artifacts with parsed content from LLM response
-    pub phase_result: crate::phase::PhaseResult,
+    pub phase_result: xchecker_phase_api::PhaseResult,
 }
 
 /// Execute a phase with timeout enforcement
@@ -607,10 +607,10 @@ impl PhaseOrchestrator {
                 })?
         } else {
             // For failed LLM runs, return empty result - caller will handle partial artifact
-            crate::phase::PhaseResult {
+            xchecker_phase_api::PhaseResult {
                 artifacts: vec![],
-                next_step: crate::phase::NextStep::Continue,
-                metadata: crate::phase::PhaseMetadata::default(),
+                next_step: xchecker_phase_api::NextStep::Continue,
+                metadata: xchecker_phase_api::PhaseMetadata::default(),
             }
         };
 

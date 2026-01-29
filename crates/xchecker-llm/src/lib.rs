@@ -16,11 +16,11 @@ mod types;
 mod tests;
 
 pub use xchecker_config as config;
-pub use xchecker_utils::error;
-pub use xchecker_utils::runner;
+pub use xchecker_error_redaction::*;
+pub use xchecker_runner as runner;
 
 // Public exports for production use
-pub use crate::error::LlmError;
+pub use xchecker_utils::error::LlmError;
 #[allow(unused_imports)]
 // ExecutionStrategy is part of public API, used in types but not in this module
 pub use types::{
@@ -135,7 +135,7 @@ pub fn from_config_with_fallback(
         Err(primary_error) => {
             // Check if fallback provider is configured
             if let Some(fallback_provider) = config.llm.fallback_provider.as_deref() {
-                let reason = redact_error_for_logging(&primary_error);
+                let reason = redact_error_message_for_logging(&primary_error.to_string());
 
                 // Log warning about fallback usage (redacted)
                 eprintln!(
@@ -164,7 +164,7 @@ pub fn from_config_with_fallback(
                         eprintln!(
                             "Error: Fallback provider '{}' also failed: {}",
                             fallback_provider,
-                            redact_error_for_logging(&fallback_error)
+                            redact_error_message_for_logging(&fallback_error.to_string())
                         );
                         // Return the primary error as it's more relevant
                         Err(primary_error)
@@ -225,41 +225,6 @@ pub fn from_config_with_fallback(
 pub fn from_config(config: &Config) -> Result<Box<dyn LlmBackend>, LlmError> {
     let (backend, _fallback_info) = from_config_with_fallback(config)?;
     Ok(backend)
-}
-
-/// Redact error messages for logging to avoid exposing sensitive information.
-///
-/// This function removes potentially sensitive details from error messages before logging.
-fn redact_error_for_logging(error: &LlmError) -> String {
-    match error {
-        LlmError::Transport(msg) => format!("Transport error: {}", redact_paths(msg)),
-        LlmError::ProviderAuth(_) => "Authentication error (details redacted)".to_string(),
-        LlmError::ProviderQuota(_) => "Quota exceeded (details redacted)".to_string(),
-        LlmError::ProviderOutage(_) => "Provider outage (details redacted)".to_string(),
-        LlmError::Timeout { duration } => format!("Timeout after {}s", duration.as_secs()),
-        LlmError::BudgetExceeded { limit, attempted } => {
-            format!(
-                "Budget exceeded: {} calls attempted, limit is {}",
-                attempted, limit
-            )
-        }
-        LlmError::Misconfiguration(msg) => format!("Configuration error: {}", redact_paths(msg)),
-        LlmError::Unsupported(msg) => format!("Unsupported: {}", msg),
-    }
-}
-
-/// Redact file paths from error messages to avoid exposing user-specific paths.
-fn redact_paths(msg: &str) -> String {
-    // Simple redaction: replace common path patterns
-    // This is a basic implementation - could be enhanced with regex
-    let mut redacted = msg.to_string();
-
-    // Redact common path separators and home directory indicators
-    if redacted.contains('/') || redacted.contains('\\') {
-        redacted = "[path redacted]".to_string();
-    }
-
-    redacted
 }
 
 #[cfg(test)]

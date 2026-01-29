@@ -96,6 +96,7 @@ fn test_dry_run_execution() -> Result<()> {
     if let Some(stdin) = child.stdin.as_mut() {
         use std::io::Write;
         writeln!(stdin, "Test spec: Create a simple calculator application")?;
+        let _: std::io::Result<()> = std::io::Result::Ok(());
     }
 
     let output = child.wait_with_output()?;

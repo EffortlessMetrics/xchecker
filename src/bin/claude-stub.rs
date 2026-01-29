@@ -145,15 +145,36 @@ fn read_prompt() -> String {
 fn detect_phase(prompt: &str) -> PhaseKind {
     let lower = prompt.to_ascii_lowercase();
 
-    if lower.contains("phase: design") || lower.contains("# design document") {
+    // Prioritize explicit phase markers first (ignoring context artifacts)
+    if lower.contains("phase: requirements") {
+        return PhaseKind::Requirements;
+    }
+    if lower.contains("phase: design") {
+        return PhaseKind::Design;
+    }
+    if lower.contains("phase: tasks") {
+        return PhaseKind::Tasks;
+    }
+    if lower.contains("phase: review") {
+        return PhaseKind::Review;
+    }
+    if lower.contains("phase: fixup") {
+        return PhaseKind::Fixup;
+    }
+    if lower.contains("phase: final") {
+        return PhaseKind::Final;
+    }
+
+    // Fallback to content heuristics (less reliable due to accumulated context)
+    if lower.contains("# design document") {
         PhaseKind::Design
-    } else if lower.contains("phase: tasks") || lower.contains("# implementation plan") {
+    } else if lower.contains("# implementation plan") {
         PhaseKind::Tasks
-    } else if lower.contains("phase: review") || lower.contains("# review") {
+    } else if lower.contains("# review") {
         PhaseKind::Review
-    } else if lower.contains("phase: fixup") || lower.contains("# fixup") {
+    } else if lower.contains("# fixup") {
         PhaseKind::Fixup
-    } else if lower.contains("phase: final") || lower.contains("# final") {
+    } else if lower.contains("# final") {
         PhaseKind::Final
     } else {
         PhaseKind::Requirements

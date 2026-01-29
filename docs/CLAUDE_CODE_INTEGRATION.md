@@ -474,4 +474,4 @@ Full JSON schemas are available in the `docs/schemas/` directory:
 - [CONFIGURATION.md](CONFIGURATION.md) - Configuration options
 - [LLM_PROVIDERS.md](LLM_PROVIDERS.md) - LLM provider setup
 - [CONTRACTS.md](CONTRACTS.md) - JSON schema versioning policy
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
+- [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) - Troubleshooting and diagnostics

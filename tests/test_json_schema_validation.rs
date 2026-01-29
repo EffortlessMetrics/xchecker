@@ -4,136 +4,67 @@
 /// It uses the jsonschema crate to validate the examples against the schema definitions.
 use std::fs;
 
-#[test]
-fn test_receipt_minimal_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/receipt.v1.json").expect("Failed to read receipt schema");
+fn validate_example(schema_path: &str, example_path: &str) {
+    let schema_content = fs::read_to_string(schema_path)
+        .unwrap_or_else(|_| panic!("Failed to read schema: {}", schema_path));
     let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse receipt schema");
+        serde_json::from_str(&schema_content).expect("Failed to parse schema JSON");
 
-    // Load minimal example
-    let example_content = fs::read_to_string("docs/schemas/receipt.v1.minimal.json")
-        .expect("Failed to read receipt minimal example");
+    let example_content = fs::read_to_string(example_path)
+        .unwrap_or_else(|_| panic!("Failed to read example: {}", example_path));
     let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse receipt minimal example");
+        serde_json::from_str(&example_content).expect("Failed to parse example JSON");
 
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile receipt schema");
+    let validator = jsonschema::validator_for(&schema).expect("Failed to compile schema");
 
     if let Err(error) = validator.validate(&example) {
-        panic!("Receipt minimal example failed validation:\n{}", error);
+        panic!(
+            "Validation failed for {} against {}:\n{}",
+            example_path, schema_path, error
+        );
     }
+}
+
+#[test]
+fn test_receipt_minimal_validates_against_schema() {
+    validate_example(
+        "schemas/receipt.v1.json",
+        "docs/schemas/receipt.v1.minimal.json",
+    );
 }
 
 #[test]
 fn test_receipt_full_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/receipt.v1.json").expect("Failed to read receipt schema");
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse receipt schema");
-
-    // Load full example
-    let example_content = fs::read_to_string("docs/schemas/receipt.v1.full.json")
-        .expect("Failed to read receipt full example");
-    let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse receipt full example");
-
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile receipt schema");
-
-    if let Err(error) = validator.validate(&example) {
-        panic!("Receipt full example failed validation:\n{}", error);
-    }
+    validate_example(
+        "schemas/receipt.v1.json",
+        "docs/schemas/receipt.v1.full.json",
+    );
 }
 
 #[test]
 fn test_status_minimal_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/status.v1.json").expect("Failed to read status schema");
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse status schema");
-
-    // Load minimal example
-    let example_content = fs::read_to_string("docs/schemas/status.v1.minimal.json")
-        .expect("Failed to read status minimal example");
-    let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse status minimal example");
-
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile status schema");
-
-    if let Err(error) = validator.validate(&example) {
-        panic!("Status minimal example failed validation:\n{}", error);
-    }
+    validate_example(
+        "schemas/status.v1.json",
+        "docs/schemas/status.v1.minimal.json",
+    );
 }
 
 #[test]
 fn test_status_full_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/status.v1.json").expect("Failed to read status schema");
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse status schema");
-
-    // Load full example
-    let example_content = fs::read_to_string("docs/schemas/status.v1.full.json")
-        .expect("Failed to read status full example");
-    let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse status full example");
-
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile status schema");
-
-    if let Err(error) = validator.validate(&example) {
-        panic!("Status full example failed validation:\n{}", error);
-    }
+    validate_example("schemas/status.v1.json", "docs/schemas/status.v1.full.json");
 }
 
 #[test]
 fn test_doctor_minimal_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/doctor.v1.json").expect("Failed to read doctor schema");
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse doctor schema");
-
-    // Load minimal example
-    let example_content = fs::read_to_string("docs/schemas/doctor.v1.minimal.json")
-        .expect("Failed to read doctor minimal example");
-    let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse doctor minimal example");
-
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile doctor schema");
-
-    if let Err(error) = validator.validate(&example) {
-        panic!("Doctor minimal example failed validation:\n{}", error);
-    }
+    validate_example(
+        "schemas/doctor.v1.json",
+        "docs/schemas/doctor.v1.minimal.json",
+    );
 }
 
 #[test]
 fn test_doctor_full_validates_against_schema() {
-    // Load schema
-    let schema_content =
-        fs::read_to_string("schemas/doctor.v1.json").expect("Failed to read doctor schema");
-    let schema: serde_json::Value =
-        serde_json::from_str(&schema_content).expect("Failed to parse doctor schema");
-
-    // Load full example
-    let example_content = fs::read_to_string("docs/schemas/doctor.v1.full.json")
-        .expect("Failed to read doctor full example");
-    let example: serde_json::Value =
-        serde_json::from_str(&example_content).expect("Failed to parse doctor full example");
-
-    // Validate using jsonschema crate
-    let validator = jsonschema::validator_for(&schema).expect("Failed to compile doctor schema");
-
-    if let Err(error) = validator.validate(&example) {
-        panic!("Doctor full example failed validation:\n{}", error);
-    }
+    validate_example("schemas/doctor.v1.json", "docs/schemas/doctor.v1.full.json");
 }
 
 #[test]
@@ -281,8 +212,9 @@ fn test_gate_json_output_matches_schema() {
 
     // Create a test gate result
     let result = GateResult {
-        passed: true,
+        schema_version: "gate-json.v1".to_string(),
         spec_id: "test-spec".to_string(),
+        passed: true,
         conditions: vec![GateCondition {
             name: "min_phase".to_string(),
             passed: true,
@@ -295,7 +227,7 @@ fn test_gate_json_output_matches_schema() {
     };
 
     // Emit JSON
-    let json_str = emit_gate_json(&result).expect("Failed to emit gate JSON");
+    let json_str = emit_gate_json(&result, "test-spec").expect("Failed to emit gate JSON");
     let json_value: serde_json::Value =
         serde_json::from_str(&json_str).expect("Failed to parse emitted JSON");
 

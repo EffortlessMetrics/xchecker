@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::error::LlmError;
+use crate::LlmError;
 use xchecker_utils::types::LlmInfo;
 
 /// Execution strategy determining how LLMs interact with the system

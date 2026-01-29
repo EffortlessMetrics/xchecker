@@ -49,7 +49,7 @@ You should see output like:
 ✓ Atomic rename: supported
 ```
 
-If any checks fail, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions.
+If any checks fail, see [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) for solutions.
 
 ## Step 3: Initialize Workspace and Spec (3 minutes)
 
@@ -302,5 +302,5 @@ xchecker resume my-feature --phase design --phase-timeout 1200
 
 - [CONFIGURATION.md](CONFIGURATION.md) - Full configuration reference
 - [CLAUDE_CODE_INTEGRATION.md](CLAUDE_CODE_INTEGRATION.md) - Claude Code integration
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
+- [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) - Troubleshooting and diagnostics
 - [LLM_PROVIDERS.md](LLM_PROVIDERS.md) - LLM provider configuration

@@ -1,12 +1,20 @@
 [package]
 name = "xchecker-llm"
-version = "1.0.0"
-edition = "2024"
-publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "LLM provider backends for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
 
 [dependencies]
-xchecker-utils = { path = "../xchecker-utils" }
-xchecker-config = { path = "../xchecker-config" }
+xchecker-utils = { workspace = true }
+xchecker-runner = { workspace = true }
+xchecker-config = { workspace = true }
+xchecker-error-redaction = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -18,7 +26,7 @@ once_cell = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-xchecker-config = { path = "../xchecker-config", features = ["test-utils"] }
+xchecker-config = { workspace = true, features = ["test-utils"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

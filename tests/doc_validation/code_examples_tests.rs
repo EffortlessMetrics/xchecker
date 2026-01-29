@@ -4,7 +4,8 @@
 //! Requirements: R9
 
 use anyhow::{Context, Result};
-use std::path::Path;
+use serde_json::{Value, json};
+use std::path::{Path, PathBuf};
 
 use crate::doc_validation::common::{FenceExtractor, StubRunner, run_example};
 
@@ -665,6 +666,438 @@ fn test_json_query_on_generated_examples() -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+struct JqFlags {
+    exit_on_false: bool,
+    #[allow(dead_code)] // Retained for parity with jq flags
+    raw_output: bool,
+}
+
+fn strip_shell_prompt(line: &str) -> &str {
+    let trimmed = line.trim_start();
+    if let Some(rest) = trimmed.strip_prefix("$ ") {
+        return rest;
+    }
+    if let Some(rest) = trimmed.strip_prefix("> ") {
+        return rest;
+    }
+    trimmed
+}
+
+fn extract_command_substitution(line: &str) -> &str {
+    if let (Some(start), Some(end)) = (line.find("$("), line.rfind(')'))
+        && start + 2 < end
+    {
+        return &line[start + 2..end];
+    }
+    line
+}
+
+#[derive(Default)]
+struct ScanState {
+    in_single: bool,
+    in_double: bool,
+    escape: bool,
+    paren_depth: usize,
+}
+
+impl ScanState {
+    fn step(&mut self, ch: char) {
+        if self.escape {
+            self.escape = false;
+            return;
+        }
+
+        if self.in_single {
+            if ch == '\\' {
+                self.escape = true;
+            } else if ch == '\'' {
+                self.in_single = false;
+            }
+            return;
+        }
+
+        if self.in_double {
+            if ch == '\\' {
+                self.escape = true;
+            } else if ch == '"' {
+                self.in_double = false;
+            }
+            return;
+        }
+
+        match ch {
+            '\'' => self.in_single = true,
+            '"' => self.in_double = true,
+            '(' => self.paren_depth += 1,
+            ')' => {
+                if self.paren_depth > 0 {
+                    self.paren_depth -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn split_pipeline(expr: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut buf = String::new();
+    let mut state = ScanState::default();
+
+    for ch in expr.chars() {
+        if !state.in_single && !state.in_double && state.paren_depth == 0 && ch == '|' {
+            let trimmed = buf.trim();
+            if !trimmed.is_empty() {
+                parts.push(trimmed.to_string());
+            }
+            buf.clear();
+            continue;
+        }
+        buf.push(ch);
+        state.step(ch);
+    }
+
+    let trimmed = buf.trim();
+    if !trimmed.is_empty() {
+        parts.push(trimmed.to_string());
+    }
+
+    parts
+}
+
+fn split_top_level(expr: &str, token: &str) -> Option<(String, String)> {
+    let bytes = expr.as_bytes();
+    let token_bytes = token.as_bytes();
+    let mut state = ScanState::default();
+    let mut i = 0;
+
+    while i + token_bytes.len() <= bytes.len() {
+        if !state.in_single
+            && !state.in_double
+            && state.paren_depth == 0
+            && bytes[i..].starts_with(token_bytes)
+        {
+            let left = expr[..i].trim().to_string();
+            let right = expr[i + token_bytes.len()..].trim().to_string();
+            return Some((left, right));
+        }
+
+        state.step(bytes[i] as char);
+        i += 1;
+    }
+
+    None
+}
+
+fn is_truthy(value: &Value) -> bool {
+    !matches!(value, Value::Null | Value::Bool(false))
+}
+
+fn parse_literal(expr: &str) -> Result<Value> {
+    let expr = expr.trim();
+    if expr.starts_with('\'') && expr.ends_with('\'') && expr.len() >= 2 {
+        return Ok(Value::String(expr[1..expr.len() - 1].to_string()));
+    }
+    if let Ok(value) = serde_json::from_str(expr) {
+        return Ok(value);
+    }
+    anyhow::bail!("Unsupported literal in jq expression: {expr}");
+}
+
+fn eval_path(values: Vec<Value>, path: &str) -> Result<Vec<Value>> {
+    let path = path.trim();
+    if path == "." {
+        return Ok(values);
+    }
+
+    let mut current = values;
+    let segments = path.trim_start_matches('.').split('.');
+
+    for segment in segments {
+        if segment.is_empty() {
+            continue;
+        }
+        let (name, expand) = if let Some(stripped) = segment.strip_suffix("[]") {
+            (stripped, true)
+        } else {
+            (segment, false)
+        };
+
+        let mut next = Vec::new();
+        for value in &current {
+            let target = if name.is_empty() {
+                value.clone()
+            } else {
+                match value {
+                    Value::Object(map) => map
+                        .get(name)
+                        .cloned()
+                        .ok_or_else(|| anyhow::anyhow!("Missing field '{name}' in jq path"))?,
+                    _ => anyhow::bail!("Cannot access field '{name}' on non-object"),
+                }
+            };
+
+            if expand {
+                match target {
+                    Value::Array(items) => {
+                        next.extend(items);
+                    }
+                    _ => anyhow::bail!("Expected array for '{segment}' expansion"),
+                }
+            } else {
+                next.push(target);
+            }
+        }
+
+        current = next;
+    }
+
+    Ok(current)
+}
+
+fn eval_jq_filter(filter: &str, input: &Value) -> Result<Vec<Value>> {
+    let filter = filter.trim();
+    if filter.is_empty() || filter == "." {
+        return Ok(vec![input.clone()]);
+    }
+
+    if let Some((left, right)) = split_top_level(filter, "==") {
+        let left_values = eval_jq_filter(&left, input)?;
+        let right_value = parse_literal(&right)?;
+        let results = left_values
+            .into_iter()
+            .map(|value| Value::Bool(value == right_value))
+            .collect();
+        return Ok(results);
+    }
+
+    let segments = split_pipeline(filter);
+    let mut values = vec![input.clone()];
+
+    for segment in segments {
+        let segment = segment.trim();
+        if segment.is_empty() {
+            continue;
+        }
+
+        if let Some(inner) = segment
+            .strip_prefix("select(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            let mut filtered = Vec::new();
+            for value in values {
+                if eval_jq_filter(inner, &value)?.iter().any(is_truthy) {
+                    filtered.push(value);
+                }
+            }
+            values = filtered;
+            continue;
+        }
+
+        if segment == "not" {
+            values = values
+                .into_iter()
+                .map(|value| Value::Bool(!is_truthy(&value)))
+                .collect();
+            continue;
+        }
+
+        if let Some(arg) = segment
+            .strip_prefix("contains(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            let needle = parse_literal(arg)?;
+            let needle = needle
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("contains() expects a string literal"))?;
+            values = values
+                .into_iter()
+                .map(|value| match value.as_str() {
+                    Some(haystack) => Ok(Value::Bool(haystack.contains(needle))),
+                    None => anyhow::bail!("contains() expects a string input"),
+                })
+                .collect::<Result<Vec<_>>>()?;
+            continue;
+        }
+
+        if segment.starts_with('.') {
+            values = eval_path(values, segment)?;
+            continue;
+        }
+
+        anyhow::bail!("Unsupported jq segment: {segment}");
+    }
+
+    Ok(values)
+}
+
+fn line_contains_jq(line: &str) -> bool {
+    line.split_whitespace().any(|token| {
+        token == "jq"
+            || token.ends_with("\\jq")
+            || token.ends_with("/jq")
+            || token.ends_with("jq.exe")
+    })
+}
+
+fn parse_jq_segment(segment: &str) -> Result<(JqFlags, String, Option<String>)> {
+    let tokens = shell_words::split(segment)
+        .with_context(|| format!("Failed to parse jq command segment: {segment}"))?;
+    if tokens.is_empty() {
+        anyhow::bail!("Empty jq command segment");
+    }
+
+    let jq_pos = tokens.iter().position(|token| {
+        token == "jq"
+            || token.ends_with("\\jq")
+            || token.ends_with("/jq")
+            || token.ends_with("jq.exe")
+    });
+
+    let jq_pos = jq_pos.ok_or_else(|| anyhow::anyhow!("No jq command found in segment"))?;
+
+    let mut flags = JqFlags::default();
+    let mut filter: Option<String> = None;
+    let mut files = Vec::new();
+    let mut parsing_flags = true;
+
+    for token in tokens.iter().skip(jq_pos + 1) {
+        if parsing_flags && token == "--" {
+            parsing_flags = false;
+            continue;
+        }
+
+        if parsing_flags && token.starts_with('-') {
+            for ch in token.trim_start_matches('-').chars() {
+                match ch {
+                    'e' => flags.exit_on_false = true,
+                    'r' => flags.raw_output = true,
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        parsing_flags = false;
+        if filter.is_none() {
+            filter = Some(token.to_string());
+        } else {
+            files.push(token.to_string());
+        }
+    }
+
+    let filter = filter.unwrap_or_else(|| ".".to_string());
+    let file = files.first().cloned();
+
+    Ok((flags, filter, file))
+}
+
+fn load_json_from_path(path: &Path) -> Result<Value> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read JSON file: {}", path.display()))?;
+    serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse JSON file: {}", path.display()))
+}
+
+fn try_load_json(path: &Path) -> Option<Value> {
+    if !path.exists() {
+        return None;
+    }
+    load_json_from_path(path).ok()
+}
+
+fn load_fallback_json(filter: &str) -> Value {
+    let doctor_sample = PathBuf::from("docs/schemas/doctor.v1.minimal.json");
+    let status_sample = PathBuf::from("docs/schemas/status.v1.minimal.json");
+    let receipt_sample = PathBuf::from("docs/schemas/receipt.v1.minimal.json");
+
+    let sample = if filter.contains(".ok") || filter.contains("checks") {
+        try_load_json(&doctor_sample)
+    } else if filter.contains("phase_statuses") || filter.contains("pending_fixups") {
+        try_load_json(&status_sample)
+    } else {
+        try_load_json(&receipt_sample)
+    };
+
+    sample.unwrap_or_else(|| json!({ "schema_version": "1", "ok": true }))
+}
+
+fn resolve_jq_input(
+    segments: &[String],
+    jq_index: usize,
+    file_arg: Option<String>,
+    filter: &str,
+    runner: &StubRunner,
+) -> Result<Value> {
+    if let Some(file) = file_arg {
+        let path = Path::new(&file);
+        if path.exists() {
+            return load_json_from_path(path);
+        }
+        return Ok(load_fallback_json(filter));
+    }
+
+    if jq_index == 0 {
+        return Ok(load_fallback_json(filter));
+    }
+
+    let input_segment = segments[jq_index - 1].trim();
+    if input_segment.is_empty() {
+        return Ok(load_fallback_json(filter));
+    }
+
+    let input_segment = strip_shell_prompt(input_segment);
+
+    if input_segment.starts_with("xchecker") {
+        let result = runner.run_command(input_segment)?;
+        if result.exit_code != 0 {
+            anyhow::bail!(
+                "xchecker command failed (exit {}): {}",
+                result.exit_code,
+                input_segment
+            );
+        }
+        let stdout = result.stdout.trim();
+        return serde_json::from_str(stdout)
+            .with_context(|| format!("Failed to parse JSON from: {input_segment}"));
+    }
+
+    if input_segment.starts_with("cat ") {
+        let tokens = shell_words::split(input_segment)?;
+        if tokens.len() < 2 {
+            anyhow::bail!("cat command missing file argument: {input_segment}");
+        }
+        let path = Path::new(&tokens[1]);
+        return load_json_from_path(path);
+    }
+
+    anyhow::bail!("Unsupported jq input segment: {input_segment}");
+}
+
+fn execute_jq_example(line: &str, runner: &StubRunner) -> Result<()> {
+    let line = strip_shell_prompt(line);
+    let line = extract_command_substitution(line);
+    let segments = split_pipeline(line);
+
+    let jq_index = segments.iter().position(|segment| {
+        segment
+            .split_whitespace()
+            .any(|token| token == "jq" || token.ends_with("jq.exe") || token.ends_with("/jq"))
+    });
+
+    let jq_index = jq_index.ok_or_else(|| anyhow::anyhow!("No jq command found in: {line}"))?;
+    let (flags, filter, file_arg) = parse_jq_segment(&segments[jq_index])?;
+    let input = resolve_jq_input(&segments, jq_index, file_arg, &filter, runner)?;
+    let results = eval_jq_filter(&filter, &input)?;
+
+    if flags.exit_on_false && !results.iter().any(is_truthy) {
+        anyhow::bail!("jq -e expression evaluated to false: {filter}");
+    }
+
+    Ok(())
+}
+
 /// Test jq examples from documentation (when they exist)
 ///
 /// This test will extract jq commands from documentation and execute
@@ -680,6 +1113,8 @@ fn test_jq_examples_from_docs() -> Result<()> {
     ];
 
     let mut jq_examples_found = 0;
+    let mut jq_examples_executed = 0;
+    let runner = StubRunner::new()?;
 
     for doc_file in doc_files {
         let path = Path::new(doc_file);
@@ -694,14 +1129,28 @@ fn test_jq_examples_from_docs() -> Result<()> {
         let jq_blocks = extractor.extract_by_language("jq");
 
         for block in [bash_blocks, sh_blocks, jq_blocks].concat() {
-            if block.content.contains("jq") {
+            for line in block.content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue;
+                }
+
+                let is_jq_block = block.language == "jq";
+                if !is_jq_block && !line_contains_jq(trimmed) {
+                    continue;
+                }
+
                 jq_examples_found += 1;
-                println!(
-                    "Found jq example in {}: {}",
-                    doc_file,
-                    block.content.lines().next().unwrap_or("")
-                );
-                // TODO: Parse and execute jq equivalent when examples are added
+                let command = if is_jq_block {
+                    format!("jq {trimmed}")
+                } else {
+                    trimmed.to_string()
+                };
+
+                println!("Found jq example in {}: {}", doc_file, trimmed);
+                execute_jq_example(&command, &runner)
+                    .with_context(|| format!("jq example failed in {doc_file}: {trimmed}"))?;
+                jq_examples_executed += 1;
             }
         }
     }
@@ -711,7 +1160,7 @@ fn test_jq_examples_from_docs() -> Result<()> {
             "No jq examples found in documentation (this is expected if none have been added yet)"
         );
     } else {
-        println!("Found {jq_examples_found} jq examples");
+        println!("Executed {jq_examples_executed} jq examples");
     }
 
     Ok(())

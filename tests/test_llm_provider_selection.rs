@@ -15,12 +15,26 @@
 //! These tests ensure the multi-provider configuration works correctly
 //! in V14 with claude-cli, gemini-cli, openrouter, and anthropic supported.
 
+use std::path::Path;
 use xchecker::config::{CliArgs, Config};
 use xchecker::error::{ConfigError, XCheckerError};
 
 // Canonical list of supported LLM providers for xchecker v1.0
 // Update this list and corresponding tests when adding new providers
 const SUPPORTED_PROVIDERS: &[&str] = &["claude-cli", "gemini-cli", "openrouter", "anthropic"];
+
+/// Creates a temp workspace with .xchecker directory and writes a config file
+fn with_temp_config<F, R>(config_content: &str, f: F) -> R
+where
+    F: FnOnce(&Path) -> R,
+{
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let xchecker_dir = temp_dir.path().join(".xchecker");
+    std::fs::create_dir_all(&xchecker_dir).expect("Failed to create .xchecker dir");
+    let config_path = xchecker_dir.join("config.toml");
+    std::fs::write(&config_path, config_content).expect("Failed to write config");
+    f(&config_path)
+}
 
 // ===== Provider Validation Tests =====
 
@@ -100,53 +114,75 @@ fn test_provider_gemini_cli_accepted() {
 #[test]
 fn test_provider_openrouter_accepted() {
     // Setup: Create config with openrouter provider (supported in V13+)
-    let cli_args = CliArgs {
-        llm_provider: Some("openrouter".to_string()),
-        ..Default::default()
-    };
+    // HTTP providers require a model to be configured via config file
+    let config_content = r#"
+[llm]
+provider = "openrouter"
 
-    // Execute: Try to discover config
-    let result = Config::discover(&cli_args);
+[llm.openrouter]
+model = "anthropic/claude-3.5-sonnet"
+"#;
 
-    // Verify: Should succeed (openrouter is now supported)
-    assert!(
-        result.is_ok(),
-        "openrouter provider should be accepted in V13.1, got: {:?}",
-        result.as_ref().err()
-    );
+    with_temp_config(config_content, |config_path| {
+        let cli_args = CliArgs {
+            config_path: Some(config_path.to_path_buf()),
+            ..Default::default()
+        };
 
-    let config = result.unwrap();
-    assert_eq!(
-        config.llm.provider,
-        Some("openrouter".to_string()),
-        "Provider should be set to openrouter"
-    );
+        // Execute: Try to discover config
+        let result = Config::discover(&cli_args);
+
+        // Verify: Should succeed (openrouter is now supported)
+        assert!(
+            result.is_ok(),
+            "openrouter provider should be accepted in V13.1, got: {:?}",
+            result.as_ref().err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(
+            config.llm.provider,
+            Some("openrouter".to_string()),
+            "Provider should be set to openrouter"
+        );
+    });
 }
 
 #[test]
 fn test_provider_anthropic_accepted() {
     // Setup: Create config with anthropic provider (supported in V14)
-    let cli_args = CliArgs {
-        llm_provider: Some("anthropic".to_string()),
-        ..Default::default()
-    };
+    // HTTP providers require a model to be configured via config file
+    let config_content = r#"
+[llm]
+provider = "anthropic"
 
-    // Execute: Try to discover config
-    let result = Config::discover(&cli_args);
+[llm.anthropic]
+model = "claude-3-5-sonnet-20241022"
+"#;
 
-    // Verify: Should succeed (anthropic is now supported in V14)
-    assert!(
-        result.is_ok(),
-        "anthropic provider should be accepted in V14, got: {:?}",
-        result.as_ref().err()
-    );
+    with_temp_config(config_content, |config_path| {
+        let cli_args = CliArgs {
+            config_path: Some(config_path.to_path_buf()),
+            ..Default::default()
+        };
 
-    let config = result.unwrap();
-    assert_eq!(
-        config.llm.provider,
-        Some("anthropic".to_string()),
-        "Provider should be set to anthropic"
-    );
+        // Execute: Try to discover config
+        let result = Config::discover(&cli_args);
+
+        // Verify: Should succeed (anthropic is now supported in V14)
+        assert!(
+            result.is_ok(),
+            "anthropic provider should be accepted in V14, got: {:?}",
+            result.as_ref().err()
+        );
+
+        let config = result.unwrap();
+        assert_eq!(
+            config.llm.provider,
+            Some("anthropic".to_string()),
+            "Provider should be set to anthropic"
+        );
+    });
 }
 
 #[test]
@@ -154,12 +190,48 @@ fn test_all_supported_providers_are_accepted() {
     // Iterate over the canonical list of supported providers
     // and verify each one is accepted by config validation
     for provider in SUPPORTED_PROVIDERS {
-        let cli_args = CliArgs {
-            llm_provider: Some(provider.to_string()),
-            ..Default::default()
+        // HTTP providers (openrouter, anthropic) require a model via config file
+        let config_content = match *provider {
+            "openrouter" => Some(
+                r#"
+[llm]
+provider = "openrouter"
+
+[llm.openrouter]
+model = "anthropic/claude-3.5-sonnet"
+"#
+                .to_string(),
+            ),
+            "anthropic" => Some(
+                r#"
+[llm]
+provider = "anthropic"
+
+[llm.anthropic]
+model = "claude-3-5-sonnet-20241022"
+"#
+                .to_string(),
+            ),
+            _ => None,
         };
 
-        let result = Config::discover(&cli_args);
+        let result = if let Some(content) = config_content {
+            // HTTP providers need config file for model
+            with_temp_config(&content, |config_path| {
+                let cli_args = CliArgs {
+                    config_path: Some(config_path.to_path_buf()),
+                    ..Default::default()
+                };
+                Config::discover(&cli_args)
+            })
+        } else {
+            // CLI providers can use direct CLI args
+            let cli_args = CliArgs {
+                llm_provider: Some(provider.to_string()),
+                ..Default::default()
+            };
+            Config::discover(&cli_args)
+        };
 
         assert!(
             result.is_ok(),

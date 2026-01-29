@@ -1,0 +1,181 @@
+1:use std::path::PathBuf;
+6:use crate::paths::{SandboxConfig, SandboxError, SandboxPath, SandboxRoot};
+8:use super::model::{DiffHunk, FixupMode, UnifiedDiff};
+14:/// `FixupParser` uses `SandboxRoot` to validate all target paths before any file operations.
+17:/// - Absolute paths are rejected
+21:/// All path validation happens through `SandboxRoot::join()` which provides
+23:pub struct FixupParser {
+26:    /// Sandboxed root directory for resolving and validating relative paths
+28:}
+30:impl FixupParser {
+42:    pub fn new(mode: FixupMode, base_dir: PathBuf) -> Result<Self, FixupError> {
+43:        let sandbox_root = SandboxRoot::new(&base_dir, SandboxConfig::default()).map_err(|e| {
+44:            FixupError::CanonicalizationError(format!("Failed to create sandbox root: {e}"))
+45:        })?;
+46:        Ok(Self { mode, sandbox_root })
+47:    }
+64:    ) -> Result<Self, FixupError> {
+65:        let sandbox_root = SandboxRoot::new(&base_dir, config).map_err(|e| {
+66:            FixupError::CanonicalizationError(format!("Failed to create sandbox root: {e}"))
+67:        })?;
+68:        Ok(Self { mode, sandbox_root })
+69:    }
+71:    /// Get the sandbox root path.
+73:    pub fn base_dir(&self) -> &std::path::Path {
+74:        self.sandbox_root.as_path()
+75:    }
+77:    /// Validate and resolve a target path within the sandbox.
+79:    /// This method uses `SandboxRoot::join()` to validate the path, ensuring:
+80:    /// - The path is relative (not absolute)
+81:    /// - The path doesn't contain `..` traversal components
+82:    /// - The path doesn't escape the sandbox root
+83:    /// - The path isn't a symlink (unless configured to allow)
+84:    /// - The path isn't a hardlink (unless configured to allow)
+88:    /// * `target_file` - The relative path to validate
+93:    pub(super) fn validate_target_path(
+96:    ) -> Result<SandboxPath, FixupError> {
+97:        self.sandbox_root.join(target_file).map_err(|e| match e {
+98:            SandboxError::AbsolutePath { path } => FixupError::AbsolutePath(PathBuf::from(path)),
+99:            SandboxError::ParentTraversal { path } => {
+100:                FixupError::ParentDirEscape(PathBuf::from(path))
+101:            }
+102:            SandboxError::EscapeAttempt { path, .. } => {
+103:                FixupError::OutsideRepo(PathBuf::from(path))
+104:            }
+105:            SandboxError::SymlinkNotAllowed { path } => {
+106:                FixupError::SymlinkNotAllowed(PathBuf::from(path))
+107:            }
+108:            SandboxError::HardlinkNotAllowed { path } => {
+109:                FixupError::HardlinkNotAllowed(PathBuf::from(path))
+110:            }
+111:            SandboxError::RootNotFound { path } => SandboxError::RootNotDirectory { path } => {
+112:                FixupError::CanonicalizationError(format!("Invalid sandbox root: {path}"))
+113:            }
+114:            SandboxError::RootCanonicalizationFailed { path, reason }
+115:            | SandboxError::PathCanonicalizationFailed { path, reason } => {
+117:                    "Failed to canonicalize {path}: {reason}"
+119:            }
+120:        })
+121:    }
+125:    pub fn has_fixup_markers(&self, content: &str) -> bool {
+127:    }
+132:    pub fn detect_fixup_markers(&self, content: &str) -> Option<String> {
+137:        if let Some(mat) = fixup_plan_regex.find(content) {
+139:        }
+141:        if let Some(mat) = needs_fixups_regex.find(content) {
+143:        }
+146:    }
+149:    pub fn parse_diffs(&self, content: &str) -> Result<Vec<UnifiedDiff>, FixupError> {
+156:        if diffs.is_empty() {
+158:        }
+161:    }
+164:    fn extract_diff_blocks(&self, content: &str) -> Result<Vec<UnifiedDiff>, FixupError> {
+171:        for (block_index, captures) in diff_block_regex.captures_iter(content).enumerate() {
+174:                .ok_or_else(|| FixupError::InvalidDiffFormat {
+177:                })?
+180:            match self.parse_unified_diff(diff_content, block_index) {
+181:                Ok(diff) => diffs.push(diff),
+182:                Err(e) => {
+184:                    tracing::warn!("Failed to parse diff block {block_index}: {e}");
+185:                }
+186:            }
+187:        }
+190:    }
+197:    ) -> Result<UnifiedDiff, FixupError> {
+200:        if lines.is_empty() {
+201:            return Err(FixupError::InvalidDiffFormat {
+204:            });
+205:        }
+212:        for (i, line) in lines.iter().enumerate() {
+213:            if let Some(rest) = line.strip_prefix("--- ") {
+215:            } else if let Some(rest) = line.strip_prefix("+++ ") {
+219:            }
+220:        }
+224:            .ok_or_else(|| FixupError::InvalidDiffFormat {
+227:            })?;
+230:        let target_file = if target_file.starts_with("a/") || target_file.starts_with("b/") {
+232:        } else {
+234:        };
+239:        Ok(UnifiedDiff {
+240:            path: target_file.to_string(),
+244:        })
+245:    }
+248:    fn parse_hunks(&self, lines: &[&str], block_index: usize) -> Result<Vec<DiffHunk>, FixupError> {
+256:        for line in lines {
+257:            if let Some(captures) = hunk_header_regex.captures(line) {
+259:                if let Some((old_range, new_range)) = current_hunk_header {
+260:                    hunks.push(DiffHunk {
+277:                    });
+278:                }
+281:                let old_start: usize = captures.get(1).unwrap().as_str().parse().map_err(|_| {
+282:                    FixupError::InvalidDiffFormat {
+285:                    }
+286:                })?;
+292:                let new_start: usize = captures.get(3).unwrap().as_str().parse().map_err(|_| {
+293:                    FixupError::InvalidDiffFormat {
+296:                    }
+297:                })?;
+305:            } else {
+308:            }
+309:        }
+312:        if let Some((old_range, new_range)) = current_hunk_header {
+313:            hunks.push(DiffHunk {
+330:            });
+331:        }
+334:    }
+335:}
+338:mod tests {
+343:    fn test_detect_fixup_markers() {
+345:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+358:    }
+361:    fn test_parse_simple_diff() {
+363:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+373:fn main() {
+376:}
+384:    }
+387:    fn test_parse_multiple_hunks() {
+389:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+399:pub fn foo() {
+402:}
+404:pub fn bar() {
+407:}
+427:    }
+430:    fn test_parse_multiple_diffs() {
+432:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+442:fn main() {
+444:}
+451:pub fn test() {
+453:}
+461:    }
+464:    fn test_parse_diff_without_git_prefix() {
+466:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+475:fn main() {
+477:}
+484:    }
+487:    fn test_parse_diff_with_git_prefix() {
+489:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+498:fn main() {
+500:}
+507:    }
+510:    fn test_hunk_range_parsing() {
+512:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+544:    }
+547:    fn test_empty_diff_block() {
+549:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+562:    }
+565:    fn test_malformed_hunk_header() {
+567:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+583:    }
+586:    fn test_no_fixup_markers() {
+588:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+598:    }
+601:    fn test_case_insensitive_fixup_markers() {
+603:        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+617:    }
+618:}
+SandboxError::RootNotFound
+ path 
+=>
+SandboxError::RootNotDirectory
+ path 
+=>

@@ -1,91 +1,34 @@
 use super::model::FixupMode;
 use super::parse::FixupParser;
+use crate::gate::{PendingFixupsResult, PendingFixupsStats};
+use crate::orchestrator::OrchestratorHandle;
+use std::path::PathBuf;
 
-/// Summary of pending fixups for a spec
-#[derive(Debug, Clone, Default)]
-pub struct PendingFixupsStats {
-    /// Number of target files with pending changes
-    pub targets: u32,
-    /// Estimated lines to be added
-    pub est_added: u32,
-    /// Estimated lines to be removed
-    pub est_removed: u32,
-}
-
-/// Result of attempting to determine pending fixups state
+/// Get pending fixups result for a spec by ID
 ///
-/// This tri-state result allows callers to distinguish between:
-/// - No fixups needed (None)
-/// - Fixups found (Some(stats))
-/// - Unable to determine (Unknown) - e.g., corrupted review artifact
-#[derive(Debug, Clone)]
-pub enum PendingFixupsResult {
-    /// No fixups are pending (review completed, no markers, or review not done yet)
-    None,
-    /// Fixups are pending with the given statistics
-    Some(PendingFixupsStats),
-    /// Unable to determine fixup state (e.g., markers present but parse failed)
-    Unknown {
-        /// Reason why fixups state couldn't be determined
-        reason: String,
-    },
-}
-
-impl PendingFixupsResult {
-    /// Check if there are definitely no pending fixups
-    #[must_use]
-    pub fn is_none(&self) -> bool {
-        matches!(self, Self::None)
-    }
-
-    /// Check if fixups are definitely pending
-    #[must_use]
-    pub fn is_some(&self) -> bool {
-        matches!(self, Self::Some(_))
-    }
-
-    /// Check if the fixup state is unknown/indeterminate
-    #[must_use]
-    pub fn is_unknown(&self) -> bool {
-        matches!(self, Self::Unknown { .. })
-    }
-
-    /// Get the stats if fixups are pending
-    #[must_use]
-    pub fn stats(&self) -> Option<&PendingFixupsStats> {
-        match self {
-            Self::Some(stats) => Some(stats),
-            _ => Option::None,
-        }
-    }
-
-    /// Get the target count, or 0 if none/unknown
-    ///
-    /// Note: Use this only for display purposes. For gate checks,
-    /// use `is_unknown()` to detect indeterminate states.
-    #[must_use]
-    pub fn targets_or_zero(&self) -> u32 {
-        match self {
-            Self::Some(stats) => stats.targets,
-            _ => 0,
-        }
-    }
-
-    /// Convert to legacy PendingFixupsStats (for backward compatibility)
-    ///
-    /// Returns default stats (zeros) for None and Unknown states.
-    #[must_use]
-    pub fn into_stats(self) -> PendingFixupsStats {
-        match self {
-            Self::Some(stats) => stats,
-            _ => PendingFixupsStats::default(),
-        }
-    }
+/// This function reads the review artifact (`30-review.md`) for a given spec,
+/// parses any fixup markers, and returns a detailed result about pending changes.
+///
+/// # Arguments
+///
+/// * `spec_id` - The spec identifier to check for pending fixups
+///
+/// # Returns
+///
+/// Returns `PendingFixupsResult` which can distinguish between:
+/// - `None`: No review phase completed yet or no fixups needed
+/// - `Some(stats)`: Fixups are pending with specific statistics
+/// - `Unknown`: Error state (e.g., file read failed, parse failed)
+#[must_use]
+pub fn pending_fixups_result_for_spec(spec_id: &str) -> PendingFixupsResult {
+    // Resolve spec directory path: .xchecker/specs/<spec_id>
+    let spec_dir = PathBuf::from(".xchecker").join("specs").join(spec_id);
+    pending_fixups_result_impl(&spec_dir)
 }
 
 /// Count pending fixups for a spec by ID
 ///
-/// This function reads the review artifact (`30-review.md`) for the given spec,
+/// This function reads the review artifact (`30-review.md`) for a given spec,
 /// parses any fixup markers, and returns statistics about pending changes.
 ///
 /// # Arguments
@@ -94,7 +37,7 @@ impl PendingFixupsResult {
 ///
 /// # Returns
 ///
-/// Returns `PendingFixupsStats` with the number of target files and estimated
+/// Returns `PendingFixupsStats` with a number of target files and estimated
 /// line changes. Returns `Default` (all zeros) if no fixups are pending or
 /// if the review artifact doesn't exist.
 ///
@@ -103,76 +46,6 @@ impl PendingFixupsResult {
 #[must_use]
 pub fn pending_fixups_for_spec(spec_id: &str) -> PendingFixupsStats {
     pending_fixups_result_for_spec(spec_id).into_stats()
-}
-
-/// Count pending fixups using an `OrchestratorHandle`
-///
-/// This function uses the handle's artifact manager to locate the review artifact
-/// and parse fixup statistics.
-///
-/// # Arguments
-///
-/// * `handle` - A reference to an `OrchestratorHandle` for the spec
-///
-/// # Returns
-///
-/// Returns `PendingFixupsStats` with the number of target files and estimated
-/// line changes. Returns `Default` (all zeros) if no fixups are pending or
-/// if the review artifact doesn't exist.
-///
-/// Note: For gate checks, use `pending_fixups_result_from_handle` which can
-/// distinguish between "no fixups" and "unknown/error" states.
-#[must_use]
-pub fn pending_fixups_from_handle(
-    handle: &crate::orchestrator::OrchestratorHandle,
-) -> PendingFixupsStats {
-    pending_fixups_result_from_handle(handle).into_stats()
-}
-
-/// Get pending fixups result for a spec by ID (with error state)
-///
-/// This function reads the review artifact (`30-review.md`) for the given spec,
-/// parses any fixup markers, and returns a result that can distinguish between
-/// "no fixups", "fixups found", and "unknown/error" states.
-///
-/// # Arguments
-///
-/// * `spec_id` - The spec identifier to check for pending fixups
-///
-/// # Returns
-///
-/// Returns `PendingFixupsResult` which is one of:
-/// - `None` - No fixups pending (review not done, no markers, or empty)
-/// - `Some(stats)` - Fixups are pending with statistics
-/// - `Unknown { reason }` - Review has markers but parse failed (possible corruption)
-#[must_use]
-pub fn pending_fixups_result_for_spec(spec_id: &str) -> PendingFixupsResult {
-    let base_path = crate::paths::spec_root(spec_id);
-    pending_fixups_result_impl(base_path.as_std_path())
-}
-
-/// Get pending fixups result using an `OrchestratorHandle` (with error state)
-///
-/// This function uses the handle's artifact manager to locate the review artifact
-/// and parse fixup statistics, returning a result that can distinguish between
-/// "no fixups", "fixups found", and "unknown/error" states.
-///
-/// # Arguments
-///
-/// * `handle` - A reference to an `OrchestratorHandle` for the spec
-///
-/// # Returns
-///
-/// Returns `PendingFixupsResult` which is one of:
-/// - `None` - No fixups pending (review not done, no markers, or empty)
-/// - `Some(stats)` - Fixups are pending with statistics
-/// - `Unknown { reason }` - Review has markers but parse failed (possible corruption)
-#[must_use]
-pub fn pending_fixups_result_from_handle(
-    handle: &crate::orchestrator::OrchestratorHandle,
-) -> PendingFixupsResult {
-    let base_path = handle.artifact_manager().base_path();
-    pending_fixups_result_impl(base_path.as_std_path())
 }
 
 /// Internal implementation for counting pending fixups with result type
@@ -249,4 +122,25 @@ fn pending_fixups_result_impl(base_path: &std::path::Path) -> PendingFixupsResul
             }
         }
     }
+}
+
+/// Get pending fixups result from an OrchestratorHandle
+///
+/// This function provides a convenient wrapper for getting pending fixups
+/// from an `OrchestratorHandle` reference, which implements the
+/// `SpecDataProvider` trait.
+///
+/// # Arguments
+///
+/// * `handle` - A reference to an `OrchestratorHandle`
+///
+/// # Returns
+///
+/// Returns `PendingFixupsResult` which can distinguish between:
+/// - `None`: No review phase completed yet or no fixups needed
+/// - `Some(stats)`: Fixups are pending with specific statistics
+/// - `Unknown`: Error state (e.g., file read failed, parse failed)
+#[must_use]
+pub fn pending_fixups_result_from_handle(handle: &OrchestratorHandle) -> PendingFixupsResult {
+    pending_fixups_result_for_spec(handle.spec_id())
 }

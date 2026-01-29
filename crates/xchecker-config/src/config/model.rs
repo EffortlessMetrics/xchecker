@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use xchecker_selectors::Selectors;
 use xchecker_utils::types::ConfigSource;
 
 /// Default timeout for hook execution in seconds
@@ -108,7 +109,7 @@ impl HooksConfig {
 /// # Discovery
 ///
 /// Use [`Config::discover()`] for CLI-like behavior that:
-/// - Searches for `.xchecker/config.toml` upward from the current directory
+/// - Searches for `.xchecker/config.toml` upward from current directory
 /// - Respects the `XCHECKER_HOME` environment variable
 /// - Applies built-in defaults for unspecified values
 ///
@@ -234,99 +235,6 @@ pub struct LlmConfig {
     pub prompt_template: Option<String>,
 }
 
-/// Prompt template types for provider-specific optimizations
-///
-/// Templates define how prompts are structured for different LLM providers.
-/// Some templates are optimized for specific providers and may not work
-/// correctly with others.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PromptTemplate {
-    /// Universal template compatible with all providers
-    /// Uses a simple message format that works across all backends
-    Default,
-    /// Optimized for Claude CLI and Anthropic API
-    /// Uses Claude-specific formatting like XML tags and system prompts
-    ClaudeOptimized,
-    /// Optimized for OpenRouter and OpenAI-compatible APIs
-    /// Uses OpenAI-style message formatting
-    OpenAiCompatible,
-}
-
-impl PromptTemplate {
-    /// Parse a template name string into a PromptTemplate
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the template name is not recognized.
-    pub fn parse(s: &str) -> Result<Self, String> {
-        match s.to_lowercase().as_str() {
-            "default" => Ok(Self::Default),
-            "claude-optimized" | "claude_optimized" | "claude" => Ok(Self::ClaudeOptimized),
-            "openai-compatible" | "openai_compatible" | "openai" | "openrouter" => {
-                Ok(Self::OpenAiCompatible)
-            }
-            _ => Err(format!(
-                "Unknown prompt template '{}'. Available templates: default, claude-optimized, openai-compatible",
-                s
-            )),
-        }
-    }
-
-    /// Check if this template is compatible with the given provider
-    ///
-    /// Returns `Ok(())` if compatible, or an error message explaining the incompatibility.
-    pub fn validate_provider_compatibility(&self, provider: &str) -> Result<(), String> {
-        match (self, provider) {
-            // Default template is compatible with all providers
-            (Self::Default, _) => Ok(()),
-
-            // Claude-optimized template is compatible with Claude CLI and Anthropic
-            (Self::ClaudeOptimized, "claude-cli" | "anthropic") => Ok(()),
-            (Self::ClaudeOptimized, provider) => Err(format!(
-                "Prompt template 'claude-optimized' is not compatible with provider '{}'. \
-                 This template uses Claude-specific formatting (XML tags, system prompts) \
-                 that may not work correctly with other providers. \
-                 Compatible providers: claude-cli, anthropic. \
-                 Use 'default' template for cross-provider compatibility.",
-                provider
-            )),
-
-            // OpenAI-compatible template is compatible with OpenRouter and Gemini
-            (Self::OpenAiCompatible, "openrouter" | "gemini-cli") => Ok(()),
-            (Self::OpenAiCompatible, provider) => Err(format!(
-                "Prompt template 'openai-compatible' is not compatible with provider '{}'. \
-                 This template uses OpenAI-style message formatting that may not work \
-                 correctly with Claude-specific providers. \
-                 Compatible providers: openrouter, gemini-cli. \
-                 Use 'default' template for cross-provider compatibility.",
-                provider
-            )),
-        }
-    }
-
-    /// Get the template name as a string
-    #[must_use]
-    #[allow(dead_code)] // Public API for template introspection
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Default => "default",
-            Self::ClaudeOptimized => "claude-optimized",
-            Self::OpenAiCompatible => "openai-compatible",
-        }
-    }
-
-    /// Get a list of providers compatible with this template
-    #[must_use]
-    #[allow(dead_code)] // Public API for template introspection
-    pub const fn compatible_providers(&self) -> &'static [&'static str] {
-        match self {
-            Self::Default => &["claude-cli", "gemini-cli", "openrouter", "anthropic"],
-            Self::ClaudeOptimized => &["claude-cli", "anthropic"],
-            Self::OpenAiCompatible => &["openrouter", "gemini-cli"],
-        }
-    }
-}
-
 /// Claude CLI provider configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClaudeConfig {
@@ -369,17 +277,10 @@ pub struct AnthropicConfig {
     pub temperature: Option<f32>,
 }
 
-/// Content selection configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Selectors {
-    pub include: Vec<String>,
-    pub exclude: Vec<String>,
-}
-
 /// Per-phase configuration overrides
 ///
 /// Allows configuring model, timeout, and max_turns on a per-phase basis.
-/// Values set here override the global defaults for that specific phase.
+/// Values set here override global defaults for that specific phase.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct PhaseConfig {
     /// Model to use for this phase (overrides defaults.model)

@@ -24,7 +24,7 @@ pub struct FixupParser {
     /// Operating mode (preview or apply)
     pub mode: FixupMode,
     /// Sandboxed root directory for resolving and validating relative paths
-    sandbox_root: SandboxRoot,
+    pub sandbox_root: SandboxRoot,
 }
 
 impl FixupParser {
@@ -33,11 +33,11 @@ impl FixupParser {
     /// # Arguments
     ///
     /// * `mode` - The operating mode (preview or apply)
-    /// * `base_dir` - The base directory to use as the sandbox root
+    /// * `base_dir` - The base directory to use as a sandbox root
     ///
     /// # Errors
     ///
-    /// Returns an error if the base directory cannot be used as a sandbox root
+    /// Returns an error if base directory cannot be used as a sandbox root
     /// (e.g., doesn't exist, isn't a directory, or can't be canonicalized).
     pub fn new(mode: FixupMode, base_dir: PathBuf) -> Result<Self, FixupError> {
         let sandbox_root = SandboxRoot::new(&base_dir, SandboxConfig::default()).map_err(|e| {
@@ -51,12 +51,12 @@ impl FixupParser {
     /// # Arguments
     ///
     /// * `mode` - The operating mode (preview or apply)
-    /// * `base_dir` - The base directory to use as the sandbox root
+    /// * `base_dir` - The base directory to use as a sandbox root
     /// * `config` - Custom sandbox configuration (e.g., to allow symlinks)
     ///
     /// # Errors
     ///
-    /// Returns an error if the base directory cannot be used as a sandbox root.
+    /// Returns an error if base directory cannot be used as a sandbox root.
     pub fn with_config(
         mode: FixupMode,
         base_dir: PathBuf,
@@ -111,8 +111,12 @@ impl FixupParser {
             SandboxError::RootNotFound { path } | SandboxError::RootNotDirectory { path } => {
                 FixupError::CanonicalizationError(format!("Invalid sandbox root: {path}"))
             }
-            SandboxError::RootCanonicalizationFailed { path, reason }
-            | SandboxError::PathCanonicalizationFailed { path, reason } => {
+            SandboxError::RootCanonicalizationFailed { path, reason } => {
+                FixupError::CanonicalizationError(format!(
+                    "Failed to canonicalize {path}: {reason}"
+                ))
+            }
+            SandboxError::PathCanonicalizationFailed { path, reason } => {
                 FixupError::CanonicalizationError(format!(
                     "Failed to canonicalize {path}: {reason}"
                 ))
@@ -120,14 +124,14 @@ impl FixupParser {
         })
     }
 
-    /// Detect if the review output contains fixup markers
+    /// Detect if review output contains fixup markers.
     #[must_use]
     pub fn has_fixup_markers(&self, content: &str) -> bool {
         self.detect_fixup_markers(content).is_some()
     }
 
-    /// Detect fixup markers in review output
-    /// Returns the content after the first marker if found
+    /// Detect fixup markers in review output.
+    /// Returns the content after the first marker if found.
     #[must_use]
     pub fn detect_fixup_markers(&self, content: &str) -> Option<String> {
         // Look for "FIXUP PLAN:" or "needs fixups" markers
@@ -145,7 +149,7 @@ impl FixupParser {
         None
     }
 
-    /// Parse unified diff blocks from fixup content
+    /// Parse unified diff blocks from fixup content.
     pub fn parse_diffs(&self, content: &str) -> Result<Vec<UnifiedDiff>, FixupError> {
         let fixup_content = self
             .detect_fixup_markers(content)
@@ -160,7 +164,7 @@ impl FixupParser {
         Ok(diffs)
     }
 
-    /// Extract diff blocks from fenced code blocks
+    /// Extract diff blocks from fenced code blocks.
     fn extract_diff_blocks(&self, content: &str) -> Result<Vec<UnifiedDiff>, FixupError> {
         let mut diffs = Vec::new();
 
@@ -180,7 +184,7 @@ impl FixupParser {
             match self.parse_unified_diff(diff_content, block_index) {
                 Ok(diff) => diffs.push(diff),
                 Err(e) => {
-                    // Log the error but continue processing other blocks
+                    // Log error but continue processing other blocks
                     tracing::warn!("Failed to parse diff block {block_index}: {e}");
                 }
             }
@@ -189,7 +193,7 @@ impl FixupParser {
         Ok(diffs)
     }
 
-    /// Parse a single unified diff block
+    /// Parse a single unified diff block.
     fn parse_unified_diff(
         &self,
         diff_content: &str,
@@ -204,7 +208,7 @@ impl FixupParser {
             });
         }
 
-        // Find the --- and +++ headers
+        // Find --- and +++ headers
         let mut old_file = None;
         let mut new_file = None;
         let mut header_end = 0;
@@ -237,19 +241,21 @@ impl FixupParser {
         let hunks = self.parse_hunks(&lines[header_end..], block_index)?;
 
         Ok(UnifiedDiff {
+            path: target_file.to_string(),
             target_file: target_file.to_string(),
             diff_content: diff_content.to_string(),
             hunks,
         })
     }
 
-    /// Parse hunks from diff lines
+    /// Parse hunks from diff lines.
     fn parse_hunks(&self, lines: &[&str], block_index: usize) -> Result<Vec<DiffHunk>, FixupError> {
         let mut hunks = Vec::new();
-        let mut current_hunk_lines = Vec::new();
-        let mut current_hunk_header = None;
+        let mut current_hunk_lines: Vec<String> = Vec::new();
+        let mut current_hunk_header: Option<((usize, usize), (usize, usize))> = None;
 
         // Regex to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
+        // Note: Optional count groups must come after their respective start numbers
         let hunk_header_regex = Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@").unwrap();
 
         for line in lines {
@@ -257,6 +263,19 @@ impl FixupParser {
                 // Save previous hunk if exists
                 if let Some((old_range, new_range)) = current_hunk_header {
                     hunks.push(DiffHunk {
+                        start: old_range.0,
+                        remove_count: old_range.1,
+                        add_count: new_range.1,
+                        remove_lines: current_hunk_lines
+                            .iter()
+                            .filter(|line| line.starts_with('-'))
+                            .map(|line| line[1..].to_string())
+                            .collect(),
+                        add_lines: current_hunk_lines
+                            .iter()
+                            .filter(|line| line.starts_with('+'))
+                            .map(|line| line[1..].to_string())
+                            .collect(),
                         old_range,
                         new_range,
                         content: current_hunk_lines.join("\n"),
@@ -297,6 +316,19 @@ impl FixupParser {
         // Save last hunk if exists
         if let Some((old_range, new_range)) = current_hunk_header {
             hunks.push(DiffHunk {
+                start: old_range.0,
+                remove_count: old_range.1,
+                add_count: new_range.1,
+                remove_lines: current_hunk_lines
+                    .iter()
+                    .filter(|line| line.starts_with('-'))
+                    .map(|line| line[1..].to_string())
+                    .collect(),
+                add_lines: current_hunk_lines
+                    .iter()
+                    .filter(|line| line.starts_with('+'))
+                    .map(|line| line[1..].to_string())
+                    .collect(),
                 old_range,
                 new_range,
                 content: current_hunk_lines.join("\n"),
@@ -343,10 +375,10 @@ The following changes are needed:
 --- a/src/main.rs
 +++ b/src/main.rs
 @@ -1,3 +1,4 @@
- fn main() {
+fn main() {
 +    println!("Hello, world!");
      // TODO: implement
- }
+}
 ```
 "#;
 
@@ -369,15 +401,15 @@ Multiple changes needed:
 --- a/src/lib.rs
 +++ b/src/lib.rs
 @@ -1,3 +1,4 @@
- pub fn foo() {
+pub fn foo() {
 +    println!("Starting foo");
      // implementation
- }
+}
 @@ -10,2 +11,3 @@
- pub fn bar() {
+pub fn bar() {
 +    println!("Starting bar");
      // implementation
- }
+}
 ```
 "#;
 
@@ -388,13 +420,21 @@ Multiple changes needed:
 
         // Verify first hunk
         let hunk1 = &diffs[0].hunks[0];
-        assert_eq!(hunk1.old_range, (1, 3));
-        assert_eq!(hunk1.new_range, (1, 4));
+        assert_eq!(hunk1.start, 1);
+        assert_eq!(hunk1.remove_count, 3);
+        assert_eq!(hunk1.add_count, 4);
 
         // Verify second hunk
         let hunk2 = &diffs[0].hunks[1];
-        assert_eq!(hunk2.old_range, (10, 2));
-        assert_eq!(hunk2.new_range, (11, 3));
+        assert_eq!(hunk2.start, 10);
+        assert_eq!(hunk2.remove_count, 2);
+        assert_eq!(hunk2.add_count, 3);
+
+        // Verify second hunk
+        let hunk2 = &diffs[0].hunks[1];
+        assert_eq!(hunk2.start, 10);
+        assert_eq!(hunk2.remove_count, 2);
+        assert_eq!(hunk2.add_count, 3);
     }
 
     #[test]
@@ -410,25 +450,27 @@ Changes needed in multiple files:
 --- a/src/main.rs
 +++ b/src/main.rs
 @@ -1,2 +1,3 @@
- fn main() {
+fn main() {
 +    println!("Hello");
- }
+}
 ```
 
 ```diff
 --- a/src/lib.rs
 +++ b/src/lib.rs
 @@ -1,2 +1,3 @@
- pub fn test() {
+pub fn test() {
 +    println!("Test");
- }
+}
 ```
 "#;
 
         let diffs = parser.parse_diffs(content).unwrap();
         assert_eq!(diffs.len(), 2);
         assert_eq!(diffs[0].target_file, "src/main.rs");
+        assert_eq!(diffs[0].hunks.len(), 1);
         assert_eq!(diffs[1].target_file, "src/lib.rs");
+        assert_eq!(diffs[1].hunks.len(), 1);
     }
 
     #[test]
@@ -443,39 +485,16 @@ FIXUP PLAN:
 --- src/main.rs
 +++ src/main.rs
 @@ -1,2 +1,3 @@
- fn main() {
+fn main() {
 +    println!("Hello");
- }
+}
 ```
 "#;
 
         let diffs = parser.parse_diffs(content).unwrap();
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0].target_file, "src/main.rs");
-    }
-
-    #[test]
-    fn test_parse_diff_with_git_prefix() {
-        let temp_dir = TempDir::new().unwrap();
-        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
-
-        let content = r#"
-FIXUP PLAN:
-
-```diff
---- a/src/main.rs
-+++ b/src/main.rs
-@@ -1,2 +1,3 @@
- fn main() {
-+    println!("Hello");
- }
-```
-"#;
-
-        let diffs = parser.parse_diffs(content).unwrap();
-        assert_eq!(diffs.len(), 1);
-        // Should strip a/ and b/ prefixes
-        assert_eq!(diffs[0].target_file, "src/main.rs");
+        assert_eq!(diffs[0].hunks.len(), 1);
     }
 
     #[test]
@@ -483,22 +502,22 @@ FIXUP PLAN:
         let temp_dir = TempDir::new().unwrap();
         let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
-        let content = r"
+        let content = r#"
 FIXUP PLAN:
 
 ```diff
 --- a/test.txt
 +++ b/test.txt
 @@ -5,3 +5,4 @@
- line 5
+line 5
 +new line
- line 6
- line 7
+line 6
+line 7
 @@ -10 +11,2 @@
- line 10
+line 10
 +another new line
 ```
-";
+"#;
 
         let diffs = parser.parse_diffs(content).unwrap();
         assert_eq!(diffs.len(), 1);
@@ -513,6 +532,18 @@ FIXUP PLAN:
         let hunk2 = &diffs[0].hunks[1];
         assert_eq!(hunk2.old_range, (10, 1));
         assert_eq!(hunk2.new_range, (11, 2));
+
+        // Verify first hunk - start should match old_range.0
+        let hunk1 = &diffs[0].hunks[0];
+        assert_eq!(hunk1.start, 5); // old_range.0
+        assert_eq!(hunk1.remove_count, 3);
+        assert_eq!(hunk1.add_count, 4);
+
+        // Verify second hunk
+        let hunk2 = &diffs[0].hunks[1];
+        assert_eq!(hunk2.old_range, (10, 1));
+        assert_eq!(hunk2.remove_count, 1); // old_range.1
+        assert_eq!(hunk2.new_range, (11, 2));
     }
 
     #[test]
@@ -520,15 +551,15 @@ FIXUP PLAN:
         let temp_dir = TempDir::new().unwrap();
         let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
-        let content = r"
+        let content = r#"
 FIXUP PLAN:
 
 ```diff
 ```
-";
+"#;
 
         let result = parser.parse_diffs(content);
-        // Should fail with NoValidDiffBlocks since the diff block is empty
+        // Should fail with NoValidDiffBlocks since diff block is empty
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), FixupError::NoValidDiffBlocks));
     }
@@ -538,20 +569,18 @@ FIXUP PLAN:
         let temp_dir = TempDir::new().unwrap();
         let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
 
-        let content = r"
+        let content = r#"
 FIXUP PLAN:
 
 ```diff
 --- a/test.txt
 +++ b/test.txt
 @@ invalid hunk header @@
- some content
+some content
 ```
-";
+"#;
 
         let diffs = parser.parse_diffs(content).unwrap();
-        // Parser should handle malformed hunks gracefully
-        // The diff should be parsed but with 0 hunks since the header is invalid
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0].hunks.len(), 0);
     }

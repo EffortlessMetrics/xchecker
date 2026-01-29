@@ -551,7 +551,11 @@ pub fn ensure_dir_all<P: AsRef<std::path::Path>>(p: P) -> std::io::Result<()> {
 pub fn with_isolated_home() -> tempfile::TempDir {
     let td = tempfile::TempDir::new().expect("create temp home");
     let p = Utf8PathBuf::from_path_buf(td.path().to_path_buf()).unwrap();
-    THREAD_HOME.with(|tl| *tl.borrow_mut() = Some(p));
+    THREAD_HOME.with(|tl| *tl.borrow_mut() = Some(p.clone()));
+    #[cfg(feature = "test-utils")]
+    {
+        xchecker_lock::set_thread_home_for_tests(p);
+    }
     td
 }
 

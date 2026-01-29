@@ -2,6 +2,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Re-export lock types for use in status output
+pub use crate::lock::{DriftPair, LockDrift};
+
 /// Phase identifiers for the spec generation workflow.
 ///
 /// `PhaseId` represents the different phases in xchecker's spec generation pipeline.
@@ -158,30 +161,8 @@ impl OutputFormat {
     }
 }
 
-/// Runner modes for cross-platform Claude CLI execution
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RunnerMode {
-    /// Automatic detection (try native first, then WSL on Windows)
-    Auto,
-    /// Native execution (spawn claude directly)
-    Native,
-    /// WSL execution (use wsl.exe --exec on Windows)
-    Wsl,
-}
-
-impl RunnerMode {
-    /// Convert runner mode to string representation.
-    /// Reserved for future use; CLI uses Display trait instead.
-    #[must_use]
-    #[allow(dead_code)] // Reserved for future use; CLI uses Display trait instead
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::Native => "native",
-            Self::Wsl => "wsl",
-        }
-    }
-}
+/// Runner modes for cross-platform Claude CLI execution.
+pub use xchecker_runner::RunnerMode;
 
 /// LLM metadata for receipts (wires ClaudeResponse fields into receipts)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -517,26 +498,6 @@ pub enum ConfigSource {
     Programmatic,
     /// Built-in default value (lowest precedence).
     Default,
-}
-
-/// Lock drift information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LockDrift {
-    /// Model full name drift
-    pub model_full_name: Option<DriftPair>,
-    /// Claude CLI version drift
-    pub claude_cli_version: Option<DriftPair>,
-    /// Schema version drift
-    pub schema_version: Option<DriftPair>,
-}
-
-/// Drift pair showing locked vs current value
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DriftPair {
-    /// Value from lockfile
-    pub locked: String,
-    /// Current value
-    pub current: String,
 }
 
 /// Pending fixups summary (counts only, no file contents or diffs)

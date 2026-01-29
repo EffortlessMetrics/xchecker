@@ -1,0 +1,29 @@
+[package]
+name = "xchecker-status"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Spec status tracking for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+xchecker-utils = { workspace = true }
+xchecker-config = { workspace = true }
+xchecker-redaction = { workspace = true }
+xchecker-receipt = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+serde_json_canonicalizer = { workspace = true }
+camino = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+xchecker-utils = { workspace = true, features = ["test-utils"] }
+tempfile = { workspace = true }

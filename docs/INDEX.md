@@ -1,75 +1,73 @@
 # xchecker Documentation
 
-## Getting Started
+This documentation follows the [Diataxis](https://diataxis.fr/) framework, organized into four categories based on user needs.
+
+## Tutorials
+
+Learning-oriented guides that take you through a complete workflow.
 
 | Document | Description |
 |----------|-------------|
-| [README](../README.md) | Overview, installation, and quick start |
+| [README](../README.md) | Project overview and installation |
 | [WALKTHROUGH_20_MINUTES.md](WALKTHROUGH_20_MINUTES.md) | Get running in 20 minutes |
-| [WALKTHROUGH_SPEC_TO_PR.md](WALKTHROUGH_SPEC_TO_PR.md) | From spec to PR workflow |
+| [WALKTHROUGH_SPEC_TO_PR.md](WALKTHROUGH_SPEC_TO_PR.md) | Complete workflow: spec to pull request |
 
-## Configuration
+## How-to Guides
+
+Task-oriented guides for specific goals.
+
+| Document | Description |
+|----------|-------------|
+| [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) | Troubleshoot errors and inspect artifacts |
+| [DOCTOR.md](DOCTOR.md) | Run environment health checks |
+| [WORKSPACE_GUIDE.md](WORKSPACE_GUIDE.md) | Set up workspaces and use the TUI |
+| [PLATFORM.md](PLATFORM.md) | Set up on Windows, macOS, Linux, and WSL |
+| [CLAUDE_CODE_INTEGRATION.md](CLAUDE_CODE_INTEGRATION.md) | Integrate with Claude Code editor |
+| [ci/gitlab.md](ci/gitlab.md) | Configure GitLab CI pipelines |
+
+## Reference
+
+Technical specifications and configuration options.
 
 | Document | Description |
 |----------|-------------|
 | [CONFIGURATION.md](CONFIGURATION.md) | Full configuration reference |
 | [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | LLM provider setup and options |
-| [DOCTOR.md](DOCTOR.md) | Environment health checks |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and fixes |
-| [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) | Debugging workflows and diagnostics |
-| [WORKSPACE_GUIDE.md](WORKSPACE_GUIDE.md) | Workspace setup and TUI usage |
-
-## Architecture
-
-| Document | Description |
-|----------|-------------|
-| [ORCHESTRATOR.md](ORCHESTRATOR.md) | Core execution engine |
-| [CONTRACTS.md](CONTRACTS.md) | JSON schema versioning |
-| [STRUCTURED_LOGGING.md](STRUCTURED_LOGGING.md) | Tracing-based logging |
-
-## Testing
-
-| Document | Description |
-|----------|-------------|
-| [TESTING.md](TESTING.md) | Test lanes and CI profiles |
+| [CONTRACTS.md](CONTRACTS.md) | JSON schema versioning policy |
+| [TESTING.md](TESTING.md) | Test strategy and profiles |
 | [TEST_MATRIX.md](TEST_MATRIX.md) | Complete test inventory |
 | [CI_PROFILES.md](CI_PROFILES.md) | CI test configuration |
-| [claude-stub.md](claude-stub.md) | Test harness documentation |
+| [STRUCTURED_LOGGING.md](STRUCTURED_LOGGING.md) | Tracing-based logging reference |
+| [claude-stub.md](claude-stub.md) | Test harness reference |
 
-## Security & Performance
-
-| Document | Description |
-|----------|-------------|
-| [SECURITY.md](SECURITY.md) | Secret detection, redaction, and path validation |
-| [PERFORMANCE.md](PERFORMANCE.md) | Benchmarking and optimization |
-| [PLATFORM.md](PLATFORM.md) | Cross-platform support |
-
-## CI/CD Integration
-
-| Document | Description |
-|----------|-------------|
-| [ci/gitlab.md](ci/gitlab.md) | GitLab CI configuration |
-
-## Reference
-
-| Document | Description |
-|----------|-------------|
-| [TRACEABILITY.md](TRACEABILITY.md) | Requirements traceability |
-| [REQUIREMENTS_RUNTIME_V1.md](REQUIREMENTS_RUNTIME_V1.md) | Runtime requirements |
-| [CLAUDE_CODE_INTEGRATION.md](CLAUDE_CODE_INTEGRATION.md) | Claude Code integration |
-
-## Schemas
-
-JSON schema examples in `docs/schemas/`:
-
-- `receipt.v1.*.json` - Execution receipt format
-- `status.v1.*.json` - Spec status format
-- `doctor.v1.*.json` - Health check format
+### JSON Schemas
 
 Schema definitions in `schemas/`:
 
-- `receipt.v1.json` - Receipt schema
-- `status.v1.json` - Status schema
-- `doctor.v1.json` - Doctor schema
+| Schema | Description |
+|--------|-------------|
+| `receipt.v1.json` | Execution receipt format |
+| `status.v1.json` | Spec status format |
+| `doctor.v1.json` | Health check format |
 
-> **Note**: Example files are auto-generated. Do not edit manually.
+Example files in `docs/schemas/` (auto-generated, do not edit manually).
+
+## Explanation
+
+Background and architectural context.
+
+| Document | Description |
+|----------|-------------|
+| [ORCHESTRATOR.md](ORCHESTRATOR.md) | Core execution engine architecture |
+| [SECURITY.md](SECURITY.md) | Security model, secret detection, and path validation |
+| [PERFORMANCE.md](PERFORMANCE.md) | Performance characteristics and benchmarks |
+| [TRACEABILITY.md](TRACEABILITY.md) | Requirements traceability matrix |
+| [REQUIREMENTS_RUNTIME_V1.md](REQUIREMENTS_RUNTIME_V1.md) | Runtime requirements specification |
+
+## For Contributors
+
+| Document | Description |
+|----------|-------------|
+| [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) | Common development issues and fixes |
+| [DEPENDENCY_MANAGEMENT.md](DEPENDENCY_MANAGEMENT.md) | Dependency update policies |
+| [architecture/dependency-policy.md](architecture/dependency-policy.md) | Crate layering rules |

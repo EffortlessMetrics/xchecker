@@ -5,24 +5,75 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use crossterm::style::{Color, Stylize};
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
 
 // Stable public API imports from crate root
 // _Requirements: FR-CLI-2_
-use crate::{CliArgs, Config, ExitCode, OrchestratorHandle, PhaseId, XCheckerError, emit_jcs};
+use crate::{
+    CliArgs, Config, ExitCode, OrchestratorConfig, OrchestratorHandle, PhaseId, XCheckerError,
+    emit_jcs,
+};
 
 // Internal module imports (not part of stable public API)
 use crate::atomic_write::write_file_atomic;
 use crate::error::{ConfigError, PhaseError};
 use crate::error_reporter::{ErrorReport, utils as error_utils};
 use crate::logging::Logger;
-use crate::orchestrator::OrchestratorConfig;
 use crate::redaction::SecretRedactor;
 use crate::source::SourceResolver;
 use crate::spec_id::sanitize_spec_id;
+
+/// Check if colored output should be used.
+///
+/// Returns true only if:
+/// - stdout is a terminal (TTY)
+/// - NO_COLOR environment variable is not set
+fn use_color() -> bool {
+    std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
+}
+
+/// Return a styled check mark (✓) if colors are enabled, otherwise plain.
+fn styled_check() -> String {
+    if use_color() {
+        format!("{}", "✓".with(Color::Green).bold())
+    } else {
+        "✓".to_string()
+    }
+}
+
+/// Return a styled warning mark (⚠) if colors are enabled, otherwise plain.
+fn styled_warning() -> String {
+    if use_color() {
+        format!("{}", "⚠".with(Color::Yellow).bold())
+    } else {
+        "⚠".to_string()
+    }
+}
+
+/// Return styled success text if colors are enabled, otherwise plain.
+fn styled_success(text: &str) -> String {
+    if use_color() {
+        format!("{}", text.with(Color::Green).bold())
+    } else {
+        text.to_string()
+    }
+}
+
+/// Return styled info text (cyan) if colors are enabled, otherwise plain.
+fn styled_info(text: &str) -> String {
+    if use_color() {
+        format!("{}", text.with(Color::Cyan).bold())
+    } else {
+        text.to_string()
+    }
+}
 
 /// xchecker - Claude orchestration tool for spec generation
 #[derive(Parser)]
@@ -1487,12 +1538,6 @@ fn emit_resume_json(output: &crate::types::ResumeJsonOutput) -> Result<String> {
     emit_jcs(output).context("Failed to emit resume JSON")
 }
 
-/// Count pending fixups for a spec
-/// Returns the number of target files with pending fixups
-fn count_pending_fixups(handle: &OrchestratorHandle) -> u32 {
-    crate::fixup::pending_fixups_from_handle(handle).targets
-}
-
 /// Execute the status command
 fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<()> {
     // Create read-only handle to access managers (no lock needed for status)
@@ -1580,7 +1625,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
         }
 
         // Count pending fixups
-        let pending_fixups = count_pending_fixups(&handle);
+        let pending_fixups = count_pending_fixups_for_spec(spec_id);
 
         // Collect artifacts with blake3_first8 from receipts
         let mut artifact_hashes: BTreeMap<String, String> = BTreeMap::new();
@@ -1895,7 +1940,7 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
     }
 
     // Check for pending fixups and show intended targets (R5.6)
-    check_and_display_fixup_targets(&handle, spec_id)?;
+    check_and_display_fixup_targets(spec_id)?;
 
     // Show resume suggestions
     match latest_completed {
@@ -1935,11 +1980,11 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
 }
 
 /// Check for pending fixups and display intended targets (R5.6)
-fn check_and_display_fixup_targets(handle: &OrchestratorHandle, spec_id: &str) -> Result<()> {
+fn check_and_display_fixup_targets(spec_id: &str) -> Result<()> {
     use crate::fixup::{FixupMode, FixupParser};
 
     // Check if Review phase is completed and has fixup markers
-    let base_path = handle.artifact_manager().base_path();
+    let base_path = crate::paths::spec_root(spec_id);
     let review_md_path = base_path.join("artifacts").join("30-review.md");
 
     if !review_md_path.exists() {
@@ -2316,7 +2361,7 @@ fn execute_clean_command(spec_id: &str, hard: bool, force: bool, _config: &Confi
         std::fs::remove_dir_all(&artifacts_path)
             .with_context(|| format!("Failed to remove artifacts directory: {artifacts_path}"))?;
         removed_count += artifacts.len();
-        println!("✓ Removed artifacts directory");
+        println!("{} Removed artifacts directory", styled_check());
     }
 
     // Remove receipts directory
@@ -2324,14 +2369,14 @@ fn execute_clean_command(spec_id: &str, hard: bool, force: bool, _config: &Confi
         std::fs::remove_dir_all(&receipts_path)
             .with_context(|| format!("Failed to remove receipts directory: {receipts_path}"))?;
         removed_count += receipts.len();
-        println!("✓ Removed receipts directory");
+        println!("{} Removed receipts directory", styled_check());
     }
 
     // Remove context directory
     if context_path.exists() {
         std::fs::remove_dir_all(&context_path)
             .with_context(|| format!("Failed to remove context directory: {context_path}"))?;
-        println!("✓ Removed context directory");
+        println!("{} Removed context directory", styled_check());
     }
 
     // Remove the spec directory
@@ -2340,22 +2385,25 @@ fn execute_clean_command(spec_id: &str, hard: bool, force: bool, _config: &Confi
             // With --hard, remove the entire spec directory including any remaining files
             std::fs::remove_dir_all(&base_path)
                 .with_context(|| format!("Failed to remove spec directory: {base_path}"))?;
-            println!("✓ Removed spec directory completely");
+            println!("{} Removed spec directory completely", styled_check());
         } else {
             // Without --hard, only remove if empty
             match std::fs::remove_dir(&base_path) {
                 Ok(()) => {
-                    println!("✓ Removed empty spec directory");
+                    println!("{} Removed empty spec directory", styled_check());
                 }
                 Err(_) => {
                     // Directory not empty, that's fine
-                    println!("✓ Spec directory retained (contains other files)");
+                    println!(
+                        "{} Spec directory retained (contains other files)",
+                        styled_check()
+                    );
                 }
             }
         }
     }
 
-    println!("\nClean completed successfully.");
+    println!("\n{}", styled_success("Clean completed successfully."));
     println!("  Removed {removed_count} files total");
 
     Ok(())
@@ -2733,9 +2781,20 @@ fn execute_doctor_command(json: bool, strict_exit: bool, config: &Config) -> Res
 
     // Create and run doctor command (wired through Doctor::run)
     let mut doctor = DoctorCommand::new(config.clone());
-    let output = doctor
-        .run_with_options_strict(strict_exit)
-        .context("Failed to run doctor checks")?;
+
+    // Show spinner if interactive TTY and not JSON mode (RAII ensures cleanup on panic)
+    let spinner_guard = if !json && std::io::stdout().is_terminal() {
+        Some(SpinnerGuard::new())
+    } else {
+        None
+    };
+
+    let result = doctor.run_with_options_strict(strict_exit);
+
+    // Explicitly drop spinner to clear the line before printing results
+    drop(spinner_guard);
+
+    let output = result.context("Failed to run doctor checks")?;
 
     if json {
         // Emit as canonical JSON (JCS) for stable diffs (FR-CLI-6)
@@ -2779,7 +2838,7 @@ fn execute_gate_command(
     max_phase_age: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    use crate::gate::{
+    use xchecker_gate::{
         GateCommand, GatePolicy, emit_gate_json, load_policy_from_path, parse_duration,
         parse_phase, resolve_policy_path,
     };
@@ -2803,12 +2862,12 @@ fn execute_gate_command(
     };
 
     if let Some(min_phase) = min_phase {
-        policy.min_phase = parse_phase(min_phase).map_err(|e| {
+        policy.min_phase = Some(parse_phase(min_phase).map_err(|e| {
             XCheckerError::Config(ConfigError::InvalidValue {
                 key: "min_phase".to_string(),
                 value: e.to_string(),
             })
-        })?;
+        })?);
     }
 
     if fail_on_pending_fixups {
@@ -2832,7 +2891,8 @@ fn execute_gate_command(
 
     // Output results
     if json {
-        let json_output = emit_gate_json(&result).with_context(|| "Failed to emit gate JSON")?;
+        let json_output =
+            emit_gate_json(&result, spec_id).with_context(|| "Failed to emit gate JSON")?;
         println!("{json_output}");
     } else {
         // Human-friendly output
@@ -2876,7 +2936,7 @@ fn execute_gate_command(
 fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Result<()> {
     use crate::lock::XCheckerLock;
 
-    println!("Initializing spec: {spec_id}");
+    println!("{}", styled_info(&format!("Initializing spec: {spec_id}")));
 
     // Create spec directory structure
     let spec_dir = PathBuf::from(".xchecker").join("specs").join(spec_id);
@@ -2894,7 +2954,10 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
             println!("  Lockfile already exists: {}", lock_path.display());
 
             if create_lock {
-                println!("  ⚠ Warning: --create-lock specified but lockfile already exists");
+                println!(
+                    "  {} Warning: --create-lock specified but lockfile already exists",
+                    styled_warning()
+                );
                 println!("  To update the lockfile, delete it first and run init again");
             }
 
@@ -2921,10 +2984,14 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
             )
         })?;
 
-        println!("  ✓ Created spec directory: {}", spec_dir.display());
-        println!("  ✓ Created artifacts directory");
-        println!("  ✓ Created receipts directory");
-        println!("  ✓ Created context directory");
+        println!(
+            "  {} Created spec directory: {}",
+            styled_check(),
+            spec_dir.display()
+        );
+        println!("  {} Created artifacts directory", styled_check());
+        println!("  {} Created receipts directory", styled_check());
+        println!("  {} Created context directory", styled_check());
     }
 
     // Create lockfile if requested
@@ -2942,7 +3009,7 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
         lock.save(spec_id)
             .with_context(|| "Failed to save lockfile")?;
 
-        println!("  ✓ Created lockfile: lock.json");
+        println!("  {} Created lockfile: lock.json", styled_check());
         println!("    Model: {model}");
         println!("    Claude CLI version: {claude_cli_version}");
         println!("    Schema version: 1");
@@ -2956,8 +3023,17 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
         println!("\n  No lockfile created (use --create-lock to pin model and CLI version)");
     }
 
-    println!("\nSpec '{spec_id}' initialized successfully");
+    println!(
+        "\n{}",
+        styled_success(&format!("Spec '{spec_id}' initialized successfully"))
+    );
     println!("  Directory: {}", spec_dir.display());
+
+    println!("\nNext steps:");
+    println!("  1. Create your problem statement:");
+    println!("     echo \"Your problem description\" | xchecker spec {spec_id}");
+    println!("  2. Or resume from existing source:");
+    println!("     xchecker resume {spec_id} --phase requirements");
 
     Ok(())
 }
@@ -3055,14 +3131,65 @@ fn check_lockfile_drift(
     }
 }
 
+struct SpinnerGuard {
+    running: Arc<AtomicBool>,
+    handle: Option<thread::JoinHandle<()>>,
+}
+
+impl SpinnerGuard {
+    fn new() -> Self {
+        let running = Arc::new(AtomicBool::new(true));
+        let running_clone = running.clone();
+
+        // Hide cursor to prevent flickering
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
+
+        let handle = thread::spawn(move || {
+            let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+            let mut i = 0;
+            while running_clone.load(Ordering::Relaxed) {
+                print!("\r{} Running health checks...", frames[i]);
+                let _ = std::io::stdout().flush();
+                i = (i + 1) % frames.len();
+                thread::sleep(Duration::from_millis(80));
+            }
+            // Clear the line when done (use crossterm for portability)
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
+            );
+            print!("\r");
+            let _ = std::io::stdout().flush();
+        });
+
+        Self {
+            running,
+            handle: Some(handle),
+        }
+    }
+}
+
+impl Drop for SpinnerGuard {
+    fn drop(&mut self) {
+        self.running.store(false, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        // Restore cursor
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Show);
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)] // Test helper functions defined after tests is intentional
 #[allow(clippy::await_holding_lock)] // Test synchronization using mutex guards across awaits is intentional
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::env;
     use std::sync::{Mutex, MutexGuard, OnceLock};
     use tempfile::TempDir;
+    use xchecker_utils::test_support::EnvVarGuard;
 
     // Global lock for tests that mutate process-global CLI state (env vars, cwd).
     // Any test that uses `TestEnvGuard` or `cli_env_guard()` will be serialized.
@@ -3077,16 +3204,14 @@ mod tests {
         _lock: MutexGuard<'static, ()>,
         _temp_dir: TempDir,
         original_dir: PathBuf,
-        original_xchecker_home: Option<String>,
+        // EnvVarGuard handles save/restore of XCHECKER_HOME automatically on drop
+        _env_guard: EnvVarGuard,
     }
 
     impl Drop for TestEnvGuard {
         fn drop(&mut self) {
-            // Restore env and cwd while still holding the lock
-            match &self.original_xchecker_home {
-                Some(val) => unsafe { env::set_var("XCHECKER_HOME", val) },
-                None => unsafe { env::remove_var("XCHECKER_HOME") },
-            }
+            // Restore cwd while still holding the lock
+            // _env_guard drops after this, restoring XCHECKER_HOME
             let _ = env::set_current_dir(&self.original_dir);
             // _lock field drops last, releasing the mutex
         }
@@ -3098,7 +3223,9 @@ mod tests {
 
         let temp_dir = TempDir::new().unwrap();
         let original_dir = env::current_dir().unwrap();
-        let original_xchecker_home = env::var("XCHECKER_HOME").ok();
+
+        // EnvVarGuard captures original value and will restore on drop
+        let env_guard = EnvVarGuard::cleared("XCHECKER_HOME");
 
         // From here onwards we're serialized against other CLI tests
         env::set_current_dir(temp_dir.path()).unwrap();
@@ -3107,7 +3234,7 @@ mod tests {
             _lock: lock,
             _temp_dir: temp_dir,
             original_dir,
-            original_xchecker_home,
+            _env_guard: env_guard,
         }
     }
 
@@ -3146,16 +3273,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_spec_command_execution() -> anyhow::Result<()> {
         use tempfile::TempDir;
 
         // Take the global CLI lock for env/cwd mutations
         let _lock = cli_env_guard();
-
-        // Save original state
-        let original_dir = std::env::current_dir()?;
-        let original_xchecker_home = std::env::var("XCHECKER_HOME").ok();
-        let original_skip_llm = std::env::var("XCHECKER_SKIP_LLM_TESTS").ok();
 
         // Setup isolated test root
         let temp = TempDir::new()?;
@@ -3164,12 +3287,13 @@ mod tests {
         // Make it look like a repo root
         std::fs::create_dir_all(root.join(".git"))?;
 
-        // Set process environment
+        // Use guards that restore env vars on drop (including on panic)
+        let _home_guard = EnvVarGuard::set("XCHECKER_HOME", root.to_str().unwrap());
+        let _skip_guard = EnvVarGuard::set("XCHECKER_SKIP_LLM_TESTS", "1");
+
+        // Save and change CWD
+        let original_dir = std::env::current_dir()?;
         std::env::set_current_dir(root)?;
-        unsafe {
-            std::env::set_var("XCHECKER_HOME", root);
-            std::env::set_var("XCHECKER_SKIP_LLM_TESTS", "1");
-        }
 
         // Create minimal config
         std::fs::write(
@@ -3211,16 +3335,8 @@ packet_max_lines = 5000
         )
         .await;
 
-        // Restore original environment before asserting
+        // Restore CWD before asserting (env vars restored by guards on drop)
         let _ = std::env::set_current_dir(&original_dir);
-        match original_xchecker_home {
-            Some(val) => unsafe { std::env::set_var("XCHECKER_HOME", val) },
-            None => unsafe { std::env::remove_var("XCHECKER_HOME") },
-        }
-        match original_skip_llm {
-            Some(val) => unsafe { std::env::set_var("XCHECKER_SKIP_LLM_TESTS", val) },
-            None => unsafe { std::env::remove_var("XCHECKER_SKIP_LLM_TESTS") },
-        }
 
         // In dry-run mode with a valid source, this should succeed
         // The important thing is it doesn't hang and completes quickly
@@ -3474,15 +3590,15 @@ packet_max_lines = 5000
         // Test basic benchmark execution with realistic thresholds for test environments
         // Use more generous thresholds since test environments can be slower
         let result = execute_benchmark_command(
-            5,           // file_count
-            100,         // file_size
-            2,           // iterations
-            false,       // json
-            Some(10.0),  // max_empty_run_secs - generous for test env
-            Some(500.0), // max_packetization_ms - generous for test env (25ms for 5 files)
-            None,        // max_rss_mb
-            None,        // max_commit_mb
-            false,       // verbose
+            5,            // file_count
+            100,          // file_size
+            2,            // iterations
+            false,        // json
+            Some(10.0),   // max_empty_run_secs - generous for test env
+            Some(2000.0), // max_packetization_ms - generous for test env (100ms for 5 files)
+            None,         // max_rss_mb
+            None,         // max_commit_mb
+            false,        // verbose
         );
 
         // Should succeed with realistic test environment thresholds
@@ -5512,13 +5628,11 @@ fn execute_project_tui_command(workspace_override: Option<&std::path::Path>) -> 
 /// Execute template management commands
 /// Per FR-TEMPLATES (Requirements 4.7.1, 4.7.2, 4.7.3)
 fn execute_template_command(cmd: TemplateCommands) -> Result<()> {
-    use crate::template;
-
     match cmd {
         TemplateCommands::List => {
             println!("Available templates:\n");
 
-            for t in template::list_templates() {
+            for t in xchecker_engine::templates::list_templates() {
                 println!("  {}", t.id);
                 println!("    Name: {}", t.name);
                 println!("    Description: {}", t.description);
@@ -5544,8 +5658,8 @@ fn execute_template_command(cmd: TemplateCommands) -> Result<()> {
             })?;
 
             // Validate template
-            if !template::is_valid_template(&template) {
-                let valid_templates = template::BUILT_IN_TEMPLATES.join(", ");
+            if !xchecker_engine::templates::is_valid_template(&template) {
+                let valid_templates = xchecker_engine::templates::BUILT_IN_TEMPLATES.join(", ");
                 return Err(XCheckerError::Config(ConfigError::InvalidValue {
                     key: "template".to_string(),
                     value: format!(
@@ -5557,10 +5671,10 @@ fn execute_template_command(cmd: TemplateCommands) -> Result<()> {
             }
 
             // Initialize from template
-            template::init_from_template(&template, &sanitized_id)?;
+            xchecker_engine::templates::init_from_template(&template, &sanitized_id)?;
 
             // Get template info for display
-            let template_info = template::get_template(&template).unwrap();
+            let template_info = xchecker_engine::templates::get_template(&template).unwrap();
 
             println!(
                 "✓ Initialized spec '{}' from template '{}'",

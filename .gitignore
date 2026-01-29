@@ -48,3 +48,9 @@ issue_work/
 # These should not be committed - they contain machine-specific paths and timestamps
 .xchecker/
 **/.xchecker/
+/.runs/
+
+# Nix/direnv
+.direnv/
+/result
+/result-*

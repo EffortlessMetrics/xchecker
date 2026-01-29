@@ -5,6 +5,9 @@ This document describes xchecker's test infrastructure, test lanes, and how to r
 ## Quick Start
 
 ```bash
+# Optional: enter the Nix dev shell (pins Rust 1.89 + tools)
+nix develop
+
 # Install just (if not already installed)
 # macOS: brew install just
 # Windows: winget install Casey.Just

@@ -18,8 +18,8 @@ use chrono::Utc;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
+use xchecker::emit_jcs;
 use xchecker::receipt::ReceiptManager;
-use xchecker::status::StatusManager;
 use xchecker::types::{
     ArtifactInfo, ConfigSource, ConfigValue, FileHash, PacketEvidence, PhaseId, StatusOutput,
 };
@@ -151,7 +151,7 @@ fn test_status_jcs_emission() {
     };
 
     // Emit as canonical JSON using JCS
-    let json = StatusManager::emit_json(&status).unwrap();
+    let json = emit_jcs(&status).unwrap();
 
     // Verify it's valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();

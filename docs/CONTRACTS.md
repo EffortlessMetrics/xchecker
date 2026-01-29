@@ -301,6 +301,15 @@ The `effective_config` field maps configuration keys to objects with:
 **Example**:
 ```json
 {
+  "schema_version": "1",
+  "emitted_at": "2025-01-01T00:00:00Z",
+  "runner": "native",
+  "runner_distro": null,
+  "fallback_used": false,
+  "canonicalization_version": "yaml-v1,md-v1",
+  "canonicalization_backend": "jcs-rfc8785",
+  "artifacts": [],
+  "last_receipt_path": ".xchecker/receipts/example-spec/requirements-20250101_000000.json",
   "effective_config": {
     "model": {
       "value": "sonnet",

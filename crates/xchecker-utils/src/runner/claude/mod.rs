@@ -1,12 +1,2 @@
-mod detect;
-mod exec;
-mod io;
-mod native_cmd;
-mod platform;
-mod types;
-mod version;
-mod wsl;
-
-pub use super::ndjson::NdjsonResult;
-pub use exec::Runner;
-pub use types::{BufferConfig, ClaudeResponse, WslOptions};
+// Re-export claude types from xchecker-runner
+pub use xchecker_runner::claude::{BufferConfig, ClaudeResponse, Runner, WslOptions};

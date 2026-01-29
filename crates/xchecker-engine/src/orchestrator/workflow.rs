@@ -7,9 +7,9 @@
 use anyhow::{Context, Result};
 
 use crate::error::{PhaseError, XCheckerError};
-use crate::fixup::FixupMode;
-use crate::phase::{NextStep, Phase};
-use crate::phases::{DesignPhase, FixupPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::fixup::{FixupMode, FixupPhase};
+use crate::phase::Phase;
+use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
 use crate::types::{FileType, PhaseId, PipelineInfo};
 
 use super::{OrchestratorConfig, PhaseOrchestrator};
@@ -338,8 +338,8 @@ impl PhaseOrchestrator {
                 FileType::from_extension(ext.to_str().unwrap_or(""))
             } else {
                 match artifact.artifact_type {
-                    crate::artifact::ArtifactType::Markdown => FileType::Markdown,
-                    crate::artifact::ArtifactType::CoreYaml => FileType::Yaml,
+                    crate::status::artifact::ArtifactType::Markdown => FileType::Markdown,
+                    crate::status::artifact::ArtifactType::CoreYaml => FileType::Yaml,
                     _ => FileType::Text,
                 }
             };
@@ -368,13 +368,13 @@ impl PhaseOrchestrator {
 
         // Extract rewind information from phase_result.next_step (FR-WORKFLOW)
         let (rewind_triggered, rewind_target) = match &core.phase_result.next_step {
-            NextStep::Rewind { to } => {
+            xchecker_phase_api::NextStep::Rewind { to } => {
                 flags.insert("rewind_triggered".to_string(), "true".to_string());
                 flags.insert("rewind_target".to_string(), to.as_str().to_string());
                 (true, Some(*to))
             }
-            NextStep::Continue => (false, None),
-            NextStep::Complete => (false, None),
+            xchecker_phase_api::NextStep::Continue => (false, None),
+            xchecker_phase_api::NextStep::Complete => (false, None),
         };
 
         // Extract model information from claude_metadata

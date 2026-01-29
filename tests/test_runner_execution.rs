@@ -16,8 +16,7 @@ use serial_test::serial;
 use std::env;
 use std::process::Stdio;
 use std::time::Duration;
-use xchecker::error::RunnerError;
-use xchecker::runner::{ClaudeResponse, CommandSpec, Runner, WslOptions};
+use xchecker::runner::{ClaudeResponse, CommandSpec, Runner, RunnerError, WslOptions};
 use xchecker::types::RunnerMode;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

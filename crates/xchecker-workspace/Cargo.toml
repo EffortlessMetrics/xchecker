@@ -1,0 +1,23 @@
+[package]
+name = "xchecker-workspace"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Workspace management for multi-spec projects"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+xchecker-utils = { workspace = true }
+anyhow = { workspace = true }
+camino = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+
+[dev-dependencies]
+xchecker-utils = { workspace = true, features = ["test-utils"] }
+tempfile = { workspace = true }

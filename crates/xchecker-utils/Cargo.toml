@@ -1,11 +1,17 @@
 [package]
 name = "xchecker-utils"
-version = "1.0.0"
-edition = "2024"
-publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Foundation utilities for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
 
 [features]
-test-utils = ["dep:strum"]
+test-utils = ["dep:strum", "xchecker-lock/test-utils"]
 dev-tools = []
 
 [dependencies]
@@ -29,6 +35,9 @@ tokio = { workspace = true }
 serde_yaml = { workspace = true }
 crossterm = { workspace = true }
 strum = { workspace = true, optional = true }
+xchecker-redaction = { workspace = true }
+xchecker-lock = { workspace = true }
+xchecker-runner = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

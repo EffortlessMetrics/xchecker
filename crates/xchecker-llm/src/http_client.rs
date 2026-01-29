@@ -4,8 +4,6 @@
 //! with timeout and retry policies for reliable HTTP communication with LLM providers.
 
 use crate::LlmError;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use reqwest::{Client, Response, StatusCode};
 use std::sync::Arc;
 use std::time::Duration;
@@ -164,7 +162,7 @@ impl HttpClient {
                     let error = LlmError::Transport(format!(
                         "{} request failed: {}",
                         provider_name,
-                        redact_error_message(&e.to_string())
+                        xchecker_error_redaction::redact_error_message(&e.to_string())
                     ));
 
                     if attempt <= MAX_RETRIES {
@@ -209,37 +207,6 @@ fn map_client_error(status: StatusCode, provider_name: &str) -> LlmError {
     }
 }
 
-/// Pattern to match URLs with embedded credentials
-static URL_WITH_CREDS: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(https?://)[^:@\s]+:[^@\s]+@").unwrap());
-
-/// Pattern to match potential API keys (long alphanumeric strings)
-/// Matches sequences of 32+ characters that are alphanumeric, underscore, or dash
-/// Uses lookahead/lookbehind to handle keys that start/end with - or _
-static POTENTIAL_KEY: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?:^|[^A-Za-z0-9_-])[A-Za-z0-9_-]{32,}(?:[^A-Za-z0-9_-]|$)").unwrap()
-});
-
-/// Redact sensitive information from error messages
-///
-/// This function removes potentially sensitive information from error messages
-/// before they are logged or persisted. It preserves enough context for debugging
-/// without exposing secrets.
-///
-/// Redaction rules:
-/// - Never log API keys, auth headers, or credentials
-/// - Remove URLs with embedded credentials (e.g., http://user:pass@host)
-/// - Preserve error categories and high-level context
-fn redact_error_message(message: &str) -> String {
-    // Redact URLs with embedded credentials
-    let redacted = URL_WITH_CREDS.replace_all(message, "$1[REDACTED]@");
-
-    // Redact potential API keys (long alphanumeric strings)
-    let redacted = POTENTIAL_KEY.replace_all(&redacted, "[REDACTED_KEY]");
-
-    redacted.to_string()
-}
-
 /// Expose redaction function for testing (both unit and integration tests).
 ///
 /// This function is a test seam that allows property-based tests to verify
@@ -249,7 +216,7 @@ fn redact_error_message(message: &str) -> String {
 #[doc(hidden)]
 #[allow(dead_code)] // Used by integration tests via pub use in mod.rs
 pub fn redact_error_message_for_testing(message: &str) -> String {
-    redact_error_message(message)
+    xchecker_error_redaction::redact_error_message(message)
 }
 
 #[cfg(test)]
@@ -367,7 +334,7 @@ mod tests {
     #[test]
     fn test_redact_error_message_safe() {
         let message = "Connection failed: timeout";
-        let redacted = redact_error_message(message);
+        let redacted = xchecker_error_redaction::redact_error_message(message);
         assert_eq!(redacted, message, "Should preserve safe error message");
     }
 
@@ -377,7 +344,7 @@ mod tests {
     #[test]
     fn test_redact_url_with_credentials() {
         let message = "Failed to connect to http://user:password@api.example.com/endpoint";
-        let redacted = redact_error_message(message);
+        let redacted = xchecker_error_redaction::redact_error_message(message);
         assert!(
             !redacted.contains("user:password"),
             "Should redact credentials from URL"
@@ -390,7 +357,7 @@ mod tests {
 
         // Test HTTPS as well
         let message = "Error: https://token123:secret456@openrouter.ai/api/v1";
-        let redacted = redact_error_message(message);
+        let redacted = xchecker_error_redaction::redact_error_message(message);
         assert!(
             !redacted.contains("token123"),
             "Should redact token from HTTPS URL"
@@ -407,7 +374,7 @@ mod tests {
     #[test]
     fn test_redact_api_keys() {
         let message = "Authentication failed with key sk-1234567890abcdefghijklmnopqrstuvwxyz";
-        let redacted = redact_error_message(message);
+        let redacted = xchecker_error_redaction::redact_error_message(message);
         assert!(
             !redacted.contains("sk-1234567890abcdefghijklmnopqrstuvwxyz"),
             "Should redact long alphanumeric strings that look like keys"
@@ -428,7 +395,7 @@ mod tests {
     #[test]
     fn test_redact_multiple_secrets() {
         let message = "Failed to connect to https://user:pass@api.com with key abcdefghijklmnopqrstuvwxyz123456";
-        let redacted = redact_error_message(message);
+        let redacted = xchecker_error_redaction::redact_error_message(message);
         assert!(
             !redacted.contains("user:pass"),
             "Should redact URL credentials"

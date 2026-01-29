@@ -21,7 +21,7 @@
 use anyhow::Result;
 use xchecker::error::XCheckerError;
 use xchecker::exit_codes::codes;
-use xchecker::redaction::{SecretRedactor, create_secret_detected_error};
+use xchecker::redaction::SecretRedactor;
 use xchecker::test_support;
 
 /// Test all default patterns are detected (FR-SEC-001)
@@ -264,7 +264,11 @@ fn test_exit_code_8_on_secret_detection() -> Result<()> {
     assert!(!matches.is_empty(), "Should detect secret");
 
     // Create error from matches
-    let error = create_secret_detected_error(&matches);
+    let first_match = matches.first().expect("Should have at least one match");
+    let error = XCheckerError::SecretDetected {
+        pattern: first_match.pattern_id.clone(),
+        location: first_match.file_path.clone(),
+    };
 
     // Verify it's a SecretDetected error
     match &error {

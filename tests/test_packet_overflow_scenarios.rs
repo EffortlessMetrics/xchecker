@@ -154,14 +154,19 @@ fn test_failure_before_claude_invocation() -> Result<()> {
 }
 
 /// Test FR-PKT-005: Manifest written to context/<phase>-packet.manifest.json
+///
+/// Note: Files must fit within max_file_size individually but exceed packet
+/// budget together to trigger manifest writing on overflow.
 #[test]
 fn test_manifest_written_to_correct_location() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create large upstream file
-    fs::write(base_path.join("large.core.yaml"), "x".repeat(500))?;
+    // Create upstream files that fit within file limit (100 bytes) individually
+    // but together exceed packet budget when combined with formatting
+    fs::write(base_path.join("first.core.yaml"), "x".repeat(50))?;
+    fs::write(base_path.join("second.core.yaml"), "y".repeat(50))?;
 
     // Use small limits to trigger overflow
     let mut builder = PacketBuilder::with_limits(100, 10)?;
@@ -401,14 +406,19 @@ fn test_multiple_upstream_files_budget() -> Result<()> {
 }
 
 /// Test FR-PKT-004: Packet preview written even on overflow
+///
+/// Note: Files must fit within max_file_size individually but exceed packet
+/// budget together to trigger preview writing on overflow.
 #[test]
 fn test_packet_preview_on_overflow() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create large upstream file
-    fs::write(base_path.join("large.core.yaml"), "x".repeat(500))?;
+    // Create upstream files that fit within file limit (100 bytes) individually
+    // but together exceed packet budget when combined with formatting
+    fs::write(base_path.join("first.core.yaml"), "x".repeat(50))?;
+    fs::write(base_path.join("second.core.yaml"), "y".repeat(50))?;
 
     // Trigger overflow
     let mut builder = PacketBuilder::with_limits(100, 10)?;
@@ -424,22 +434,30 @@ fn test_packet_preview_on_overflow() -> Result<()> {
     // Verify preview contains file marker
     let preview_content = fs::read_to_string(&preview_file)?;
     assert!(preview_content.contains("==="));
-    assert!(preview_content.contains("large.core.yaml"));
+    assert!(
+        preview_content.contains("first.core.yaml") || preview_content.contains("second.core.yaml")
+    );
 
     Ok(())
 }
 
 /// Test FR-PKT-005: Manifest includes budget information
+///
+/// Note: Files must fit within max_file_size individually but exceed packet
+/// budget together to trigger manifest writing on overflow.
 #[test]
 fn test_manifest_includes_budget_info() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create large upstream file
-    fs::write(base_path.join("large.core.yaml"), "x".repeat(500))?;
+    // Create upstream files that fit within file limit (200 bytes) individually
+    // but together exceed packet budget when combined with formatting
+    fs::write(base_path.join("first.core.yaml"), "x".repeat(100))?;
+    fs::write(base_path.join("second.core.yaml"), "y".repeat(100))?;
 
-    // Use specific limits
+    // Use specific limits - file limit is 200, packet budget is 200
+    // Files fit in file limit but together exceed packet budget
     let max_bytes = 200;
     let max_lines = 25;
     let mut builder = PacketBuilder::with_limits(max_bytes, max_lines)?;
@@ -464,16 +482,19 @@ fn test_manifest_includes_budget_info() -> Result<()> {
 }
 
 /// Test FR-PKT-006: Manifest includes file priorities
+///
+/// Note: Files must fit within max_file_size individually but exceed packet
+/// budget together to trigger manifest writing on overflow.
 #[test]
 fn test_manifest_includes_file_priorities() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let base_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())?;
     let context_dir = base_path.join("context");
 
-    // Create files with different priorities - use large content to ensure overflow
-    // on all platforms (temp paths vary in length between Windows and Linux/macOS)
-    fs::write(base_path.join("upstream.core.yaml"), "x".repeat(500))?;
-    fs::write(base_path.join("SPEC.md"), "x".repeat(100))?;
+    // Create upstream files that fit within file limit (100 bytes) individually
+    // but together exceed packet budget when combined with formatting
+    fs::write(base_path.join("upstream.core.yaml"), "x".repeat(50))?;
+    fs::write(base_path.join("another.core.yaml"), "y".repeat(50))?;
 
     // Trigger overflow with small budget that will definitely be exceeded
     let mut builder = PacketBuilder::with_limits(100, 5)?;

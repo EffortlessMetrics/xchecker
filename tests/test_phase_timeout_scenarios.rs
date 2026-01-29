@@ -39,6 +39,9 @@ fn setup_test_environment(test_name: &str) -> TimeoutTestEnv {
     let temp_dir = TempDir::new().unwrap();
     let cwd_guard = test_support::CwdGuard::new(temp_dir.path()).unwrap();
 
+    // Create base .xchecker/specs directory structure (PhaseOrchestrator expects this to exist)
+    std::fs::create_dir_all(temp_dir.path().join(".xchecker/specs")).unwrap();
+
     // Create spec directory structure
     let spec_id = format!("test-timeout-{}", test_name);
     let orchestrator = PhaseOrchestrator::new(&spec_id).unwrap();

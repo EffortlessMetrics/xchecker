@@ -1,0 +1,22 @@
+[package]
+name = "xchecker-redaction"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Secret detection and redaction for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[features]
+dev-tools = []
+
+[dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

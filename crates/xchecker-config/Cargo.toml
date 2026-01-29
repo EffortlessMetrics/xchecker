@@ -1,19 +1,28 @@
 [package]
 name = "xchecker-config"
-version = "1.0.0"
-edition = "2024"
-publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Configuration model, discovery, and validation for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
 
 [features]
 test-utils = []
 
 [dependencies]
-xchecker-utils = { path = "../xchecker-utils" }
+xchecker-utils = { workspace = true }
+xchecker-redaction = { workspace = true }
+xchecker-prompt-template = { workspace = true }
+xchecker-selectors = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 globset = { workspace = true }
 camino = { workspace = true }
 
 [dev-dependencies]
-xchecker-utils = { path = "../xchecker-utils", features = ["test-utils"] }
+xchecker-utils = { workspace = true, features = ["test-utils"] }
 tempfile = { workspace = true }

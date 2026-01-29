@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Smoke tests for xchecker CLI commands
 //!
 //! These tests validate that all xchecker commands execute successfully

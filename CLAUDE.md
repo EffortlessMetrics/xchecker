@@ -72,7 +72,7 @@ Each phase:
 | `crates/xchecker-engine/src/phases.rs` | Phase implementations (Requirements, Design, Tasks, Review, Fixup) |
 | `crates/xchecker-engine/src/packet/` | Packet building with budget enforcement and file selection |
 | `crates/xchecker-engine/src/receipt/` | JSON receipt generation with cryptographic hashes |
-| `crates/xchecker-engine/src/fixup/` | Diff parsing and application with preview/apply modes |
+| `crates/xchecker-engine/src/fixup/` | Diff parsing and application with preview/apply modes; correctly handles implicit count defaults in hunk headers |
 | `crates/xchecker-config/src/config/` | Config model, discovery, validation, builder, selectors |
 | `crates/xchecker-utils/src/runner/` | Process execution (native/WSL, timeouts, Job Objects) |
 | `crates/xchecker-utils/src/redaction.rs` | Secret detection and redaction |
@@ -179,6 +179,22 @@ execution_strategy = "controlled"  # Only supported value
 - LLM binary path precedence in `crates/xchecker-engine/src/orchestrator/llm.rs` should be explicit (`llm_claude_binary` > `claude_path` > `claude_cli_path`).
 - Process-group handling should live in the runner (`xchecker-utils`) rather than provider backends.
 - Fixup path validation routes (`SandboxRoot::join()` and `validate_fixup_target()`) should stay policy-aligned to avoid divergence.
+
+## Recent Improvements
+
+### Fixup Parser Hunk Header Parsing (2026-01-28)
+
+Fixed a bug in the fixup parser's hunk header regex pattern where optional count values were being incorrectly matched. The parser now correctly handles implicit count defaults when old_count or new_count is omitted in unified diff hunk headers.
+
+**Before:** The regex pattern `r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"` was using the wrong capture group index for old_count, causing incorrect parsing of hunk headers like `@@ -10 +11,2 @@`.
+
+**After:** Corrected the capture group mapping to properly extract:
+- `old_start` from capture group 1
+- `old_count` (optional, defaults to 1) from capture group 2
+- `new_start` from capture group 3
+- `new_count` (optional, defaults to 1) from capture group 4
+
+This fix ensures that the fixup parser correctly handles all valid unified diff formats, including those with implicit count values.
 
 ## Documentation
 

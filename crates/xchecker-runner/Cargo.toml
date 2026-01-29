@@ -1,0 +1,33 @@
+[package]
+name = "xchecker-runner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Process execution with timeouts and job control"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+nix = { workspace = true, features = ["signal", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["processthreadsapi", "winnt", "handleapi", "psapi"] }
+dunce = { workspace = true }
+
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true
+
+[dev-dependencies]
+proptest = { workspace = true }

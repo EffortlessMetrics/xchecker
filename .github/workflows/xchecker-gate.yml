@@ -101,7 +101,7 @@ jobs:
           # Generate requirements phase in dry-run mode to produce receipts
           # This simulates what a real CI pipeline would have from prior runs
           echo "Generating requirements phase (dry-run)..."
-          echo "Build a simple test feature" | ./target/release/xchecker spec ${{ env.SPEC_ID }} --dry-run --phase requirements || true
+          echo "Build a simple test feature" | ./target/release/xchecker spec ${{ env.SPEC_ID }} --dry-run || true
 
           # Show spec status before gate check
           echo "=== Spec Status ==="

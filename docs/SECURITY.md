@@ -21,7 +21,7 @@ The SecretRedactor component detects and blocks secrets before they reach Claude
 ### Default Secret Patterns
 
 <!-- BEGIN GENERATED:DEFAULT_SECRET_PATTERNS -->
-xchecker includes **39 default secret patterns** across 7 categories.
+xchecker includes **45 default secret patterns** across 8 categories.
 
 #### AWS Credentials (5 patterns)
 
@@ -70,7 +70,16 @@ xchecker includes **39 default secret patterns** across 7 categories.
 | `jwt_token` | `eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*` | JSON Web Tokens |
 | `oauth_token` | `(?i)(?:access_token\|refresh_token)[=:][A-Za-z0-9._-]{20,}` | OAuth tokens |
 
-#### Platform-Specific Tokens (12 patterns)
+#### LLM Provider Tokens (4 patterns)
+
+| Pattern ID | Regex | Description |
+|------------|-------|-------------|
+| `anthropic_api_key` | `sk-ant-api03-[A-Za-z0-9_-]{20,}` | Anthropic API keys |
+| `huggingface_token` | `hf_[A-Za-z0-9]{34}` | Hugging Face access tokens |
+| `openai_api_key` | `sk-(?:proj\|org)-[A-Za-z0-9_-]{20,}` | OpenAI Project/Org API keys |
+| `openai_legacy_key` | `sk-[A-Za-z0-9]{48}` | OpenAI Legacy API keys |
+
+#### Platform-Specific Tokens (13 patterns)
 
 | Pattern ID | Regex | Description |
 |------------|-------|-------------|
@@ -79,6 +88,7 @@ xchecker includes **39 default secret patterns** across 7 categories.
 | `github_oauth` | `gho_[A-Za-z0-9]{36}` | GitHub OAuth tokens |
 | `github_pat` | `ghp_[A-Za-z0-9]{36}` | GitHub personal access tokens |
 | `gitlab_token` | `glpat-[A-Za-z0-9_-]{20,}` | GitLab personal/project tokens |
+| `hashicorp_vault_token` | `hv[bs]\.[a-zA-Z0-9_-]{20,}` | HashiCorp Vault tokens |
 | `npm_token` | `npm_[A-Za-z0-9]{36}` | NPM authentication tokens |
 | `nuget_key` | `(?i)nuget_?(?:api_?)?key[=:][A-Za-z0-9]{46}` | NuGet API keys |
 | `pypi_token` | `pypi-[A-Za-z0-9_-]{50,}` | PyPI API tokens |
@@ -87,10 +97,11 @@ xchecker includes **39 default secret patterns** across 7 categories.
 | `stripe_key` | `sk_(?:live\|test)_[A-Za-z0-9]{24,}` | Stripe API keys |
 | `twilio_key` | `SK[A-Za-z0-9]{32}` | Twilio API keys |
 
-#### SSH and PEM Private Keys (5 patterns)
+#### SSH and PEM Private Keys (6 patterns)
 
 | Pattern ID | Regex | Description |
 |------------|-------|-------------|
+| `age_secret_key` | `AGE-SECRET-KEY-1[a-z0-9]{58}` | Age encryption secret keys |
 | `ec_private_key` | `-----BEGIN EC PRIVATE KEY-----` | EC private key markers |
 | `openssh_private_key` | `-----BEGIN OPENSSH PRIVATE KEY-----` | OpenSSH format markers |
 | `pem_private_key` | `-----BEGIN PRIVATE KEY-----` | Generic PEM private key markers |

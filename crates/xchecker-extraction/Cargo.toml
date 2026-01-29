@@ -1,0 +1,14 @@
+[package]
+name = "xchecker-extraction"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Content extraction utilities for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+regex = { workspace = true }

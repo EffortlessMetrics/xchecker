@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use xchecker::artifact::ArtifactManager;
 use xchecker::paths;
 use xchecker::receipt::ReceiptManager;
-use xchecker::status::StatusManager;
+use xchecker::status::status::StatusManager;
 use xchecker::types::{ConfigSource, DriftPair, FileHash, LockDrift, PacketEvidence, PhaseId};
 
 /// Helper to generate status using the internal method
@@ -332,8 +332,8 @@ fn test_fresh_spec_no_receipts() -> Result<()> {
         "Fresh spec should have empty receipt path"
     );
     assert_eq!(
-        status.runner, "auto",
-        "Fresh spec should default to auto runner"
+        status.runner, "native",
+        "Fresh spec should default to native runner"
     );
     assert_eq!(
         status.canonicalization_version, "1.0.0",

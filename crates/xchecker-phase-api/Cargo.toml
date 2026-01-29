@@ -1,0 +1,23 @@
+[package]
+name = "xchecker-phase-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Shared contract for phase execution in xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+xchecker-packet = { workspace = true }
+xchecker-status = { workspace = true }
+xchecker-selectors = { workspace = true }
+xchecker-redaction = { workspace = true }
+xchecker-utils = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

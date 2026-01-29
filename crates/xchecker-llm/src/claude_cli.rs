@@ -6,12 +6,12 @@
 //! **NOTE:** `src/claude.rs` is legacy/test-only and will be removed in a future release (V19+).
 //! All new code should use this backend via the `LlmBackend` trait.
 
-use crate::runner::{BufferConfig, Runner, WslOptions};
+use crate::runner::{BufferConfig, Runner, RunnerMode, WslOptions};
 use crate::{LlmBackend, LlmError, LlmInvocation, LlmResult, Message, Role};
 use async_trait::async_trait;
 use std::path::PathBuf;
 use std::time::Duration;
-use xchecker_utils::types::{OutputFormat, RunnerMode};
+use xchecker_utils::types::OutputFormat;
 
 /// Claude CLI backend implementation
 pub(crate) struct ClaudeCliBackend {
@@ -352,7 +352,7 @@ impl LlmBackend for ClaudeCliBackend {
             .execute_claude(&args, &prompt, Some(inv.timeout))
             .await
             .map_err(|e| match e {
-                crate::error::RunnerError::Timeout { timeout_seconds } => LlmError::Timeout {
+                xchecker_runner::RunnerError::Timeout { timeout_seconds } => LlmError::Timeout {
                     duration: Duration::from_secs(timeout_seconds),
                 },
                 _ => LlmError::Transport(format!("Failed to execute Claude CLI: {e}")),
@@ -388,7 +388,7 @@ impl LlmBackend for ClaudeCliBackend {
                                 .execute_claude(&fallback_args, &prompt, Some(inv.timeout))
                                 .await
                                 .map_err(|e| match e {
-                                    crate::error::RunnerError::Timeout { timeout_seconds } => {
+                                    xchecker_runner::RunnerError::Timeout { timeout_seconds } => {
                                         LlmError::Timeout {
                                             duration: Duration::from_secs(timeout_seconds),
                                         }

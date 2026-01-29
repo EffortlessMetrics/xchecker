@@ -17,9 +17,7 @@ mod wsl_runner_tests {
     use std::time::Duration;
     use xchecker::runner::{Runner, RunnerMode, WslOptions};
     #[allow(unused_imports)]
-    use xchecker::wsl::{
-        is_wsl_available, translate_env_for_wsl, translate_win_to_wsl, validate_claude_in_wsl,
-    };
+    use xchecker::wsl::{is_wsl_available, parse_distro_list, validate_claude_in_wsl};
 
     /// Test that WSL runner can be created with default options
     #[test]
@@ -295,165 +293,10 @@ mod wsl_runner_tests {
         assert_eq!(distro_name, Some(test_distro.clone()));
     }
 
-    // Unit tests for path translation in invocation
-
-    /// Test that Windows paths are translated for WSL invocation
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_path_translation_for_wsl_invocation() {
-        let windows_path = std::path::Path::new("C:\\Users\\test\\file.txt");
-        let wsl_path = translate_win_to_wsl(windows_path).unwrap();
-
-        // Should be translated to WSL format
-        assert!(
-            wsl_path.starts_with("/mnt/c"),
-            "Expected path to start with /mnt/c, got: {wsl_path}"
-        );
-        assert!(wsl_path.contains("Users"));
-        assert!(wsl_path.contains("test"));
-        assert!(wsl_path.contains("file.txt"));
-    }
-
-    /// Test that multiple Windows paths are translated correctly
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_multiple_path_translation_for_wsl() {
-        let paths = vec![
-            "C:\\Windows\\System32",
-            "D:\\Projects\\xchecker",
-            "E:\\Data\\files",
-        ];
-
-        for path_str in paths {
-            let path = std::path::Path::new(path_str);
-            let wsl_path = translate_win_to_wsl(path).unwrap();
-
-            // Should be translated to WSL format
-            assert!(
-                wsl_path.starts_with("/mnt/"),
-                "Expected path to start with /mnt/, got: {wsl_path}"
-            );
-        }
-    }
-
-    /// Test that UNC paths are translated for WSL invocation
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_unc_path_translation_for_wsl() {
-        let windows_path = std::path::Path::new("\\\\server\\share\\path\\file.txt");
-        let wsl_path = translate_win_to_wsl(windows_path).unwrap();
-
-        // Should be translated to WSL format
-        assert!(
-            wsl_path.starts_with("/mnt/"),
-            "Expected UNC path to start with /mnt/, got: {wsl_path}"
-        );
-        assert!(wsl_path.contains("server"));
-        assert!(wsl_path.contains("share"));
-    }
-
-    // Unit tests for environment variable translation in invocation
-
-    /// Test that PATH environment variable is translated for WSL
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_path_env_translation_for_wsl() {
-        let env = vec![(
-            "PATH".to_string(),
-            "C:\\Windows\\System32;C:\\Program Files".to_string(),
-        )];
-
-        let translated = translate_env_for_wsl(&env);
-
-        assert_eq!(translated.len(), 1);
-        assert_eq!(translated[0].0, "PATH");
-
-        // PATH should use colon separator and contain /mnt/c
-        let path_value = &translated[0].1;
-        assert!(path_value.contains(':'), "PATH should use colon separator");
-        assert!(path_value.contains("/mnt/c"), "PATH should contain /mnt/c");
-    }
-
-    /// Test that TEMP environment variable is translated for WSL
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_temp_env_translation_for_wsl() {
-        let env = vec![(
-            "TEMP".to_string(),
-            "C:\\Users\\test\\AppData\\Local\\Temp".to_string(),
-        )];
-
-        let translated = translate_env_for_wsl(&env);
-
-        assert_eq!(translated.len(), 1);
-        assert_eq!(translated[0].0, "TEMP");
-
-        // TEMP should be translated to WSL format
-        let temp_value = &translated[0].1;
-        assert!(
-            temp_value.starts_with("/mnt/c"),
-            "TEMP should start with /mnt/c, got: {temp_value}"
-        );
-    }
-
-    /// Test that non-path environment variables pass through unchanged
-    #[test]
-    fn test_non_path_env_passthrough_for_wsl() {
-        let env = vec![
-            ("USER".to_string(), "testuser".to_string()),
-            ("LANG".to_string(), "en_US.UTF-8".to_string()),
-            ("TERM".to_string(), "xterm-256color".to_string()),
-        ];
-
-        let translated = translate_env_for_wsl(&env);
-
-        // Non-path variables should pass through unchanged
-        assert_eq!(translated.len(), 3);
-        assert_eq!(translated[0], ("USER".to_string(), "testuser".to_string()));
-        assert_eq!(
-            translated[1],
-            ("LANG".to_string(), "en_US.UTF-8".to_string())
-        );
-        assert_eq!(
-            translated[2],
-            ("TERM".to_string(), "xterm-256color".to_string())
-        );
-    }
-
-    /// Test that mixed environment variables are handled correctly
-    #[test]
-    #[cfg(target_os = "windows")]
-    fn test_mixed_env_translation_for_wsl() {
-        let env = vec![
-            (
-                "PATH".to_string(),
-                "C:\\Windows;C:\\Program Files".to_string(),
-            ),
-            ("USER".to_string(), "testuser".to_string()),
-            ("TEMP".to_string(), "C:\\Temp".to_string()),
-            ("LANG".to_string(), "en_US.UTF-8".to_string()),
-        ];
-
-        let translated = translate_env_for_wsl(&env);
-
-        assert_eq!(translated.len(), 4);
-
-        // PATH should be translated
-        let path_entry = translated.iter().find(|(k, _)| k == "PATH").unwrap();
-        assert!(path_entry.1.contains("/mnt/c"));
-
-        // USER should pass through
-        let user_entry = translated.iter().find(|(k, _)| k == "USER").unwrap();
-        assert_eq!(user_entry.1, "testuser");
-
-        // TEMP should be translated
-        let temp_entry = translated.iter().find(|(k, _)| k == "TEMP").unwrap();
-        assert!(temp_entry.1.starts_with("/mnt/c"));
-
-        // LANG should pass through
-        let lang_entry = translated.iter().find(|(k, _)| k == "LANG").unwrap();
-        assert_eq!(lang_entry.1, "en_US.UTF-8");
-    }
+    // Note: Path and environment translation tests were removed because
+    // translate_win_to_wsl and translate_env_for_wsl functions were removed
+    // during the xchecker-engine wsl.rs module refactoring.
+    // See commit ed54ed7 for details.
 
     // Test artifact persistence (artifacts are persisted in Windows spec root by orchestrator)
 

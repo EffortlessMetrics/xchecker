@@ -19,19 +19,19 @@ mod match_context;
 mod model;
 mod parse;
 mod paths;
+mod phase;
 mod report;
 
 pub use crate::error::FixupError;
+pub use crate::gate::{PendingFixupsResult, PendingFixupsStats};
 pub use apply::normalize_line_endings_for_diff;
 pub use model::{
     AppliedFile, ChangeSummary, DiffHunk, FixupMode, FixupPreview, FixupResult, UnifiedDiff,
 };
 pub use parse::FixupParser;
 pub use paths::validate_fixup_target;
-pub use report::{
-    PendingFixupsResult, PendingFixupsStats, pending_fixups_for_spec, pending_fixups_from_handle,
-    pending_fixups_result_for_spec, pending_fixups_result_from_handle,
-};
+pub use phase::FixupPhase;
+pub use report::{pending_fixups_for_spec, pending_fixups_result_from_handle};
 
 #[cfg(test)]
 mod tests {

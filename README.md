@@ -228,7 +228,7 @@ For fixup limitations and workarounds, see the [Debugging Guide](docs/DEBUGGING_
 | [Contracts](docs/CONTRACTS.md) | JSON schema versioning |
 | [Doctor](docs/DOCTOR.md) | Health check details |
 | [LLM Providers](docs/LLM_PROVIDERS.md) | Provider configuration |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+| [Debugging Guide](docs/DEBUGGING_GUIDE.md) | Troubleshooting and diagnostics |
 
 ### Walkthroughs
 
@@ -242,6 +242,21 @@ For fixup limitations and workarounds, see the [Debugging Guide](docs/DEBUGGING_
 - [CI Profiles](docs/CI_PROFILES.md) - CI gate configuration
 
 ## Development
+
+### Nix (optional)
+
+The repo includes a Nix flake for a pinned Rust toolchain (MSRV 1.89) and common dev tools.
+
+```bash
+# Enter dev shell
+nix develop
+
+# Build the CLI
+nix build
+
+# Run xchecker
+nix run
+```
 
 ```bash
 # Run fast tests (~30s)

@@ -1,0 +1,21 @@
+[package]
+name = "xchecker-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Command-line interface implementation for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+xchecker-utils = { workspace = true }
+xchecker-config = { workspace = true }
+xchecker-engine = { workspace = true }
+xchecker-error-reporter = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+tokio = { workspace = true }
+tracing = { workspace = true }

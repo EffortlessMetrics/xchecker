@@ -75,15 +75,28 @@ fn test_fixup_path_traversal_rejection() -> Result<()> {
     // This simulates the environment the FixupPhase would run in
     let base_path = env.handle.artifact_manager().base_path().to_path_buf();
 
+    // Ensure the base path directory exists (FixupParser needs this for sandbox validation)
+    std::fs::create_dir_all(base_path.as_path())?;
+
+    // Convert to absolute path for sandbox validation
+    // (SandboxRoot::new requires the path to exist and be canonicalizable)
+    let abs_base_path = std::env::current_dir()?.join(base_path.as_std_path());
+
     // Initialize FixupParser in Apply mode
-    let parser = FixupParser::new(FixupMode::Apply, base_path.into_std_path_buf())
-        .expect("Failed to create FixupParser");
+    let parser =
+        FixupParser::new(FixupMode::Apply, abs_base_path).expect("Failed to create FixupParser");
 
     // Case 1: Parent directory traversal
     let traversal_diff = UnifiedDiff {
+        path: "a/../evil.txt".to_string(),
         target_file: "../evil.txt".to_string(),
         diff_content: "diff --git a/../evil.txt b/../evil.txt\n...".to_string(),
         hunks: vec![DiffHunk {
+            start: 1,
+            remove_count: 1,
+            add_count: 1,
+            remove_lines: vec!["old".to_string()],
+            add_lines: vec!["new".to_string()],
             old_range: (1, 1),
             new_range: (1, 1),
             content: "@@ -1,1 +1,1 @@\n-old\n+new".to_string(),
@@ -114,9 +127,15 @@ fn test_fixup_path_traversal_rejection() -> Result<()> {
     let abs_path = "C:\\Windows\\Temp\\evil.txt";
 
     let abs_diff = UnifiedDiff {
+        path: format!("a{}", abs_path),
         target_file: abs_path.to_string(),
         diff_content: format!("diff --git a{} b{}\n...", abs_path, abs_path),
         hunks: vec![DiffHunk {
+            start: 1,
+            remove_count: 1,
+            add_count: 1,
+            remove_lines: vec!["old".to_string()],
+            add_lines: vec!["new".to_string()],
             old_range: (1, 1),
             new_range: (1, 1),
             content: "@@ -1,1 +1,1 @@\n-old\n+new".to_string(),

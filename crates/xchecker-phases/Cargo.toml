@@ -1,0 +1,31 @@
+[package]
+name = "xchecker-phases"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Phase implementations for xchecker pipeline"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+xchecker-phase-api = { workspace = true }
+xchecker-packet = { workspace = true }
+xchecker-extraction = { workspace = true }
+xchecker-fixup-model = { workspace = true }
+xchecker-redaction = { workspace = true }
+xchecker-validation = { workspace = true }
+xchecker-status = { workspace = true }
+xchecker-utils = { workspace = true }
+xchecker-config = { workspace = true }
+anyhow = { workspace = true }
+blake3 = { workspace = true }
+camino = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+xchecker-utils = { workspace = true, features = ["test-utils"] }

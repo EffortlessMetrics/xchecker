@@ -162,7 +162,9 @@ mod tests {
 
     #[test]
     fn test_filesystem_source_not_found() {
-        let path = PathBuf::from("/nonexistent/path");
+        // Use a path that doesn't exist on any platform (including Windows where /nonexistent
+        // might resolve to a drive-relative path like D:\nonexistent)
+        let path = PathBuf::from("__nonexistent_test_path_7f8e9d6c5b4a3__");
         let result = SourceResolver::resolve_filesystem(&path);
         assert!(result.is_err());
 

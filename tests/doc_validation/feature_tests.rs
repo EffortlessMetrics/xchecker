@@ -215,7 +215,7 @@ mod tests {
         );
 
         // Verify status module handles drift detection
-        let status_path = Path::new("crates/xchecker-engine/src/status.rs");
+        let status_path = Path::new("crates/xchecker-status/src/status.rs");
         assert!(status_path.exists(), "Status module should exist");
 
         let status_content = fs::read_to_string(status_path).unwrap();
@@ -336,8 +336,8 @@ mod tests {
             "Types module should define ErrorKind enum"
         );
 
-        // Receipt module should handle error receipts (now a directory with mod.rs)
-        let receipt_path = Path::new("crates/xchecker-engine/src/receipt/mod.rs");
+        // Receipt module should handle error receipts (moved to xchecker-receipt crate)
+        let receipt_path = Path::new("crates/xchecker-receipt/src/errors.rs");
         assert!(receipt_path.exists(), "Receipt module should exist");
 
         let receipt_content = fs::read_to_string(receipt_path).unwrap();

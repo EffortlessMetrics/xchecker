@@ -38,10 +38,11 @@ mod tests {
         let variants = ConfigSource::VARIANTS;
 
         assert!(variants.contains(&"Cli"));
+        assert!(variants.contains(&"Env"));
         assert!(variants.contains(&"Config"));
         assert!(variants.contains(&"Programmatic"));
         assert!(variants.contains(&"Default"));
-        assert_eq!(variants.len(), 4);
+        assert_eq!(variants.len(), 5);
     }
 
     #[test]
@@ -86,6 +87,7 @@ mod tests {
 
         // Verify lowercase transformation matches serde serialization
         assert!(transformed.contains("cli"));
+        assert!(transformed.contains("env"));
         assert!(transformed.contains("config"));
         assert!(transformed.contains("programmatic"));
         assert!(transformed.contains("default"));

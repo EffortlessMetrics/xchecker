@@ -455,6 +455,7 @@ fn test_multiple_secrets_detected() -> Result<()> {
     let context_dir = base_path.join("context");
 
     // Create a file with multiple secrets
+    // Note: Use 'data.yaml' not 'secrets.yaml' which is in the mandatory exclusion list
     let github_token = test_support::github_pat();
     let aws_key = test_support::aws_access_key_id();
     let slack_token = test_support::slack_bot_token();
@@ -462,7 +463,7 @@ fn test_multiple_secrets_detected() -> Result<()> {
         "\ngithub_token: {}\naws_key: {}\nslack_token: {}\n",
         github_token, aws_key, slack_token
     );
-    fs::write(base_path.join("secrets.yaml"), multi_secret_content)?;
+    fs::write(base_path.join("data.yaml"), multi_secret_content)?;
 
     let mut builder = PacketBuilder::new()?;
     let result = builder.build_packet(&base_path, "requirements", &context_dir, None);

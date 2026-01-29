@@ -25,12 +25,11 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use crate::artifact::ArtifactManager;
 use crate::config::{CliArgs, Config};
 use crate::error::{ConfigError, XCheckerError};
 use crate::receipt::ReceiptManager;
 use crate::spec_id::sanitize_spec_id;
-use crate::status::StatusManager;
+use crate::status::artifact::ArtifactManager;
 use crate::types::{PhaseId, StatusOutput};
 
 use super::{ExecutionResult, OrchestratorConfig, PhaseOrchestrator};
@@ -81,14 +80,14 @@ use super::{ExecutionResult, OrchestratorConfig, PhaseOrchestrator};
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // Using environment-based config discovery
 ///     let mut handle = OrchestratorHandle::new("my-spec")?;
-///     
+///
 ///     // Run a single phase
 ///     handle.run_phase(PhaseId::Requirements).await?;
 ///
 ///     // Check status
 ///     let status = handle.status()?;
 ///     println!("Artifacts: {}", status.artifacts.len());
-///     
+///
 ///     // Get the spec ID
 ///     println!("Spec: {}", handle.spec_id());
 ///     Ok(())
@@ -193,12 +192,14 @@ impl OrchestratorHandle {
             })
         })?;
 
-        let redactor = crate::redaction::SecretRedactor::from_config(&config).map_err(|e| {
-            XCheckerError::Config(ConfigError::InvalidValue {
-                key: "security".to_string(),
-                value: e.to_string(),
-            })
-        })?;
+        let redactor = crate::redaction::SecretRedactor::from_config(&config).map_err(
+            |e: anyhow::Error| {
+                XCheckerError::Config(ConfigError::InvalidValue {
+                    key: "security".to_string(),
+                    value: e.to_string(),
+                })
+            },
+        )?;
 
         let orchestrator = if force {
             PhaseOrchestrator::new_with_force(&sanitized_id, true)
@@ -513,22 +514,35 @@ impl OrchestratorHandle {
     pub fn status(&self) -> Result<StatusOutput, XCheckerError> {
         use std::collections::BTreeMap;
 
-        // Build effective config from orchestrator config
-        let mut effective_config: BTreeMap<String, (String, String)> = BTreeMap::new();
+        let mut effective_config: BTreeMap<String, (String, String)> = self
+            .config
+            .full_config
+            .as_ref()
+            .map(|config| config.effective_config().into_iter().collect())
+            .unwrap_or_default();
+
+        // Merge any programmatic overrides (e.g., set_config) without losing source attribution.
         for (key, value) in &self.config.config {
-            effective_config.insert(key.clone(), (value.clone(), "programmatic".to_string()));
+            let override_needed = match effective_config.get(key) {
+                Some((existing_value, _)) => existing_value != value,
+                None => true,
+            };
+            if override_needed {
+                effective_config.insert(key.clone(), (value.clone(), "programmatic".to_string()));
+            }
         }
 
-        StatusManager::generate_status_from_orchestrator(
-            &self.orchestrator,
+        crate::status::status::StatusManager::generate_status_internal(
+            self.orchestrator.artifact_manager(),
+            self.orchestrator.receipt_manager(),
             effective_config,
-            None, // lock_drift - not tracked in handle
-            None, // pending_fixups - not tracked in handle
+            None,
+            None,
             Some(&self.config.redactor),
         )
         .map_err(|e| {
-            XCheckerError::Config(crate::error::ConfigError::DiscoveryFailed {
-                reason: format!("Failed to generate status: {}", e),
+            XCheckerError::Config(ConfigError::DiscoveryFailed {
+                reason: format!("Failed to generate status: {e}"),
             })
         })
     }
@@ -606,7 +620,7 @@ impl OrchestratorHandle {
 
     /// Get legal next phases from current state.
     ///
-    /// Returns the list of phases that can be validly executed based on
+    /// Returns a list of phases that can be validly executed based on
     /// the current workflow state.
     pub fn legal_next_phases(&self) -> Result<Vec<PhaseId>> {
         let current = self.current_phase()?;
@@ -686,5 +700,32 @@ impl OrchestratorHandle {
     #[doc(hidden)]
     pub fn as_orchestrator(&self) -> &PhaseOrchestrator {
         &self.orchestrator
+    }
+}
+
+// Implement SpecDataProvider trait for gate module
+impl xchecker_gate::SpecDataProvider for &OrchestratorHandle {
+    fn base_path(&self) -> &std::path::Path {
+        self.orchestrator
+            .artifact_manager()
+            .base_path()
+            .as_std_path()
+    }
+
+    fn spec_id(&self) -> &str {
+        &self.spec_id
+    }
+
+    fn receipt_manager(&self) -> &xchecker_receipt::ReceiptManager {
+        self.orchestrator.receipt_manager()
+    }
+
+    fn phase_completed(&self, phase: xchecker_utils::types::PhaseId) -> bool {
+        self.orchestrator.artifact_manager().phase_completed(phase)
+    }
+
+    fn pending_fixups_result(&self) -> xchecker_gate::PendingFixupsResult {
+        use crate::fixup::pending_fixups_result_from_handle;
+        pending_fixups_result_from_handle(self)
     }
 }

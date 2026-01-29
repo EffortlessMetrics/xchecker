@@ -120,3 +120,28 @@
 **Files Changed:**
 - `crates/xchecker-engine/src/packet/selectors.rs` - Core enforcement in all constructors
 - `crates/xchecker-config/src/config/selectors.rs` - Mirrored patterns in defaults
+
+---
+
+## 2026-01-24 - Missing LLM Provider API Keys in Secret Detection
+
+**Vulnerability:** The default secret detection patterns missed OpenAI API keys (both legacy and new project/org formats) and Anthropic API keys. Given that `xchecker` is an LLM-orchestration tool, accidental inclusion of these keys is a high-probability risk.
+
+**Severity:** HIGH
+
+**Root Cause:** The `DEFAULT_SECRET_PATTERNS` list was comprehensive for cloud providers (AWS, Azure, GCP) but lacked patterns for the specific LLM providers (Anthropic, OpenAI) that the tool interacts with.
+
+**Learning:** When building tools that integrate with specific 3rd-party services (like LLMs), always prioritize secret detection for those specific services' credentials. Generic patterns often fail to catch provider-specific formats like `sk-ant-...` or `sk-proj-...`.
+
+**Fix Applied:**
+1. Added a new category "LLM Provider Tokens" to `redaction.rs`.
+2. Added detection for:
+   - Anthropic keys: `sk-ant-api03-[A-Za-z0-9_-]{20,}`
+   - OpenAI Project/Org keys: `sk-(?:proj|org)-[A-Za-z0-9_-]{20,}`
+   - OpenAI Legacy keys: `sk-[A-Za-z0-9]{48}`
+3. Verified via regression tests that patterns do not overlap incorrectly.
+
+**Prevention:** Regularly audit secret detection patterns against the specific integrations used by the tool and its users.
+
+**Files Changed:**
+- `crates/xchecker-utils/src/redaction.rs`

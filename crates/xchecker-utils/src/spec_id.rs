@@ -5,6 +5,7 @@
 
 pub use crate::error::SpecIdError;
 use unicode_normalization::UnicodeNormalization;
+use xchecker_redaction;
 
 /// Sanitizes a spec ID to ensure it's safe for filesystem use
 ///
@@ -79,8 +80,8 @@ pub fn sanitize_spec_id(id: &str) -> Result<String, SpecIdError> {
 
     // Step 5: Warn user if sanitization occurred
     if sanitized != id {
-        let redacted_original = crate::redaction::redact_user_string(id);
-        let redacted_sanitized = crate::redaction::redact_user_string(&sanitized);
+        let redacted_original = xchecker_redaction::redact_user_string(id);
+        let redacted_sanitized = xchecker_redaction::redact_user_string(&sanitized);
         eprintln!(
             "Warning: spec ID sanitized from '{redacted_original}' to '{redacted_sanitized}'"
         );

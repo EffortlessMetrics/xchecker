@@ -23,12 +23,11 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::artifact::ArtifactManager;
 use crate::config::Selectors;
 use crate::error::{PhaseError, XCheckerError};
 use crate::hooks::HooksConfig;
 use crate::receipt::ReceiptManager;
-use crate::redaction::SecretRedactor;
+use crate::status::artifact::ArtifactManager;
 use crate::types::PhaseId;
 use std::sync::Arc;
 
@@ -108,7 +107,7 @@ pub struct OrchestratorConfig {
     /// Secret redactor built from the effective configuration.
     ///
     /// Used for both secret scanning and final-pass redaction of user-facing output (FR-SEC-19).
-    pub redactor: Arc<SecretRedactor>,
+    pub redactor: Arc<crate::redaction::SecretRedactor>,
     /// Hooks configuration for pre/post phase scripts.
     pub hooks: Option<HooksConfig>,
 }
@@ -707,7 +706,7 @@ This is a generated requirements document for spec {}. The system will provide c
                 "Generate requirements".to_string()
             }
 
-            fn make_packet(&self, _ctx: &PhaseContext) -> Result<crate::phase::Packet> {
+            fn make_packet(&self, _ctx: &PhaseContext) -> Result<xchecker_packet::Packet> {
                 // Create a packet with a GitHub PAT secret
                 let token = test_support::github_pat();
                 let content = format!("Here is my GitHub token: {}\nSome other content", token);
@@ -719,10 +718,10 @@ This is a generated requirements document for spec {}. The system will provide c
                     max_lines: 1200,
                 };
 
-                let mut budget = crate::phase::BudgetUsage::new(65536, 1200);
+                let mut budget = xchecker_packet::BudgetUsage::new(65536, 1200);
                 budget.add_content(content.len(), content.lines().count());
 
-                Ok(crate::phase::Packet::new(
+                Ok(xchecker_packet::Packet::new(
                     content,
                     blake3_hash,
                     evidence,
@@ -734,7 +733,7 @@ This is a generated requirements document for spec {}. The system will provide c
                 &self,
                 _raw: &str,
                 _ctx: &PhaseContext,
-            ) -> Result<crate::phase::PhaseResult> {
+            ) -> Result<xchecker_phase_api::PhaseResult> {
                 unreachable!("Should not reach postprocess when secret is detected");
             }
         }
@@ -791,7 +790,7 @@ This is a generated requirements document for spec {}. The system will provide c
                 "Generate requirements".to_string()
             }
 
-            fn make_packet(&self, _ctx: &PhaseContext) -> Result<crate::phase::Packet> {
+            fn make_packet(&self, _ctx: &PhaseContext) -> Result<xchecker_packet::Packet> {
                 let content = "Test packet content without secrets";
                 let blake3_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
 
@@ -815,10 +814,10 @@ This is a generated requirements document for spec {}. The system will provide c
                     max_lines: 1200,
                 };
 
-                let mut budget = crate::phase::BudgetUsage::new(65536, 1200);
+                let mut budget = xchecker_packet::BudgetUsage::new(65536, 1200);
                 budget.add_content(content.len(), content.lines().count());
 
-                Ok(crate::phase::Packet::new(
+                Ok(xchecker_packet::Packet::new(
                     content.to_string(),
                     blake3_hash,
                     evidence,
@@ -832,10 +831,10 @@ This is a generated requirements document for spec {}. The system will provide c
                 ctx: &PhaseContext,
             ) -> Result<crate::phase::PhaseResult> {
                 // Generate a simple artifact
-                let artifact = crate::artifact::Artifact {
+                let artifact = crate::status::artifact::Artifact {
                     name: "00-requirements.md".to_string(),
                     content: format!("# Requirements for {}\n\nTest requirements.", ctx.spec_id),
-                    artifact_type: crate::artifact::ArtifactType::Markdown,
+                    artifact_type: crate::status::artifact::ArtifactType::Markdown,
                     blake3_hash: String::new(), // Will be computed during storage
                 };
 

@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! Smoke tests for exit code and receipt alignment
 //!
 //! These tests deliberately trigger each major error type and verify that:

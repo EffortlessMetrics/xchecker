@@ -7,11 +7,16 @@
 //! This test suite validates FR-LOCK-001, FR-LOCK-002, and FR-LOCK-005 by spawning
 //! actual child processes to test real concurrent execution scenarios.
 
+#[allow(clippy::duplicate_mod)]
+#[path = "test_support/mod.rs"]
+mod test_support;
+
 use anyhow::Result;
 use serial_test::serial;
 use std::sync::Arc;
 use std::thread;
 use tempfile::TempDir;
+use test_support::EnvVarGuard;
 use xchecker::lock::{FileLock, LockError};
 
 /// Helper to set up isolated test environment
@@ -177,24 +182,9 @@ fn test_lock_file_contains_correct_info() -> Result<()> {
 fn test_concurrent_threads_same_process() -> Result<()> {
     // Create temp dir and set XCHECKER_HOME env var (shared across threads)
     let temp_dir = TempDir::new()?;
-    let original_home = std::env::var("XCHECKER_HOME").ok();
-    // SAFETY: This is a single-threaded test setup; env var is set before spawning threads
-    unsafe { std::env::set_var("XCHECKER_HOME", temp_dir.path()) };
 
-    // Cleanup guard to restore env var on exit (including panic)
-    struct EnvGuard(Option<String>);
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            // SAFETY: This runs after all spawned threads have been joined
-            unsafe {
-                match &self.0 {
-                    Some(val) => std::env::set_var("XCHECKER_HOME", val),
-                    None => std::env::remove_var("XCHECKER_HOME"),
-                }
-            }
-        }
-    }
-    let _guard = EnvGuard(original_home);
+    // EnvVarGuard handles save/restore of XCHECKER_HOME automatically on drop
+    let _guard = EnvVarGuard::set("XCHECKER_HOME", temp_dir.path().to_str().unwrap());
 
     let spec_id = "test-concurrent-threads";
 

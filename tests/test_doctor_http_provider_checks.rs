@@ -362,7 +362,7 @@ model = "test-model"
     });
 }
 
-/// Unit test: Doctor fails when OpenRouter model is not configured
+/// Unit test: Config validation fails when OpenRouter model is not configured
 #[test]
 #[serial]
 fn test_doctor_openrouter_fails_without_model() {
@@ -385,19 +385,13 @@ provider = "openrouter"
             ..Default::default()
         };
 
-        let config = Config::discover(&cli_args).unwrap();
-        let mut doctor = DoctorCommand::new(config);
-        let output = doctor.run_with_options().unwrap();
-
-        let llm_check = output
-            .checks
-            .iter()
-            .find(|c| c.name == "llm_provider")
-            .unwrap();
-
-        assert_eq!(llm_check.status, CheckStatus::Fail);
+        // Config validation now catches missing model at discovery time
+        let result = Config::discover(&cli_args);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
         assert!(
-            llm_check.details.contains("model") || llm_check.details.contains("not configured")
+            err.contains("model") || err.contains("requires a model"),
+            "Expected error about missing model, got: {err}"
         );
 
         // Cleanup
@@ -497,7 +491,7 @@ model = "haiku"
     });
 }
 
-/// Unit test: Doctor fails when Anthropic model is not configured
+/// Unit test: Config validation fails when Anthropic model is not configured
 #[test]
 #[serial]
 fn test_doctor_anthropic_fails_without_model() {
@@ -524,19 +518,13 @@ provider = "anthropic"
             ..Default::default()
         };
 
-        let config = Config::discover(&cli_args).unwrap();
-        let mut doctor = DoctorCommand::new(config);
-        let output = doctor.run_with_options().unwrap();
-
-        let llm_check = output
-            .checks
-            .iter()
-            .find(|c| c.name == "llm_provider")
-            .unwrap();
-
-        assert_eq!(llm_check.status, CheckStatus::Fail);
+        // Config validation now catches missing model at discovery time
+        let result = Config::discover(&cli_args);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
         assert!(
-            llm_check.details.contains("model") || llm_check.details.contains("not configured")
+            err.contains("model") || err.contains("requires a model"),
+            "Expected error about missing model, got: {err}"
         );
 
         // Cleanup

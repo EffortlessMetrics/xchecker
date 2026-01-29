@@ -1,0 +1,21 @@
+[package]
+name = "xchecker-benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Performance benchmarking utilities for xchecker"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+xchecker-utils = { workspace = true }
+xchecker-packet = { workspace = true }
+anyhow = { workspace = true }
+camino = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+xchecker-utils = { workspace = true, features = ["test-utils"] }

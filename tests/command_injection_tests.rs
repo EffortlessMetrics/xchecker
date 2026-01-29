@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::ffi::OsString;
 use std::time::Duration;
-use xchecker::runner::{CommandSpec, NativeRunner, ProcessRunner, WslRunner};
+use xchecker::runner::{CommandSpec, NativeRunner, ProcessRunner, RunnerError, WslRunner};
 
 /// Test that CommandSpec correctly handles arguments with shell metacharacters
 /// without shell interpretation.
@@ -132,7 +132,7 @@ fn test_native_runner_secure_execution() {
     // It should fail because "dummy_program" doesn't exist, NOT because of injection
     assert!(result.is_err());
     match result {
-        Err(xchecker::error::RunnerError::NativeExecutionFailed { reason }) => {
+        Err(RunnerError::NativeExecutionFailed { reason }) => {
             assert!(reason.contains("Failed to spawn process"));
         }
         _ => panic!("Expected NativeExecutionFailed"),
@@ -215,10 +215,10 @@ fn test_wsl_runner_rejects_null_bytes() {
         // It should fail with WslExecutionFailed due to null byte validation
         assert!(result.is_err());
         match result {
-            Err(xchecker::error::RunnerError::WslExecutionFailed { reason }) => {
+            Err(RunnerError::WslExecutionFailed { reason }) => {
                 assert!(reason.contains("null byte"));
             }
-            Err(xchecker::error::RunnerError::WslNotAvailable { .. }) => {
+            Err(RunnerError::WslNotAvailable { .. }) => {
                 // WSL not installed, can't test execution path
                 println!("Skipping null byte test because WSL is not available");
             }

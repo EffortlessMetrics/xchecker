@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! End-to-End Workflow Integration Tests (Task 8.6)
 //!
 //! This module implements comprehensive end-to-end workflow tests that validate

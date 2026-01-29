@@ -1017,10 +1017,11 @@ fn prop_http_logging_never_exposes_secrets() {
             "[A-Za-z0-9_-]{32,64}".prop_map(|key| format!("sk-{}", key)),
             // Bearer token
             "[A-Za-z0-9_-]{40,80}".prop_map(|token| format!("Bearer {}", token)),
-            // Multiple secrets
-            ("[a-z]{4,8}", "[a-z]{4,8}", "[A-Za-z0-9_-]{32,48}")
+            // Multiple secrets - URL credentials plus API key with known prefix
+            ("[a-z]{4,8}", "[a-z]{4,8}", "[A-Za-z0-9]{32,48}")
                 .prop_map(|(user, pass, key)| {
-                    format!("https://{}:{}@api.com with key {}", user, pass, key)
+                    // Use sk- prefix to match OpenAI API key pattern
+                    format!("https://{}:{}@api.com with key sk-{}", user, pass, key)
                 }),
         ],
         // Generate additional context

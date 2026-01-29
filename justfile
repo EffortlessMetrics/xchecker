@@ -98,6 +98,10 @@ fmt:
 # Run all quality checks (lint + format check)
 check: lint fmt-check
 
+# Run modularization verification gate (formatting, clippy, tests, dependency graph)
+verify-modularization:
+    @{{ os_family() == "windows" ? "pwsh -File scripts/verify-modularization.ps1" : "bash scripts/verify-modularization.sh" }}
+
 # ============================================================================
 # DOCUMENTATION
 # ============================================================================

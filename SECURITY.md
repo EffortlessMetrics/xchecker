@@ -1,6 +1,6 @@
 # Security Model
 
-This document describes the security controls implemented in xchecker.
+This document provides a summary of xchecker's security controls. For comprehensive documentation including secret patterns, configuration options, and best practices, see [docs/SECURITY.md](docs/SECURITY.md).
 
 ## File System Security
 

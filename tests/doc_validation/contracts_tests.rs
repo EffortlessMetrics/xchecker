@@ -19,7 +19,7 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
     use xchecker::doctor::{CheckStatus, DoctorCheck, DoctorOutput};
     use xchecker::receipt::ReceiptManager;
-    use xchecker::status::StatusManager;
+    use xchecker::status::status::StatusManager;
     use xchecker::types::{FileHash, PacketEvidence, PhaseId, StatusOutput};
 
     /// Test that CONTRACTS.md accurately describes JCS emission
