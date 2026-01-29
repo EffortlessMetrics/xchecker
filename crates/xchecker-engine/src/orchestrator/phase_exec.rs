@@ -9,11 +9,11 @@ use anyhow::{Context, Result};
 
 use crate::error::{PhaseError, XCheckerError};
 use crate::exit_codes;
-use crate::fixup::FixupMode;
+use crate::fixup::{FixupMode, FixupPhase};
 use crate::hooks::{HookContext, HookExecutor, HookType, execute_and_process_hook};
 use crate::packet::PacketBuilder;
 use crate::phase::{Phase, PhaseContext};
-use crate::phases::{DesignPhase, FixupPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
 use crate::status::artifact::{Artifact, ArtifactType};
 use crate::types::{ErrorKind, FileType, LlmInfo, PacketEvidence, PhaseId, PipelineInfo};
 

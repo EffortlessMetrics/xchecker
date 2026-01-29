@@ -41,5 +41,5 @@ pub mod orchestrator;
 
 // Re-export orchestrator types for backward compatibility
 pub use orchestrator::{OrchestratorConfig, OrchestratorHandle};
-pub mod phase;
-pub mod phases;
+pub use xchecker_phase_api as phase;
+pub use xchecker_phases as phases;

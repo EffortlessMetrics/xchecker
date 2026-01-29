@@ -967,44 +967,6 @@ mod tests {
         }
     }
 
-    #[derive(Default)]
-    struct TestSecretConfig {
-        extra_secret_patterns: Vec<String>,
-        ignore_secret_patterns: Vec<String>,
-    }
-
-    impl SecretConfigProvider for TestSecretConfig {
-        fn extra_secret_patterns(&self) -> &[String] {
-            &self.extra_secret_patterns
-        }
-
-        fn ignore_secret_patterns(&self) -> &[String] {
-            &self.ignore_secret_patterns
-        }
-    }
-
-    impl TestSecretConfig {
-        fn with_extra_patterns(mut self, patterns: Vec<String>) -> Self {
-            self.extra_secret_patterns = patterns;
-            self
-        }
-
-        fn with_ignore_patterns(mut self, patterns: Vec<String>) -> Self {
-            self.ignore_secret_patterns = patterns;
-            self
-        }
-
-        fn add_extra_pattern(mut self, pattern: &str) -> Self {
-            self.extra_secret_patterns.push(pattern.to_string());
-            self
-        }
-
-        fn add_ignore_pattern(mut self, pattern: &str) -> Self {
-            self.ignore_secret_patterns.push(pattern.to_string());
-            self
-        }
-    }
-
     #[test]
     fn test_secret_redactor_creation() {
         let redactor = SecretRedactor::new().unwrap();

@@ -7,9 +7,9 @@
 use anyhow::{Context, Result};
 
 use crate::error::{PhaseError, XCheckerError};
-use crate::fixup::FixupMode;
+use crate::fixup::{FixupMode, FixupPhase};
 use crate::phase::Phase;
-use crate::phases::{DesignPhase, FixupPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
 use crate::types::{FileType, PhaseId, PipelineInfo};
 
 use super::{OrchestratorConfig, PhaseOrchestrator};
