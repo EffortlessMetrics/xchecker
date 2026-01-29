@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use xchecker_packet::{BudgetUsage, Packet};
+pub use xchecker_packet::{BudgetUsage, Packet};
 use xchecker_redaction::SecretRedactor;
 use xchecker_selectors::Selectors;
 use xchecker_status::artifact::Artifact;
