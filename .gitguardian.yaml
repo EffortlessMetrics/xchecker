@@ -1,0 +1,8 @@
+# GitGuardian configuration
+# https://docs.gitguardian.com/ggshield-docs/reference/gitguardian-yaml
+
+# Paths to ignore from secret scanning
+paths-ignore:
+  # The redaction library contains intentional test fixtures with fake tokens
+  # These are used to validate secret detection patterns, not real credentials
+  - "crates/xchecker-redaction/src/lib.rs"
