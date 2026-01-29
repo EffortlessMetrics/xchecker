@@ -20,6 +20,7 @@ pub use xchecker_error_redaction::*;
 pub use xchecker_runner as runner;
 
 // Public exports for production use
+pub use crate::error::LlmError;
 #[allow(unused_imports)]
 // ExecutionStrategy is part of public API, used in types but not in this module
 pub use types::{

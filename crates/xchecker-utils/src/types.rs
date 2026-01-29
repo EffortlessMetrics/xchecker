@@ -203,6 +203,45 @@ impl LlmInfo {
     }
 }
 
+/// LLM metadata for receipts (wires ClaudeResponse fields into receipts)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LlmInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_used: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokens_input: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokens_output: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timed_out: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub budget_exhausted: Option<bool>,
+}
+
+impl LlmInfo {
+    /// Create an LlmInfo for budget exhaustion errors
+    ///
+    /// This is used when an LLM invocation fails due to budget exhaustion,
+    /// allowing us to record the budget_exhausted flag in the receipt even
+    /// though there's no successful LlmResult.
+    #[must_use]
+    pub fn for_budget_exhaustion() -> Self {
+        Self {
+            provider: None,
+            model_used: None,
+            tokens_input: None,
+            tokens_output: None,
+            timed_out: None,
+            timeout_seconds: None,
+            budget_exhausted: Some(true),
+        }
+    }
+}
+
 /// Enhanced receipt structure for multi-file support and full auditability
 /// Records comprehensive information about phase execution including Claude CLI details
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::time::timeout;
+use xchecker_utils::types::RunnerMode;
 
 /// Gemini profile configuration for per-phase model selection
 #[derive(Debug, Clone)]
