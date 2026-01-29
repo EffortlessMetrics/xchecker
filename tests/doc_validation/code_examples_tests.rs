@@ -1023,6 +1023,41 @@ fn load_fallback_json(filter: &str) -> Value {
     sample.unwrap_or_else(|| json!({ "schema_version": "1", "ok": true }))
 }
 
+/// Extract the subcommand from an xchecker command line.
+///
+/// Scans for a known subcommand token rather than just "first non-flag token",
+/// which avoids false positives when flag values (e.g., `--output-dir /tmp`)
+/// appear before the subcommand.
+///
+/// Returns the subcommand if found, or None if not an xchecker command or
+/// no known subcommand is present.
+fn xchecker_subcommand(cmd: &str) -> Option<&str> {
+    // Known xchecker subcommands (from src/cli.rs Commands enum)
+    const SUBCMDS: &[&str] = &[
+        "spec",
+        "status",
+        "resume",
+        "clean",
+        "benchmark",
+        "test",
+        "doctor",
+        "init",
+        "project",
+        "gate",
+        "template",
+    ];
+
+    let mut tokens = cmd.split_whitespace();
+
+    // First token must be xchecker
+    if tokens.next()? != "xchecker" {
+        return None;
+    }
+
+    // Find first token that matches a known subcommand
+    tokens.find(|tok| SUBCMDS.contains(tok))
+}
+
 fn resolve_jq_input(
     segments: &[String],
     jq_index: usize,
@@ -1051,13 +1086,28 @@ fn resolve_jq_input(
 
     if input_segment.starts_with("xchecker") {
         let result = runner.run_command(input_segment)?;
-        if result.exit_code != 0 {
+
+        // Allow exit code 1 for `xchecker doctor --json` since it means
+        // "some checks failed", not "command error". The doctor command
+        // still produces valid JSON that we can process.
+        //
+        // We only relax for:
+        // - subcommand == "doctor" (detected structurally, not via substring)
+        // - --json flag present (so we expect JSON output)
+        // - exit code == 1 specifically (not 2 for bad args, 70 for provider failure, etc.)
+        let subcmd = xchecker_subcommand(input_segment);
+        let is_doctor_json = subcmd == Some("doctor") && input_segment.contains("--json");
+
+        // Fail on non-zero exit, unless it's doctor --json with exit code 1
+        // (exit code 1 means "checks failed" but JSON is still valid)
+        if result.exit_code != 0 && !(is_doctor_json && result.exit_code == 1) {
             anyhow::bail!(
                 "xchecker command failed (exit {}): {}",
                 result.exit_code,
                 input_segment
             );
         }
+
         let stdout = result.stdout.trim();
         return serde_json::from_str(stdout)
             .with_context(|| format!("Failed to parse JSON from: {input_segment}"));
@@ -1164,4 +1214,82 @@ fn test_jq_examples_from_docs() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod subcommand_tests {
+    use super::xchecker_subcommand;
+
+    #[test]
+    fn test_xchecker_subcommand_basic() {
+        assert_eq!(xchecker_subcommand("xchecker doctor"), Some("doctor"));
+        assert_eq!(xchecker_subcommand("xchecker status"), Some("status"));
+        assert_eq!(xchecker_subcommand("xchecker spec"), Some("spec"));
+        assert_eq!(xchecker_subcommand("xchecker resume"), Some("resume"));
+        assert_eq!(xchecker_subcommand("xchecker gate"), Some("gate"));
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_with_flags_before() {
+        // Flags before subcommand
+        assert_eq!(xchecker_subcommand("xchecker --json doctor"), Some("doctor"));
+        assert_eq!(xchecker_subcommand("xchecker -v doctor"), Some("doctor"));
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_with_flags_after() {
+        // Flags after subcommand - still returns the subcommand
+        assert_eq!(
+            xchecker_subcommand("xchecker doctor --json"),
+            Some("doctor")
+        );
+        assert_eq!(xchecker_subcommand("xchecker status -v"), Some("status"));
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_no_match() {
+        // Not xchecker command
+        assert_eq!(xchecker_subcommand("cargo build"), None);
+        assert_eq!(xchecker_subcommand("echo doctor"), None);
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_only_flags() {
+        // No subcommand, only flags
+        assert_eq!(xchecker_subcommand("xchecker --help"), None);
+        assert_eq!(xchecker_subcommand("xchecker -V"), None);
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_false_positive_prevention() {
+        // These should NOT match "doctor" via substring
+        assert_eq!(
+            xchecker_subcommand("xchecker status --spec doctor-fix"),
+            Some("status")
+        );
+        // A file path containing "doctor" should not be detected as a subcommand
+        // (since "run" is not in SUBCMDS, this returns None, which is correct)
+        assert_eq!(
+            xchecker_subcommand("xchecker --verbose /path/to/doctor/spec"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_xchecker_subcommand_with_flag_value_paths() {
+        // Non-subcommand tokens (paths, values) should be ignored when scanning
+        // for the first known subcommand. This works because paths like "/some/path"
+        // are not in the SUBCMDS list.
+        //
+        // Note: This heuristic can still be fooled if a flag value is literally
+        // a subcommand name (e.g., `--config doctor`), but that's rare in practice.
+        assert_eq!(
+            xchecker_subcommand("xchecker --output-dir /some/path doctor --json"),
+            Some("doctor")
+        );
+        assert_eq!(
+            xchecker_subcommand("xchecker --config /tmp/config.toml status my-spec"),
+            Some("status")
+        );
+    }
 }
