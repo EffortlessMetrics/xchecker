@@ -234,8 +234,13 @@ xchecker doctor --strict-exit
 
 ## Exit Codes
 
-- **0:** All checks passed (or only warnings in normal mode)
-- **1:** One or more checks failed (or warnings in strict mode)
+| Code | Meaning | JSON Output |
+|------|---------|-------------|
+| **0** | All checks passed (or only warnings in normal mode) | Valid JSON emitted |
+| **1** | One or more checks failed (or warnings in strict mode) | Valid JSON emitted |
+| **2** | Invalid arguments or configuration | No JSON guarantee |
+
+**Note for CI/scripts:** When using `--json`, exit code 1 still produces valid JSON output that can be parsed and processed. The non-zero exit indicates health status, not command failure. If using `set -o pipefail` in shell pipelines, be aware that `doctor --json | jq ...` will fail the pipeline even when the JSON is valid.
 
 ## JSON Output Schema
 
