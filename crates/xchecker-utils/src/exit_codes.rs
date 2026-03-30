@@ -59,7 +59,7 @@ use crate::types::ErrorKind;
 ///
 /// # Integration with XCheckerError
 ///
-/// Use [`XCheckerError::to_exit_code()`](crate::XCheckerError::to_exit_code) to map
+/// Use [`XCheckerError::to_exit_code()`](crate::error::XCheckerError::to_exit_code) to map
 /// errors to exit codes:
 ///
 /// ```rust

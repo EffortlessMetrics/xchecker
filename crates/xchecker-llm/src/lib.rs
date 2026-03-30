@@ -20,12 +20,12 @@ pub use xchecker_error_redaction::*;
 pub use xchecker_runner as runner;
 
 // Public exports for production use
-pub use xchecker_utils::error::LlmError;
 #[allow(unused_imports)]
 // ExecutionStrategy is part of public API, used in types but not in this module
 pub use types::{
     ExecutionStrategy, LlmBackend, LlmFallbackInfo, LlmInvocation, LlmResult, Message, Role,
 };
+pub use xchecker_utils::error::LlmError;
 
 // Test-only exports - hidden from documentation
 #[doc(hidden)]

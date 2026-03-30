@@ -1232,7 +1232,10 @@ mod subcommand_tests {
     #[test]
     fn test_xchecker_subcommand_with_flags_before() {
         // Flags before subcommand
-        assert_eq!(xchecker_subcommand("xchecker --json doctor"), Some("doctor"));
+        assert_eq!(
+            xchecker_subcommand("xchecker --json doctor"),
+            Some("doctor")
+        );
         assert_eq!(xchecker_subcommand("xchecker -v doctor"), Some("doctor"));
     }
 

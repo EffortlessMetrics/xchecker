@@ -11,6 +11,8 @@
 #
 # See docs/TESTING.md for detailed documentation.
 
+set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
+
 # Default recipe - show available commands
 default:
     @just --list
@@ -98,9 +100,13 @@ fmt:
 # Run all quality checks (lint + format check)
 check: lint fmt-check
 
+# Package every workspace crate the way crates.io will see it
+package-publish-check:
+    cargo package --workspace --allow-dirty --no-verify
+
 # Run modularization verification gate (formatting, clippy, tests, dependency graph)
 verify-modularization:
-    @{{ os_family() == "windows" ? "pwsh -File scripts/verify-modularization.ps1" : "bash scripts/verify-modularization.sh" }}
+    @{{ if os_family() == "windows" { "pwsh -File scripts/verify-modularization.ps1" } else { "bash scripts/verify-modularization.sh" } }}
 
 # ============================================================================
 # DOCUMENTATION
@@ -123,6 +129,18 @@ ci-fast: check test-fast test-docs
 
 # Simulate CI full lane (what runs nightly)
 ci-full: check test-full test-docs
+
+# Show the crates.io publish order without publishing anything
+publish-plan:
+    @{{ if os_family() == "windows" { "pwsh -File scripts/publish-workspace.ps1" } else { "bash scripts/publish-workspace.sh" } }}
+
+# Run tiered crates.io dry-runs in publish order
+publish-dry-run:
+    @{{ if os_family() == "windows" { "pwsh -File scripts/publish-workspace.ps1 -DryRun" } else { "bash scripts/publish-workspace.sh --dry-run" } }}
+
+# Publish crates.io tiers in order
+publish-execute:
+    @{{ if os_family() == "windows" { "pwsh -File scripts/publish-workspace.ps1 -Execute" } else { "bash scripts/publish-workspace.sh --execute" } }}
 
 # ============================================================================
 # DEVELOPMENT HELPERS

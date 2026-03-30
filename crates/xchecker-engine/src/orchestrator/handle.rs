@@ -108,11 +108,11 @@ use super::{ExecutionResult, OrchestratorConfig, PhaseOrchestrator};
 ///
 /// # Error Handling
 ///
-/// All methods return `Result` types. Errors are returned as [`XCheckerError`](crate::XCheckerError)
+/// All methods return `Result` types. Errors are returned as [`XCheckerError`]
 /// which provides:
 /// - Rich context about what went wrong
 /// - Actionable suggestions for resolution
-/// - Mapping to CLI exit codes via [`to_exit_code()`](crate::XCheckerError::to_exit_code)
+/// - Mapping to CLI exit codes via [`XCheckerError::to_exit_code`]
 pub struct OrchestratorHandle {
     orchestrator: PhaseOrchestrator,
     config: OrchestratorConfig,
