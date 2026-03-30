@@ -128,6 +128,14 @@ pwsh -File scripts/publish-workspace.ps1 -Execute
 just publish-execute
 ```
 
+If publication is interrupted or crates.io rate-limits the release, resume with the checked-in skip-published mode instead of rebuilding a manual command list:
+
+```bash
+./scripts/publish-workspace.sh --execute --skip-published
+pwsh -File scripts/publish-workspace.ps1 -Execute -SkipPublished
+just publish-resume
+```
+
 ## Automated Release Script
 
 The publish order now lives in version-controlled scripts instead of inline snippets:
@@ -146,6 +154,11 @@ just publish-dry-run
 # Resume an interrupted release from tier 4
 ./scripts/publish-workspace.sh --execute --from-tier 4
 pwsh -File scripts/publish-workspace.ps1 -Execute -FromTier 4
+
+# Resume an interrupted release and skip crates already published at this version
+./scripts/publish-workspace.sh --execute --skip-published
+pwsh -File scripts/publish-workspace.ps1 -Execute -SkipPublished
+just publish-resume
 ```
 
 ## Post-Release Verification

@@ -7,12 +7,13 @@ tiers_file="$script_dir/publish-tiers.txt"
 
 mode="plan"
 allow_dirty=0
+skip_published=0
 from_tier=1
 index_wait_seconds=30
 
 usage() {
     cat <<'EOF'
-Usage: scripts/publish-workspace.sh [--dry-run | --execute] [--allow-dirty] [--from-tier N] [--index-wait-seconds N]
+Usage: scripts/publish-workspace.sh [--dry-run | --execute] [--allow-dirty] [--skip-published] [--from-tier N] [--index-wait-seconds N]
 
 Modes:
   default     Print the publish order without invoking cargo
@@ -39,6 +40,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --allow-dirty)
             allow_dirty=1
+            ;;
+        --skip-published)
+            skip_published=1
             ;;
         --from-tier)
             shift
@@ -73,6 +77,22 @@ fi
 
 mapfile -t tiers < <(grep -Ev '^[[:space:]]*($|#)' "$tiers_file")
 
+workspace_version="$(
+    awk '
+        /^\[workspace\.package\]/ { in_workspace_package = 1; next }
+        /^\[/ { in_workspace_package = 0 }
+        in_workspace_package && match($0, /^[[:space:]]*version[[:space:]]*=[[:space:]]*"([^"]+)"/, m) {
+            print m[1]
+            exit
+        }
+    ' "$workspace_root/Cargo.toml"
+)"
+
+if [[ -z "$workspace_version" ]]; then
+    echo "Could not determine [workspace.package].version from $workspace_root/Cargo.toml" >&2
+    exit 1
+fi
+
 if (( from_tier > ${#tiers[@]} )); then
     echo "--from-tier exceeds the number of publish tiers (${#tiers[@]})" >&2
     exit 2
@@ -83,12 +103,24 @@ if [[ "$mode" == "dry-run" ]]; then
     echo "Higher tiers will fail until lower tiers for this version are already indexed."
 fi
 
+if (( skip_published )); then
+    echo "Skipping crates that already have version ${workspace_version} on crates.io."
+fi
+
 for ((tier_index = from_tier - 1; tier_index < ${#tiers[@]}; tier_index++)); do
     tier_number=$((tier_index + 1))
     tier_crates="${tiers[tier_index]}"
     echo "Tier ${tier_number}: ${tier_crates}"
 
     for crate in $tier_crates; do
+        if (( skip_published )); then
+            expected="${crate} = \"${workspace_version}\""
+            if cargo search "$crate" --limit 1 2>/dev/null | grep -Fq "$expected"; then
+                echo "- ${crate} ${workspace_version} already published; skipping."
+                continue
+            fi
+        fi
+
         cmd=(cargo publish --locked -p "$crate")
         if [[ "$mode" == "dry-run" ]]; then
             cmd+=(--dry-run)

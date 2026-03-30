@@ -142,6 +142,10 @@ publish-dry-run:
 publish-execute:
     @{{ if os_family() == "windows" { "pwsh -File scripts/publish-workspace.ps1 -Execute" } else { "bash scripts/publish-workspace.sh --execute" } }}
 
+# Resume crates.io publishing after a partial release
+publish-resume:
+    @{{ if os_family() == "windows" { "pwsh -File scripts/publish-workspace.ps1 -Execute -SkipPublished" } else { "bash scripts/publish-workspace.sh --execute --skip-published" } }}
+
 # ============================================================================
 # DEVELOPMENT HELPERS
 # ============================================================================
