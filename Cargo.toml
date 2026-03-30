@@ -132,11 +132,19 @@ homepage = "https://github.com/EffortlessMetrics/xchecker"
 readme = "README.md"
 categories = ["command-line-utilities", "development-tools"]
 keywords = ["cli", "spec", "requirements", "workflow", "automation"]
-exclude = [
-    ".xchecker/",
-    ".kiro/",
-    ".github/",
-    ".vscode/",
+include = [
+    "/build.rs",
+    "/Cargo.lock",
+    "/Cargo.toml",
+    "/CHANGELOG.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/README.md",
+    "/docs/**",
+    "/examples/**",
+    "/schemas/**",
+    "/src/**",
+    "/tests/**",
 ]
 
 [features]

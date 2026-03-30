@@ -117,7 +117,7 @@ impl HooksConfig {
 ///
 /// For embedding scenarios where you need deterministic behavior independent
 /// of the user's environment, construct a `Config` directly or use
-/// [`OrchestratorHandle::from_config()`](crate::OrchestratorHandle::from_config).
+/// `xchecker::OrchestratorHandle::from_config()`.
 ///
 /// # Source Attribution
 ///

@@ -1,0 +1,8 @@
+# One tier per line. Crates on the same line can be published without waiting
+# for each other to become visible on crates.io.
+xchecker-extraction xchecker-fixup-model xchecker-redaction xchecker-runner xchecker-lock
+xchecker-utils
+xchecker-error-redaction xchecker-error-reporter xchecker-prompt-template xchecker-selectors xchecker-templates xchecker-validation xchecker-workspace
+xchecker-receipt xchecker-config xchecker-packet xchecker-status xchecker-gate xchecker-doctor xchecker-llm xchecker-phase-api xchecker-hooks xchecker-benchmark
+xchecker-phases xchecker-engine
+xchecker-cli xchecker-tui xchecker

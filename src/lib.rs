@@ -41,8 +41,9 @@
 //! tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 //! ```
 //!
-//! NOTE: The OrchestratorHandle API is temporarily unavailable due to modularization work.
-//! For now, use the CLI directly or internal APIs (not covered by semver).
+//! Use [`OrchestratorHandle`] as the stable embedding facade for phase execution.
+//! Avoid reaching into internal orchestrator modules directly; those are not covered
+//! by semver guarantees.
 //!
 //! # JSON Contracts
 //!

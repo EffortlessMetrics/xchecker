@@ -19,8 +19,11 @@ cargo test --workspace --lib --bins
 # 4. Integration tests (skip external dependencies)
 cargo test --workspace --tests -- --skip requires_claude_stub --skip requires_real_claude --skip requires_xchecker_binary
 
-# 5. Version alignment check
-grep -r "version = \"1.1.0\"" Cargo.toml crates/*/Cargo.toml | head -30
+# 5. Package every crate the way crates.io will see it
+cargo package --workspace --allow-dirty --no-verify
+
+# 6. Review the planned publish order
+just publish-plan
 ```
 
 ## Crate Dependency Tiers
@@ -97,128 +100,65 @@ Execute these commands in order. Within each tier, crates can be published in pa
 
 ### Dry-Run Verification
 
-First, verify each crate can package correctly:
+Use packaging verification for the full workspace:
 
 ```bash
-# Tier 1: Leaf crates (can run in parallel)
-cargo publish -p xchecker-extraction --dry-run --allow-dirty
-cargo publish -p xchecker-fixup-model --dry-run --allow-dirty
-cargo publish -p xchecker-redaction --dry-run --allow-dirty
-cargo publish -p xchecker-runner --dry-run --allow-dirty
-cargo publish -p xchecker-lock --dry-run --allow-dirty
-
-# Tier 2: Foundation (depends on Tier 1 being on crates.io)
-cargo publish -p xchecker-utils --dry-run --allow-dirty
-
-# Tier 3: Low-tier (depends on Tier 2 being on crates.io)
-cargo publish -p xchecker-error-redaction --dry-run --allow-dirty
-cargo publish -p xchecker-error-reporter --dry-run --allow-dirty
-cargo publish -p xchecker-prompt-template --dry-run --allow-dirty
-cargo publish -p xchecker-selectors --dry-run --allow-dirty
-cargo publish -p xchecker-templates --dry-run --allow-dirty
-cargo publish -p xchecker-validation --dry-run --allow-dirty
-cargo publish -p xchecker-workspace --dry-run --allow-dirty
-
-# Tier 4: Mid-tier
-cargo publish -p xchecker-receipt --dry-run --allow-dirty
-cargo publish -p xchecker-config --dry-run --allow-dirty
-cargo publish -p xchecker-packet --dry-run --allow-dirty
-cargo publish -p xchecker-status --dry-run --allow-dirty
-cargo publish -p xchecker-gate --dry-run --allow-dirty
-cargo publish -p xchecker-doctor --dry-run --allow-dirty
-cargo publish -p xchecker-llm --dry-run --allow-dirty
-cargo publish -p xchecker-phase-api --dry-run --allow-dirty
-cargo publish -p xchecker-hooks --dry-run --allow-dirty
-cargo publish -p xchecker-benchmark --dry-run --allow-dirty
-
-# Tier 5: High-tier
-cargo publish -p xchecker-phases --dry-run --allow-dirty
-cargo publish -p xchecker-engine --dry-run --allow-dirty
-
-# Tier 6: Top-level
-cargo publish -p xchecker-cli --dry-run --allow-dirty
-cargo publish -p xchecker-tui --dry-run --allow-dirty
-cargo publish -p xchecker --dry-run --allow-dirty
+cargo package --workspace --allow-dirty --no-verify
 ```
 
-**Note:** Dry-run for crates depending on unpublished internal crates will fail until those dependencies are on crates.io. This is expected behavior.
+If you want a real crates.io preflight for a leaf crate, dry-run it directly:
+
+```bash
+cargo publish --locked -p xchecker-lock --dry-run --allow-dirty
+```
+
+For higher tiers, `cargo publish --dry-run` only succeeds after the lower-tier crates for the same version are already indexed on crates.io. Use the checked-in publish scripts to print or execute the release order instead of hand-maintaining command lists.
 
 ### Actual Publish
 
-Once leaf crates verify clean, publish in order:
+Once the package check is clean, publish in order:
 
 ```bash
-# Tier 1: Leaf crates
-cargo publish -p xchecker-extraction
-cargo publish -p xchecker-fixup-model
-cargo publish -p xchecker-redaction
-cargo publish -p xchecker-runner
-cargo publish -p xchecker-lock
+./scripts/publish-workspace.sh --execute
 
-# Wait ~30 seconds for crates.io indexing between tiers
+# Windows PowerShell
+pwsh -File scripts/publish-workspace.ps1 -Execute
 
-# Tier 2: Foundation
-cargo publish -p xchecker-utils
+# Via just
+just publish-execute
+```
 
-# Tier 3: Low-tier
-cargo publish -p xchecker-error-redaction
-cargo publish -p xchecker-error-reporter
-cargo publish -p xchecker-prompt-template
-cargo publish -p xchecker-selectors
-cargo publish -p xchecker-templates
-cargo publish -p xchecker-validation
-cargo publish -p xchecker-workspace
+If publication is interrupted or crates.io rate-limits the release, resume with the checked-in skip-published mode instead of rebuilding a manual command list:
 
-# Tier 4: Mid-tier
-cargo publish -p xchecker-receipt
-cargo publish -p xchecker-config
-cargo publish -p xchecker-packet
-cargo publish -p xchecker-status
-cargo publish -p xchecker-gate
-cargo publish -p xchecker-doctor
-cargo publish -p xchecker-llm
-cargo publish -p xchecker-phase-api
-cargo publish -p xchecker-hooks
-cargo publish -p xchecker-benchmark
-
-# Tier 5: High-tier
-cargo publish -p xchecker-phases
-cargo publish -p xchecker-engine
-
-# Tier 6: Top-level
-cargo publish -p xchecker-cli
-cargo publish -p xchecker-tui
-cargo publish -p xchecker
+```bash
+./scripts/publish-workspace.sh --execute --skip-published
+pwsh -File scripts/publish-workspace.ps1 -Execute -SkipPublished
+just publish-resume
 ```
 
 ## Automated Release Script
 
-For automated releases, use this script:
+The publish order now lives in version-controlled scripts instead of inline snippets:
 
 ```bash
-#!/bin/bash
-set -euo pipefail
+# Print the tier plan
+./scripts/publish-workspace.sh
+pwsh -File scripts/publish-workspace.ps1
+just publish-plan
 
-TIERS=(
-    "xchecker-extraction xchecker-fixup-model xchecker-redaction xchecker-runner xchecker-lock"
-    "xchecker-utils"
-    "xchecker-error-redaction xchecker-error-reporter xchecker-prompt-template xchecker-selectors xchecker-templates xchecker-validation xchecker-workspace"
-    "xchecker-receipt xchecker-config xchecker-packet xchecker-status xchecker-gate xchecker-doctor xchecker-llm xchecker-phase-api xchecker-hooks xchecker-benchmark"
-    "xchecker-phases xchecker-engine"
-    "xchecker-cli xchecker-tui xchecker"
-)
+# Run crates.io dry-runs in tier order
+./scripts/publish-workspace.sh --dry-run
+pwsh -File scripts/publish-workspace.ps1 -DryRun
+just publish-dry-run
 
-for tier in "${TIERS[@]}"; do
-    echo "Publishing tier: $tier"
-    for crate in $tier; do
-        echo "  Publishing $crate..."
-        cargo publish -p "$crate"
-    done
-    echo "Waiting for crates.io indexing..."
-    sleep 30
-done
+# Resume an interrupted release from tier 4
+./scripts/publish-workspace.sh --execute --from-tier 4
+pwsh -File scripts/publish-workspace.ps1 -Execute -FromTier 4
 
-echo "Release complete!"
+# Resume an interrupted release and skip crates already published at this version
+./scripts/publish-workspace.sh --execute --skip-published
+pwsh -File scripts/publish-workspace.ps1 -Execute -SkipPublished
+just publish-resume
 ```
 
 ## Post-Release Verification
