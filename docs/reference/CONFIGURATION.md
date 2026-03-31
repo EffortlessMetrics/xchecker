@@ -121,15 +121,73 @@ Per-phase overrides. Phase keys: `requirements`, `design`, `tasks`, `review`,
 | `claude_path` | String | `null` | Custom Claude CLI path |
 | `phase_timeout` | Integer | `600` | Phase timeout in seconds (minimum 5) |
 
-### [hooks.pre_phase.<phase>] and [hooks.post_phase.<phase>]
+### [hooks]
 
-Phase keys: `requirements`, `design`, `tasks`, `review`, `fixup`, `final`.
+The `[hooks]` section configures custom shell scripts that run before or after
+phase execution. Hooks are organized into two sub-tables: `pre_phase` (runs
+before the LLM is invoked) and `post_phase` (runs after artifacts and receipt
+are written).
+
+Each sub-table is keyed by phase name. Phase keys: `requirements`, `design`,
+`tasks`, `review`, `fixup`, `final`.
+
+#### [hooks.pre_phase.\<phase\>]
+
+Pre-phase hooks run before the LLM invocation. If `on_fail = "fail"` and the
+hook exits non-zero or times out, the phase is aborted and a failure receipt is
+written with `hook_failure: "pre_phase"`. If `on_fail = "warn"`, the warning is
+recorded in the receipt's `warnings` array and the phase proceeds.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `command` | String | Required | Shell command to execute |
-| `on_fail` | String | `"warn"` | Failure behavior (`warn` or `fail`) |
-| `timeout` | Integer | `60` | Hook timeout in seconds |
+| `command` | String | Required | Shell command to execute (via `sh -c` on Unix, `cmd /C` on Windows) |
+| `on_fail` | String | `"warn"` | Failure behavior: `"warn"` logs and continues; `"fail"` aborts the phase |
+| `timeout` | Integer | `60` | Maximum execution time in seconds; the hook is terminated if exceeded |
+
+#### [hooks.post_phase.\<phase\>]
+
+Post-phase hooks run after the phase succeeds (artifacts written, receipt
+committed). Because the phase is already complete, post-phase hook failures are
+**always treated as warnings** regardless of the `on_fail` setting.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `command` | String | Required | Shell command to execute (via `sh -c` on Unix, `cmd /C` on Windows) |
+| `on_fail` | String | `"warn"` | Failure behavior: effectively always `"warn"` for post-phase hooks |
+| `timeout` | Integer | `60` | Maximum execution time in seconds; the hook is terminated if exceeded |
+
+#### Hook environment variables
+
+All hooks receive these environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `XCHECKER_SPEC_ID` | Spec identifier | `my-feature` |
+| `XCHECKER_PHASE` | Phase name | `design` |
+| `XCHECKER_HOOK_TYPE` | Hook point | `pre_phase` or `post_phase` |
+
+Additionally, a JSON payload with the same context is written to the hook's
+stdin: `{"spec_id":"...","phase":"...","hook_type":"..."}`.
+
+#### Hook execution details
+
+- Working directory: the directory where `xchecker` was invoked.
+- Stdout and stderr are captured and truncated to 2048 bytes each.
+- Timeouts terminate the hook process; the result is treated as a failure.
+
+#### Example
+
+```toml
+[hooks.pre_phase.fixup]
+command = "cargo clippy --workspace -- -D warnings"
+on_fail = "fail"
+timeout = 120
+
+[hooks.post_phase.review]
+command = "./scripts/notify_slack.sh"
+on_fail = "warn"
+timeout = 10
+```
 
 ### [security]
 
