@@ -1,200 +1,56 @@
 # xchecker Roadmap
 
-**Last Updated**: January 23, 2026
-**Current Version**: 1.1.0
-**Next Major**: 2.0.0 (Modularization)
+Last updated: March 2026
+
+This roadmap is organized by commitment level, not by version number. Items move from Later to Next to Now as they are prioritized and staffed. If something here matters to you, open an issue -- it influences priority.
 
 ---
 
-## Overview
+## Now (active work)
 
-xchecker is a Rust CLI tool for orchestrating spec generation workflows using LLMs. It implements a 6-phase pipeline (Requirements → Design → Tasks → Review → Fixup → Final) with controlled execution, atomic file operations, secret redaction, and cryptographic audit trails.
+These are in progress and expected to land in the next release.
 
----
+- **Documentation rework**: Restructuring all docs into a problem-first Diataxis layout (tutorials, guides, reference, explanation). The goal is to make it possible to find the right answer within two clicks from the README.
 
-## Current Status: v1.1.0
+- **Hooks documentation completion**: The hooks system (pre/post-phase shell scripts) shipped in v1.1.0 but the configuration reference is incomplete. Filling in the guides with examples for common workflows: linting before fixup, notifications after review, custom validation.
 
-All V11–V18 roadmap features are **complete and released**.
+- **Config test environment isolation**: Ensuring config-layer tests do not leak state across test runs. Currently some tests share a global config directory, which causes flaky failures when run in parallel.
 
-| Milestone | Version | Status |
-|-----------|---------|--------|
-| Core Runtime | v1.0.0 | ✅ Complete |
-| LLM Abstraction (V11) | v1.1.0 | ✅ Complete |
-| Gemini Support (V12) | v1.1.0 | ✅ Complete |
-| HTTP Providers (V13-V14) | v1.1.0 | ✅ Complete |
-| Ecosystem (V16-V18) | v1.1.0 | ✅ Complete |
+- **`--llm-gemini-binary` CLI flag**: Custom Gemini CLI binary path override, matching the existing `--llm-claude-binary` flag. Required for environments where the Gemini CLI is not on `$PATH`.
 
 ---
 
-## Spec Implementation Status
+## Next (committed, not yet started)
 
-Each spec in `.kiro/specs/` represents a distinct development effort:
+Design work is done or nearly done. These will move to Now once current work ships.
 
-| Spec | Purpose | Status |
-|------|---------|--------|
-| [xchecker-runtime-implementation](.kiro/specs/xchecker-runtime-implementation/) | Core phase pipeline, runner, packet, fixup, receipts | ✅ Complete |
-| [xchecker-claude-orchestrator](.kiro/specs/xchecker-claude-orchestrator/) | Orchestrator, phase system, LLM integration | ✅ Complete |
-| [xchecker-llm-ecosystem](.kiro/specs/xchecker-llm-ecosystem/) | V11-V18 multi-provider LLM support | ✅ Complete |
-| [xchecker-operational-polish](.kiro/specs/xchecker-operational-polish/) | Test fixes, warnings cleanup, benchmark, contracts | ✅ Complete |
-| [xchecker-final-cleanup](.kiro/specs/xchecker-final-cleanup/) | Test stability, code annotations, hooks | ✅ Complete |
-| [crates-io-packaging](.kiro/specs/crates-io-packaging/) | Library API, crates.io packaging, security hardening | ✅ Complete |
-| [documentation-validation](.kiro/specs/documentation-validation/) | Schema validation, doc tests, example generators | ✅ Complete |
+- **ExternalTool execution strategy**: A second execution mode where LLMs directly write files in agentic workflows, bypassing the fixup pipeline. The controlled strategy remains the default; ExternalTool is opt-in for users who want the LLM to operate more autonomously.
+
+- **Custom prompt templates**: User-defined prompt templates beyond the built-in presets (nextjs, rust, python). Users will be able to define templates in `.xchecker/templates/` with custom system prompts, file selectors, and phase-specific instructions.
+
+- **Workspace-level lockfiles**: Track dependency and model drift across all specs in a multi-spec project. When a model version changes, all specs in the workspace are flagged for re-evaluation.
+
+- **Phase streaming**: Stream LLM output to the TUI during long-running phases instead of waiting for completion. This gives immediate feedback on whether the LLM is heading in the right direction.
 
 ---
 
-## Features by Release
+## Later (under consideration)
 
-### v1.0.0 - Core Runtime (December 2025)
+These are ideas we think are worth pursuing but have not committed to. Feedback welcome.
 
-- Phase pipeline: Requirements → Design → Tasks → Review → Fixup → Final
-- Cross-platform runner (Native/WSL/Auto modes)
-- Packet builder with priority-based file selection
-- Fixup engine with fuzzy matching and atomic writes
-- Secret redaction (GitHub PAT, AWS, Slack, Bearer tokens)
-- Receipt system with BLAKE3 hashes and JCS canonicalization
-- Lock manager with drift detection
-- JSON contracts v1 (receipt, status, doctor schemas)
-
-### v1.1.0 - Multi-Provider LLM (January 2026)
-
-**LLM Providers:**
-- Claude CLI backend
-- Gemini CLI backend
-- OpenRouter HTTP backend (with budget control)
-- Anthropic HTTP backend
-- Fallback provider logic
-
-**Ecosystem:**
-- Workspace management (`project init`, `add-spec`, `status`, `history`, `list`)
-- Template system (`template init`, `template list`)
-- Gate command for CI/CD policy enforcement
-- Hooks system (pre/post-phase)
-- Rich metadata in receipts (tokens, model, cost)
+- Remote execution mode -- run phases on a build server, collect results locally. Useful for teams that want to centralize LLM costs.
+- Plugin system for custom phases beyond the built-in six. Let teams define domain-specific pipeline steps (e.g., threat modeling, compliance review).
+- Multi-language template packs (Go, Java, Swift, etc.) with language-specific prompt tuning.
+- Parallel phase execution for independent pipeline branches. Some phases (e.g., review and tasks) could run concurrently in certain workflows.
+- Web dashboard for workspace-level visibility across multiple specs and team members.
 
 ---
 
-## Active Work
+## Completed
 
-### v1.2.0 - Polish & Documentation
+| Version | Date | Highlights |
+|---------|------|------------|
+| v1.1.0 | Jan 2026 | Multi-provider LLM support (Claude CLI, Gemini CLI, OpenRouter, Anthropic API), workspaces, templates, gates, hooks, rich receipt metadata |
+| v1.0.0 | Dec 2025 | Core 6-phase pipeline, secret redaction, atomic writes, JSON contracts, cross-platform runner, lock manager |
 
-| Task | Priority | Status |
-|------|----------|--------|
-| Add `--llm-gemini-binary` CLI flag | High | Open |
-| Config test environment isolation | Medium | Open |
-| Hooks documentation in CONFIGURATION.md | Medium | Open |
-| README update with V11-V14 completeness | Low | Open |
-
-See [plans/xchecker-completion-plan.md](plans/xchecker-completion-plan.md) for details.
-
-### v2.0.0 - Modularization
-
-Major architectural refactoring to improve maintainability, testing, and build performance.
-
-**Summary:**
-- Split from 4 crates to 19 crates
-- Extract CLI layer (5471 lines) into dedicated crate
-- Decompose xchecker-engine into domain-specific crates
-- Establish clear dependency hierarchy
-
-**Target Crate Structure:**
-
-| Layer | Crates |
-|-------|--------|
-| Foundation | xchecker-core |
-| Infrastructure | xchecker-config, xchecker-llm, xchecker-runner |
-| Domain | xchecker-phases, xchecker-orchestrator, xchecker-workspace, xchecker-fixup, xchecker-status, xchecker-gate, xchecker-templates, xchecker-doctor, xchecker-benchmark, xchecker-hooks, xchecker-validation, xchecker-extraction |
-| Application | xchecker-cli |
-
-See [plans/modularization-report.md](plans/modularization-report.md) for the full plan.
-
----
-
-## Architecture
-
-### Phase Pipeline
-
-```
-Input → Requirements → Design → Tasks → Review → Fixup → Final
-         (00-*)        (10-*)   (20-*)  (30-*)   (40-*)
-```
-
-### LLM Providers
-
-| Provider | Type | Authentication |
-|----------|------|----------------|
-| claude-cli | CLI | Native |
-| gemini-cli | CLI | GEMINI_API_KEY |
-| openrouter | HTTP | OPENROUTER_API_KEY |
-| anthropic | HTTP | ANTHROPIC_API_KEY |
-
-### Execution Model
-
-All LLM interactions use **controlled execution**:
-- LLM proposes changes as text/JSON
-- All file modifications go through FixupEngine
-- Atomic writes via `.partial/` staging
-- No direct file modification by LLM
-
----
-
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [README.md](README.md) | Quick start and feature overview |
-| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Full configuration reference |
-| [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) | Provider setup and configuration |
-| [docs/ORCHESTRATOR.md](docs/ORCHESTRATOR.md) | Core engine architecture |
-| [docs/CONTRACTS.md](docs/CONTRACTS.md) | JSON schema versioning policy |
-| [docs/WORKSPACE_GUIDE.md](docs/WORKSPACE_GUIDE.md) | Workspace and TUI usage |
-| [CLAUDE.md](CLAUDE.md) | AI agent guidance for development |
-
----
-
-## Development Resources
-
-| Resource | Purpose |
-|----------|---------|
-| [.kiro/](.kiro/) | Spec development audit trail |
-| [.kiro/steering/](.kiro/steering/) | Product, structure, and tech guidelines |
-| [plans/](plans/) | Modularization and completion plans |
-| [schemas/](schemas/) | JSON schema definitions |
-
----
-
-## Quick Commands
-
-```bash
-# Build and test
-cargo build
-cargo test --workspace --lib
-
-# Run with different providers
-xchecker spec my-feature --llm-provider claude-cli
-xchecker spec my-feature --llm-provider gemini-cli
-xchecker spec my-feature --llm-provider openrouter
-
-# Health check
-xchecker doctor --json
-
-# Workspace management
-xchecker project init my-repo
-xchecker project status --json
-
-# Policy gate (CI/CD)
-xchecker gate my-spec --min-phase tasks --fail-on-pending-fixups
-```
-
----
-
-## Contributing
-
-1. Check [plans/xchecker-completion-plan.md](plans/xchecker-completion-plan.md) for open tasks
-2. Review [CLAUDE.md](CLAUDE.md) for codebase guidance
-3. Follow the test profiles in [docs/TESTING.md](docs/TESTING.md)
-4. Run `cargo test --workspace --lib` before submitting PRs
-
----
-
-**Status**: Active development - v1.1.0 released, v2.0.0 modularization in planning
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.

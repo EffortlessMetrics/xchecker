@@ -198,9 +198,13 @@ This fix ensures that the fixup parser correctly handles all valid unified diff 
 
 ## Documentation
 
-- [docs/ORCHESTRATOR.md](docs/ORCHESTRATOR.md) - Core engine architecture
-- [docs/TESTING.md](docs/TESTING.md) - Test lanes and CI integration
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Full config reference
-- [docs/CONTRACTS.md](docs/CONTRACTS.md) - JSON schema versioning
-- [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) - Provider configuration
-- [docs/WORKSPACE_GUIDE.md](docs/WORKSPACE_GUIDE.md) - Workspace and TUI usage
+Docs follow [Diataxis](https://diataxis.fr/) and are organized by audience. See [docs/INDEX.md](docs/INDEX.md) for the full site map.
+
+- [docs/explanation/ARCHITECTURE.md](docs/explanation/ARCHITECTURE.md) - How xchecker works (high-level)
+- [docs/guides/CONFIGURATION.md](docs/guides/CONFIGURATION.md) - Configuration how-to
+- [docs/reference/CONFIGURATION.md](docs/reference/CONFIGURATION.md) - Config key reference tables
+- [docs/guides/LLM_PROVIDERS.md](docs/guides/LLM_PROVIDERS.md) - Provider setup
+- [docs/contributor/ORCHESTRATOR_INTERNALS.md](docs/contributor/ORCHESTRATOR_INTERNALS.md) - Engine internals
+- [docs/contributor/TESTING.md](docs/contributor/TESTING.md) - Test lanes and CI integration
+- [docs/reference/CONTRACTS.md](docs/reference/CONTRACTS.md) - JSON schema versioning
+- [docs/guides/WORKSPACE.md](docs/guides/WORKSPACE.md) - Workspace and TUI usage
