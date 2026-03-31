@@ -13,6 +13,7 @@
 //! 5. Warnings include timeout duration
 
 use anyhow::Result;
+use serial_test::serial;
 use std::collections::HashMap;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout};
@@ -124,6 +125,7 @@ fn test_timeout_configuration() {
 /// Test that timeout during packet building is handled correctly
 /// This simulates a scenario where packet assembly takes too long
 #[tokio::test]
+#[serial]
 async fn test_timeout_during_packet_building() -> Result<()> {
     let env = setup_test_environment("packet-building");
 
@@ -148,6 +150,7 @@ async fn test_timeout_during_packet_building() -> Result<()> {
 /// Test that timeout during Claude execution creates partial artifact
 /// This is the most common timeout scenario
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_timeout_during_claude_execution_requires_claude_stub() -> Result<()> {
     // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
@@ -194,6 +197,7 @@ async fn test_timeout_during_claude_execution_requires_claude_stub() -> Result<(
 
 /// Test that timeout creates partial artifact with correct naming
 #[tokio::test]
+#[serial]
 async fn test_timeout_creates_partial_artifact() -> Result<()> {
     let _env = setup_test_environment("partial-artifact");
 
@@ -313,6 +317,7 @@ fn test_timeout_error_serialization() {
 /// Test timeout during artifact writing stage
 /// This simulates a scenario where writing the artifact takes too long
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_timeout_during_artifact_writing_requires_claude_stub() -> Result<()> {
     // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
@@ -351,6 +356,7 @@ async fn test_timeout_during_artifact_writing_requires_claude_stub() -> Result<(
 
 /// Test that multiple timeouts are handled independently
 #[tokio::test]
+#[serial]
 async fn test_multiple_phase_timeouts() -> Result<()> {
     let env = setup_test_environment("multiple-timeouts");
 
@@ -578,6 +584,7 @@ mod integration_tests {
     /// Full integration test with mock Claude CLI that times out
     /// This test requires a mock setup and is ignored by default
     #[tokio::test]
+    #[serial]
     #[ignore = "requires_claude_stub"]
     async fn test_full_timeout_flow_with_mock_claude_requires_claude_stub() -> Result<()> {
         // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
@@ -636,6 +643,7 @@ mod integration_tests {
 
     /// Test timeout recovery - can we continue after a timeout?
     #[tokio::test]
+    #[serial]
     #[ignore = "requires_claude_stub"]
     async fn test_timeout_recovery_requires_claude_stub() -> Result<()> {
         // Set the stub to hang for 10 seconds (longer than our 5-second timeout)
