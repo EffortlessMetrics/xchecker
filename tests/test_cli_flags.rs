@@ -137,6 +137,104 @@ fn test_prompt_template_flag() {
     assert_eq!(cli.prompt_template, Some("claude-optimized".to_string()));
 }
 
+/// Test --llm-claude-binary flag is properly wired
+#[test]
+fn test_llm_claude_binary_flag() {
+    use clap::Parser;
+
+    let args = vec![
+        "xchecker",
+        "--llm-claude-binary",
+        "/opt/claude/bin/claude",
+        "status",
+        "test-spec",
+    ];
+    let cli = xchecker::cli::Cli::try_parse_from(args).unwrap();
+
+    assert_eq!(
+        cli.llm_claude_binary,
+        Some("/opt/claude/bin/claude".to_string())
+    );
+}
+
+/// Test --llm-claude-binary flag flows through to config
+#[test]
+fn test_llm_claude_binary_flows_to_config() -> Result<()> {
+    use xchecker::config::{CliArgs, Config, ConfigSource};
+
+    let cli_args = CliArgs {
+        llm_claude_binary: Some("/custom/path/claude".to_string()),
+        ..Default::default()
+    };
+
+    let config = Config::discover(&cli_args)?;
+
+    // Verify the binary path is set in llm.claude config
+    assert_eq!(
+        config.llm.claude.as_ref().and_then(|c| c.binary.as_deref()),
+        Some("/custom/path/claude")
+    );
+
+    // Verify source attribution shows CLI
+    assert_eq!(
+        config.source_attribution.get("llm_claude_binary"),
+        Some(&ConfigSource::Cli)
+    );
+
+    Ok(())
+}
+
+/// Test --llm-gemini-binary flag is properly wired
+#[test]
+fn test_llm_gemini_binary_flag() {
+    use clap::Parser;
+
+    let args = vec![
+        "xchecker",
+        "--llm-gemini-binary",
+        "/opt/gemini/bin/gemini",
+        "status",
+        "test-spec",
+    ];
+    let cli = xchecker::cli::Cli::try_parse_from(args).unwrap();
+
+    assert_eq!(
+        cli.llm_gemini_binary,
+        Some("/opt/gemini/bin/gemini".to_string())
+    );
+}
+
+/// Test --llm-gemini-binary flag flows through to config
+#[test]
+fn test_llm_gemini_binary_flows_to_config() -> Result<()> {
+    use xchecker::config::{CliArgs, Config, ConfigSource};
+
+    let cli_args = CliArgs {
+        llm_gemini_binary: Some("/custom/path/gemini".to_string()),
+        ..Default::default()
+    };
+
+    let config = Config::discover(&cli_args)?;
+
+    // Verify the binary path is set in llm.gemini config
+    assert_eq!(
+        config
+            .llm
+            .gemini
+            .as_ref()
+            .and_then(|g| g.binary.as_deref()),
+        Some("/custom/path/gemini")
+    );
+
+    // Verify source attribution shows CLI
+    assert_eq!(
+        config.source_attribution.get("llm_gemini_binary"),
+        Some(&ConfigSource::Cli)
+    );
+
+    Ok(())
+}
+
 /// Test --llm-gemini-default-model flag is properly wired
 #[test]
 fn test_llm_gemini_default_model_flag() {
