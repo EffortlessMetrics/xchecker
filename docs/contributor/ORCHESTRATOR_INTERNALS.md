@@ -894,7 +894,7 @@ let config = OrchestratorConfig::default();
 config.set("dry_run", "true");
 ```
 
-See `docs/TEST_MATRIX.md` for the complete test inventory and classification.
+See [Test Matrix](TEST_MATRIX.md) for the complete test inventory and classification.
 
 ## Pointers to Test Files
 

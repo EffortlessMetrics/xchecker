@@ -445,11 +445,7 @@ xchecker benchmark --runner-mode wsl
 
 ## References
 
-- [NFR1 Performance Requirements](../requirements.md#nfr1-performance)
-- [NFR7 Caching Efficiency](../requirements.md#nfr7-caching-efficiency)
-- [Benchmark Implementation](../src/benchmark.rs)
-- [InsightCache Implementation](../src/cache.rs)
-- [PacketBuilder Implementation](../src/packet.rs)
+- [Runtime Requirements](../contributor/REQUIREMENTS_RUNTIME_V1.md) - NFR1, NFR7
 
 ## See Also
 

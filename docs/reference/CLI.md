@@ -101,4 +101,4 @@ When `--json` is passed, commands emit JCS-canonical JSON (RFC 8785) to stdout. 
 | Status v1 | `schemas/status.v1.json` | `xchecker status --json` |
 | Doctor v1 | `schemas/doctor.v1.json` | `xchecker doctor --json` |
 
-See [CONTRACTS.md](../CONTRACTS.md) for the full versioning policy.
+See [JSON Contracts](CONTRACTS.md) for the full versioning policy.

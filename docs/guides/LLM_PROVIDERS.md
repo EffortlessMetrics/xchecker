@@ -858,9 +858,9 @@ xchecker spec my-feature
 ## See Also
 
 - [Configuration Guide](CONFIGURATION.md) - Complete configuration reference
-- [Orchestrator Documentation](ORCHESTRATOR.md) - LLM layer architecture
+- [Orchestrator Internals](../contributor/ORCHESTRATOR_INTERNALS.md) - LLM layer architecture
 - [Doctor Command](DOCTOR.md) - Health check details
-- [Exit Codes](../README.md#exit-codes) - Error code reference
+- [CLI Reference](../reference/CLI.md) - Commands, options, and exit codes
 - [Security](SECURITY.md) - Secret detection and redaction
 
 ---

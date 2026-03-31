@@ -639,8 +639,5 @@ cargo test --all-features -- --test-threads=1
 
 ## References
 
-- [FR-WSL: WSL Support Requirements](../requirements.md#requirement-12-fr-wsl)
-- [NFR3: Portability Requirements](../requirements.md#nfr3-portability)
-- [NFR4: Platform Support](../requirements.md#nfr4-portability)
-- [Runner Implementation](../src/runner.rs)
-- [WSL Implementation](../src/wsl.rs)
+- [Runtime Requirements](../contributor/REQUIREMENTS_RUNTIME_V1.md) - FR-WSL, NFR3, NFR4
+- [Architecture](../explanation/ARCHITECTURE.md) - Crate layout and execution model

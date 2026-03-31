@@ -594,11 +594,7 @@ code application -- the system fails safe.
 
 ## References
 
-- [FR-SEC: Secret Detection Requirements](../requirements.md#requirement-4-fr-sec)
-- [FR-FIX: Path Validation Requirements](../requirements.md#requirement-5-fr-fix)
-- [NFR2: Security Requirements](../requirements.md#nfr2-security)
-- [SecretRedactor Implementation](../../crates/xchecker-utils/src/redaction.rs)
-- [SandboxRoot Implementation](../../crates/xchecker-utils/src/paths.rs)
+- [Runtime Requirements](../contributor/REQUIREMENTS_RUNTIME_V1.md) - FR-SEC, FR-FIX, NFR2
 
 ## See also
 
