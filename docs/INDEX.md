@@ -1,73 +1,66 @@
 # xchecker Documentation
 
-This documentation follows the [Diataxis](https://diataxis.fr/) framework, organized into four categories based on user needs.
-
 ## Tutorials
 
-Learning-oriented guides that take you through a complete workflow.
+Learn xchecker by doing.
 
-| Document | Description |
-|----------|-------------|
-| [README](../README.md) | Project overview and installation |
-| [WALKTHROUGH_20_MINUTES.md](WALKTHROUGH_20_MINUTES.md) | Get running in 20 minutes |
-| [WALKTHROUGH_SPEC_TO_PR.md](WALKTHROUGH_SPEC_TO_PR.md) | Complete workflow: spec to pull request |
+| Guide | Time | Description |
+|-------|------|-------------|
+| [Quickstart](tutorials/QUICKSTART.md) | 20 min | Install, configure, and generate your first spec |
+| [Spec to PR](tutorials/SPEC_TO_PR.md) | 45 min | Complete workflow from feature idea to pull request |
 
 ## How-to Guides
 
-Task-oriented guides for specific goals.
+Solve specific problems.
 
-| Document | Description |
-|----------|-------------|
-| [DEBUGGING_GUIDE.md](DEBUGGING_GUIDE.md) | Troubleshoot errors and inspect artifacts |
-| [DOCTOR.md](DOCTOR.md) | Run environment health checks |
-| [WORKSPACE_GUIDE.md](WORKSPACE_GUIDE.md) | Set up workspaces and use the TUI |
-| [PLATFORM.md](PLATFORM.md) | Set up on Windows, macOS, Linux, and WSL |
-| [CLAUDE_CODE_INTEGRATION.md](CLAUDE_CODE_INTEGRATION.md) | Integrate with Claude Code editor |
-| [ci/gitlab.md](ci/gitlab.md) | Configure GitLab CI pipelines |
+| Guide | Description |
+|-------|-------------|
+| [Configuration](guides/CONFIGURATION.md) | Configure xchecker for your project |
+| [LLM Providers](guides/LLM_PROVIDERS.md) | Set up Claude, Gemini, OpenRouter, or Anthropic API |
+| [Security](guides/SECURITY.md) | Secret scanning, custom patterns, best practices |
+| [Debugging](guides/DEBUGGING.md) | Troubleshoot errors and inspect artifacts |
+| [CI Setup](guides/CI_SETUP.md) | Set up xchecker in GitHub Actions or GitLab CI |
+| [Platform Setup](guides/PLATFORM.md) | Windows, macOS, Linux, and WSL configuration |
+| [Workspaces](guides/WORKSPACE.md) | Manage multi-spec projects |
+| [Claude Code Integration](guides/CLAUDE_CODE.md) | Use xchecker from Claude Code |
+| [Health Checks](guides/DOCTOR.md) | Run and interpret `xchecker doctor` |
 
 ## Reference
 
-Technical specifications and configuration options.
+Look things up.
 
 | Document | Description |
 |----------|-------------|
-| [CONFIGURATION.md](CONFIGURATION.md) | Full configuration reference |
-| [LLM_PROVIDERS.md](LLM_PROVIDERS.md) | LLM provider setup and options |
-| [CONTRACTS.md](CONTRACTS.md) | JSON schema versioning policy |
-| [TESTING.md](TESTING.md) | Test strategy and profiles |
-| [TEST_MATRIX.md](TEST_MATRIX.md) | Complete test inventory |
-| [CI_PROFILES.md](CI_PROFILES.md) | CI test configuration |
-| [STRUCTURED_LOGGING.md](STRUCTURED_LOGGING.md) | Tracing-based logging reference |
-| [claude-stub.md](claude-stub.md) | Test harness reference |
-
-### JSON Schemas
-
-Schema definitions in `schemas/`:
-
-| Schema | Description |
-|--------|-------------|
-| `receipt.v1.json` | Execution receipt format |
-| `status.v1.json` | Spec status format |
-| `doctor.v1.json` | Health check format |
-
-Example files in `docs/schemas/` (auto-generated, do not edit manually).
+| [CLI Reference](reference/CLI.md) | Commands, options, and exit codes |
+| [Configuration Reference](reference/CONFIGURATION.md) | All config keys, env vars, and defaults |
+| [JSON Contracts](reference/CONTRACTS.md) | Schema versioning and stability guarantees |
+| [Schemas](reference/SCHEMAS.md) | JSON schema file index |
+| [Structured Logging](reference/STRUCTURED_LOGGING.md) | Log fields and filtering |
 
 ## Explanation
 
-Background and architectural context.
+Understand the system.
 
 | Document | Description |
 |----------|-------------|
-| [ORCHESTRATOR.md](ORCHESTRATOR.md) | Core execution engine architecture |
-| [SECURITY.md](SECURITY.md) | Security model, secret detection, and path validation |
-| [PERFORMANCE.md](PERFORMANCE.md) | Performance characteristics and benchmarks |
-| [TRACEABILITY.md](TRACEABILITY.md) | Requirements traceability matrix |
-| [REQUIREMENTS_RUNTIME_V1.md](REQUIREMENTS_RUNTIME_V1.md) | Runtime requirements specification |
+| [Architecture](explanation/ARCHITECTURE.md) | How xchecker works: pipeline, concepts, safety model |
+| [Security Model](explanation/SECURITY_MODEL.md) | Defense-in-depth implementation details |
+| [Performance](explanation/PERFORMANCE.md) | Benchmarks, targets, and optimization |
 
-## For Contributors
+## Contributor Docs
+
+For xchecker developers.
 
 | Document | Description |
 |----------|-------------|
-| [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) | Common development issues and fixes |
-| [DEPENDENCY_MANAGEMENT.md](DEPENDENCY_MANAGEMENT.md) | Dependency update policies |
-| [architecture/dependency-policy.md](architecture/dependency-policy.md) | Crate layering rules |
+| [Orchestrator Internals](contributor/ORCHESTRATOR_INTERNALS.md) | Engine module architecture and invariants |
+| [Testing](contributor/TESTING.md) | Test lanes, profiles, and infrastructure |
+| [Test Matrix](contributor/TEST_MATRIX.md) | Complete test inventory (853 tests) |
+| [CI Profiles](contributor/CI_PROFILES.md) | CI configuration and cost analysis |
+| [Developer Notes](contributor/DEVELOPER_NOTES.md) | Common dev issues and fixes |
+| [Dependency Management](contributor/DEPENDENCY_MANAGEMENT.md) | Dependency update policies |
+| [Dependency Policy](contributor/dependency-policy.md) | Crate layering rules |
+| [Traceability](contributor/TRACEABILITY.md) | Requirements traceability matrix |
+| [Runtime Requirements](contributor/REQUIREMENTS_RUNTIME_V1.md) | V1 runtime specification |
+| [Security Gate Review](contributor/SECURITY_GATE_REVIEW.md) | Security audit trail |
+| [Claude Stub](contributor/claude-stub.md) | Test harness reference |
