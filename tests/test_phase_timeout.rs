@@ -12,6 +12,7 @@
 //! 4. Exit code is 10 for timeouts
 
 use anyhow::Result;
+use serial_test::serial;
 use std::collections::HashMap;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout};
@@ -134,6 +135,7 @@ fn test_phase_timeout_from_config() {
 /// Test that timeout creates partial artifact and receipt with warning
 /// This is a smoke test that validates the core timeout behavior
 #[tokio::test]
+#[serial]
 async fn test_timeout_creates_partial_and_receipt() -> Result<()> {
     let _env = setup_test_environment("partial");
 
@@ -235,6 +237,7 @@ mod integration_tests {
     /// This test would require a mock Claude CLI that sleeps longer than the timeout
     /// For now, it's a placeholder for future integration testing
     #[tokio::test]
+    #[serial]
     #[ignore = "requires_claude_stub"]
     async fn test_full_timeout_flow_with_mock() -> Result<()> {
         let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");

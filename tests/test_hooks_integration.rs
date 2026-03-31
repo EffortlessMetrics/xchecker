@@ -8,6 +8,7 @@ use std::fs;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use anyhow::Result;
+use serial_test::serial;
 use tempfile::TempDir;
 use xchecker::exit_codes;
 use xchecker::hooks::{DEFAULT_HOOK_TIMEOUT_SECS, HookConfig, HooksConfig, OnFail};
@@ -55,6 +56,7 @@ fn unique_spec_id(test_name: &str) -> String {
 }
 
 #[tokio::test]
+#[serial]
 #[allow(clippy::await_holding_lock)] // Lock serializes tests; safe in single-threaded test context
 async fn test_pre_and_post_hooks_execute() -> Result<()> {
     let _guard = hook_env_guard();
@@ -117,6 +119,7 @@ async fn test_pre_and_post_hooks_execute() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 #[allow(clippy::await_holding_lock)] // Lock serializes tests; safe in single-threaded test context
 async fn test_pre_phase_hook_failure_aborts_phase() -> Result<()> {
     let _guard = hook_env_guard();

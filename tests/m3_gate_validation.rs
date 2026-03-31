@@ -16,6 +16,7 @@
 //! - R4.2: Resume functionality from intermediate phases
 
 use anyhow::Result;
+use serial_test::serial;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -201,6 +202,7 @@ spec_id: "test-spec-123"
 /// Test 2: Run Requirements → Design → Tasks flow end-to-end
 /// Validates R1.1 requirements for complete multi-phase workflow
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_complete_multi_phase_flow() -> Result<()> {
     let env = M3TestEnvironment::new("multi-phase-flow")?;
@@ -410,6 +412,7 @@ async fn test_complete_multi_phase_flow() -> Result<()> {
 /// Test 3: Verify resume functionality from intermediate phases
 /// Validates R4.2 requirements for resume capability
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_resume_functionality_from_intermediate_phases() -> Result<()> {
     let env = M3TestEnvironment::new("resume-functionality")?;
@@ -540,6 +543,7 @@ async fn test_resume_functionality_from_intermediate_phases() -> Result<()> {
 /// Test 4: Verify canonicalization of actual generated *.core.yaml files
 /// Tests that real generated YAML files produce consistent hashes
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_generated_core_yaml_canonicalization() -> Result<()> {
     let env = M3TestEnvironment::new("generated-yaml-canon")?;
@@ -621,6 +625,7 @@ async fn test_generated_core_yaml_canonicalization() -> Result<()> {
 /// Test 5: Verify dependency checking prevents invalid resume scenarios
 /// Tests that resume fails appropriately when dependencies are not satisfied
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_resume_dependency_validation() -> Result<()> {
     let env = M3TestEnvironment::new("resume-deps")?;
@@ -702,6 +707,7 @@ async fn test_resume_dependency_validation() -> Result<()> {
 /// Test 6: Verify canonicalization version and backend information
 /// Tests that canonicalization metadata is properly recorded
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_canonicalization_metadata_in_receipts() -> Result<()> {
     let env = M3TestEnvironment::new("canon-metadata")?;
@@ -784,6 +790,7 @@ async fn test_canonicalization_metadata_in_receipts() -> Result<()> {
 /// Comprehensive M3 Gate validation test
 /// Runs all M3 Gate tests in sequence to validate the milestone
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_m3_gate_comprehensive_validation() -> Result<()> {
     println!("🚀 Starting M3 Gate comprehensive validation...");

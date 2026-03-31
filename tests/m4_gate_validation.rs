@@ -17,6 +17,7 @@
 //! - R7.5: Verbose logging provides detailed operation logs
 
 use anyhow::Result;
+use serial_test::serial;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -276,6 +277,7 @@ These changes are essential for a complete specification.
 /// Test 3: Verify status command shows complete phase information
 /// Validates R2.6 requirements for status command functionality
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_status_command_shows_complete_phase_information() -> Result<()> {
     let env = M4TestEnvironment::new("status-info")?;
@@ -417,6 +419,7 @@ async fn test_status_command_shows_complete_phase_information() -> Result<()> {
 /// Test 4: Confirm verbose logging provides useful debugging information
 /// Validates R7.5 requirements for verbose logging functionality
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_verbose_logging_provides_debugging_information() -> Result<()> {
     let env = M4TestEnvironment::new("verbose-logging")?;
@@ -614,6 +617,7 @@ fn test_fixup_validation_with_git_apply_check() -> Result<()> {
 /// Test 6: Verify status command handles empty spec gracefully
 /// Tests status command behavior when spec exists but has no artifacts or receipts
 #[test]
+#[serial]
 fn test_status_command_handles_empty_spec() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let _cwd_guard = test_support::CwdGuard::new(temp_dir.path())?;
@@ -643,6 +647,7 @@ fn test_status_command_handles_empty_spec() -> Result<()> {
 /// Test 7: Verify review phase integration with fixup detection
 /// Tests end-to-end review phase that produces fixup markers
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_review_phase_integration_with_fixup_detection() -> Result<()> {
     let env = M4TestEnvironment::new("review-integration")?;
@@ -759,6 +764,7 @@ These changes will improve the specification completeness.
 /// Comprehensive M4 Gate validation test
 /// Runs all M4 Gate tests in sequence to validate the milestone
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_m4_gate_comprehensive_validation() -> Result<()> {
     println!("🚀 Starting M4 Gate comprehensive validation...");
