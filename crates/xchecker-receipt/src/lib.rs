@@ -1,3 +1,4 @@
+pub mod dossier;
 mod emit;
 mod errors;
 mod hash;
