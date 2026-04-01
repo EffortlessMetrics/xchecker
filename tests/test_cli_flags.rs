@@ -218,11 +218,7 @@ fn test_llm_gemini_binary_flows_to_config() -> Result<()> {
 
     // Verify the binary path is set in llm.gemini config
     assert_eq!(
-        config
-            .llm
-            .gemini
-            .as_ref()
-            .and_then(|g| g.binary.as_deref()),
+        config.llm.gemini.as_ref().and_then(|g| g.binary.as_deref()),
         Some("/custom/path/gemini")
     );
 
