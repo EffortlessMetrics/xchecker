@@ -33,6 +33,10 @@ on:
           - security-only
           - duplicates-only
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -43,12 +47,13 @@ jobs:
   # ============================================================================
   test-locked:
     name: Test Locked (${{ matrix.os }})
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ github.event_name == 'schedule' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,12 +105,13 @@ jobs:
   # ============================================================================
   test-fresh:
     name: Test Fresh Resolve (${{ matrix.os }})
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ github.event_name == 'schedule' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -167,8 +173,9 @@ jobs:
   # ============================================================================
   check-duplicates:
     name: Dependency Duplication Check
+    timeout-minutes: 15
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -215,8 +222,9 @@ jobs:
   # ============================================================================
   security-scan:
     name: Security Scan
+    timeout-minutes: 20
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -310,8 +318,9 @@ jobs:
   # ============================================================================
   msrv-check:
     name: MSRV Check (Rust 1.89)
+    timeout-minutes: 30
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -355,9 +364,10 @@ jobs:
   # ============================================================================
   monitor-drift:
     name: Dependency Drift Monitor
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -407,8 +417,9 @@ jobs:
   # ============================================================================
   validate-policy:
     name: Validate Hybrid Policy
+    timeout-minutes: 10
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -511,10 +522,11 @@ jobs:
   # ============================================================================
   dependency-summary:
     name: Dependency Management Summary
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     needs: [test-locked, test-fresh, check-duplicates, security-scan, msrv-check, validate-policy]
     if: always()
-    
+
     steps:
       - name: Dependency Management Summary
         run: |

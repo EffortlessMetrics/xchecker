@@ -27,6 +27,10 @@ on:
           - fast
           - full
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -38,6 +42,7 @@ jobs:
   test-fast:
     name: Test Fast (${{ matrix.os }})
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'fast')
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -73,10 +78,13 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Schedule runs use only ubuntu to reduce runner pressure on free-tier repos.
+        # Push and dispatch runs test all three platforms.
+        os: ${{ github.event_name == 'schedule' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -147,6 +155,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -191,6 +200,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
       XCHECKER_E2E: "1"
@@ -243,6 +253,7 @@ jobs:
   # ============================================================================
   example-validation:
     name: Example Validation (${{ matrix.os }})
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -281,6 +292,7 @@ jobs:
   # ============================================================================
   walkthrough-validation:
     name: Walkthrough Validation (${{ matrix.os }})
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
