@@ -27,7 +27,7 @@ WARNINGS=0
 extract_bash_blocks() {
     local file="$1"
     # Extract content between ```bash and ``` markers
-    awk '/^```bash$/,/^```$/' "$file" | grep -v '^```'
+    awk '/^```bash$/,/^```$/' "$file" | grep -v '^```' || true
 }
 
 # Function to validate xchecker commands
@@ -69,13 +69,13 @@ validate_xchecker_commands() {
         # List of valid global flags
         local valid_flags="--version --help -h -V"
         
-        if echo "$valid_cmds" | grep -qw "$subcmd"; then
+        if echo "$valid_cmds" | grep -qw -- "$subcmd"; then
             echo -e "  ${GREEN}✓${NC} Valid command: xchecker $subcmd"
-        elif echo "$valid_flags" | grep -qw "$subcmd"; then
+        elif echo "$valid_flags" | grep -qw -- "$subcmd"; then
             echo -e "  ${GREEN}✓${NC} Valid flag: xchecker $subcmd"
         else
             echo -e "  ${RED}✗${NC} Unknown command: xchecker $subcmd"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
     done <<< "$xchecker_cmds"
 }
@@ -117,7 +117,7 @@ check_internal_links() {
             echo -e "  ${GREEN}✓${NC} Link exists: $link"
         else
             echo -e "  ${RED}✗${NC} Broken link: $link"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
         fi
     done <<< "$links"
 }
@@ -153,8 +153,8 @@ echo ""
 echo "=== Walkthrough Files ==="
 
 WALKTHROUGH_FILES=(
-    "$PROJECT_ROOT/docs/WALKTHROUGH_20_MINUTES.md"
-    "$PROJECT_ROOT/docs/WALKTHROUGH_SPEC_TO_PR.md"
+    "$PROJECT_ROOT/docs/tutorials/QUICKSTART.md"
+    "$PROJECT_ROOT/docs/tutorials/SPEC_TO_PR.md"
 )
 
 for file in "${WALKTHROUGH_FILES[@]}"; do
@@ -164,7 +164,7 @@ for file in "${WALKTHROUGH_FILES[@]}"; do
         check_json_examples "$file"
     else
         echo -e "${RED}File not found: $file${NC}"
-        ((ERRORS++))
+        ERRORS=$((ERRORS + 1))
     fi
 done
 

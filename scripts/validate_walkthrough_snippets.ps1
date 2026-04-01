@@ -150,8 +150,8 @@ Write-Host ""
 Write-Host "=== Walkthrough Files ===" -ForegroundColor Cyan
 
 $WalkthroughFiles = @(
-    (Join-Path $ProjectRoot "docs\WALKTHROUGH_20_MINUTES.md"),
-    (Join-Path $ProjectRoot "docs\WALKTHROUGH_SPEC_TO_PR.md")
+    (Join-Path $ProjectRoot "docs\tutorials\QUICKSTART.md"),
+    (Join-Path $ProjectRoot "docs\tutorials\SPEC_TO_PR.md")
 )
 
 foreach ($file in $WalkthroughFiles) {
