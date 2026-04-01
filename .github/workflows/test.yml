@@ -1,8 +1,14 @@
-# Test Workflow - Fast and Full test lanes
+# Test Workflow - Comprehensive CI for xchecker
 #
-# This workflow implements the test-fast and test-full lanes:
+# This workflow covers all test and quality lanes:
 # - test-fast: Runs on every PR for quick feedback (~30s)
 # - test-full: Runs nightly and on main branch for comprehensive coverage
+# - lint: Format and clippy checks on every PR and push
+# - schema-validation: JSON schema compliance
+# - secret-scanning: Redaction and secret detection verification
+# - docs-conformance: Documentation validation
+# - gate-validation: Gate command cross-platform tests
+# - test-real: Smoke tests with real Claude (main branch only)
 #
 # See docs/TESTING.md for test lane documentation.
 
@@ -301,3 +307,203 @@ jobs:
         shell: pwsh
         run: |
           .\scripts\validate_walkthrough_snippets.ps1
+
+  # ============================================================================
+  # LINT: Format and clippy checks
+  # ============================================================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-lint-
+            ubuntu-cargo-
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # ============================================================================
+  # SCHEMA VALIDATION: JSON schema compliance
+  # ============================================================================
+  schema-validation:
+    name: Schema Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-schema-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-schema-
+            ubuntu-cargo-
+
+      - name: Run schema validation tests
+        run: cargo test test_generated_outputs_validate_against_schemas
+
+      - name: Run M3 gate contracts validation
+        run: cargo test --test m3_gate_contracts_validation
+
+      - name: Run comprehensive schema compliance tests
+        run: cargo test --test test_schema_compliance
+
+      - name: Verify schema examples validate
+        run: cargo test --test test_json_schema_validation
+
+  # ============================================================================
+  # SECRET SCANNING: Redaction and secret detection verification
+  # ============================================================================
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-secret-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-secret-
+            ubuntu-cargo-
+
+      - name: Run secret scanning tests with controls
+        run: cargo test test_secret_scanning_ci_validation
+
+      - name: Verify positive control fails scanner
+        run: cargo test test_positive_control_fake_secrets_detected
+
+      - name: Verify negative control passes scanner
+        run: cargo test test_negative_control_clean_file_passes
+
+      - name: Run redaction security tests
+        run: cargo test --test test_redaction_security
+
+  # ============================================================================
+  # DOCS CONFORMANCE: Documentation validation
+  # ============================================================================
+  docs-conformance:
+    name: Documentation Conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ubuntu-cargo-docs-
+            ubuntu-cargo-
+
+      - name: Run documentation validation tests
+        run: cargo test --test test_doc_validation -- --test-threads=1
+
+      - name: Verify generated schema examples are fresh
+        run: |
+          git diff --exit-code docs/schemas/ || {
+            echo "Generated schema examples are out of sync!"
+            echo ""
+            echo "Run 'cargo test --test test_doc_validation doc_validation::schema_examples_tests -- --nocapture' to regenerate and commit updated files under docs/schemas/*"
+            echo ""
+            exit 1
+          }
+
+  # ============================================================================
+  # GATE VALIDATION: Gate command cross-platform tests
+  # ============================================================================
+  gate-validation:
+    name: Gate Command Validation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-gate-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gate-
+            ${{ runner.os }}-cargo-
+
+      - name: Run gate unit tests
+        run: cargo test gate --lib
+
+      - name: Run gate JSON schema validation
+        run: cargo test --test test_json_schema_validation gate
+
+  # ============================================================================
+  # TEST-REAL: Smoke tests with real Claude (main branch only)
+  # ============================================================================
+  test-real:
+    name: Test (Real - With Claude)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run smoke tests
+        if: env.ANTHROPIC_API_KEY != ''
+        run: cargo test --test smoke -- --ignored
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

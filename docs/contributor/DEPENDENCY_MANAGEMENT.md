@@ -59,12 +59,8 @@ This comprehensive workflow implements the following guardrails:
 
 ### 2. Integration with Existing Workflows
 
-#### Main CI Workflow (`.github/workflows/ci.yml`)
-- Added `dependency-policy` job that runs first
-- All test jobs depend on dependency policy passing
-- Ensures policy compliance before running tests
-
 #### Test Workflow (`.github/workflows/test.yml`)
+- Consolidated all test and quality jobs (lint, schema validation, secret scanning, etc.)
 - Updated test-fast to use `--locked` flag
 - Added both locked and fresh resolve testing to test-full
 - Maintains backward compatibility while adding guardrails

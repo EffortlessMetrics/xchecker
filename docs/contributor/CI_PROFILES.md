@@ -637,20 +637,18 @@ This table describes the current GitHub Actions jobs and their required/optional
 
 | Job | Workflow | When it runs | Required for PRs? | Description |
 |-----|----------|--------------|-------------------|-------------|
-| `lint` | ci.yml | PRs, main | ✅ Yes | Format + clippy checks |
-| `test-serial` | ci.yml | PRs, main | ✅ Yes | Serial tests on all 3 OS |
-| `test-parallel` | ci.yml | PRs, main | ❌ No | Parallel tests (non-blocking, validating stability) |
-| `schema-validation` | ci.yml | PRs, main | ✅ Yes | JSON schema compliance |
-| `secret-scanning` | ci.yml | PRs, main | ✅ Yes | Secret detection tests |
-| `docs-conformance` | ci.yml | PRs, main | ✅ Yes | Documentation validation |
-| `gate-validation` | ci.yml | PRs, main | ✅ Yes | Gate command tests |
-| `test-real` | ci.yml | main only | ❌ No | Real Claude API (requires secret) |
 | `test-fast` | test.yml | PRs only | ✅ Yes | Quick unit tests (~30s) |
 | `test-full` | test.yml | main, nightly | ❌ No | Comprehensive tests |
 | `property-tests` | test.yml | main, nightly | ❌ No | Property-based tests with high case count |
 | `stub-tests` | test.yml | PRs, main, nightly | ❌ No | Integration tests with claude-stub (non-blocking) |
 | `example-validation` | test.yml | All events | ✅ Yes | Validate showcase examples |
 | `walkthrough-validation` | test.yml | All events | ✅ Yes | Validate walkthrough snippets |
+| `lint` | test.yml | PRs, main | ✅ Yes | Format + clippy checks |
+| `schema-validation` | test.yml | PRs, main | ✅ Yes | JSON schema compliance |
+| `secret-scanning` | test.yml | PRs, main | ✅ Yes | Secret detection tests |
+| `docs-conformance` | test.yml | PRs, main | ✅ Yes | Documentation validation |
+| `gate-validation` | test.yml | PRs, main | ✅ Yes | Gate command tests |
+| `test-real` | test.yml | main only | ❌ No | Real Claude API (requires secret) |
 
 ### Stub Integration Stance
 
@@ -872,7 +870,7 @@ jobs:
 - [claude-stub.md](claude-stub.md) - Test harness documentation
 - [CONFIGURATION.md](CONFIGURATION.md) - Runtime configuration options
 - [INDEX.md](INDEX.md) - Documentation index
-- `.github/workflows/ci.yml` - Current CI configuration
+- `.github/workflows/test.yml` - Test and quality CI configuration
 - `.github/workflows/xchecker-gate.yml` - Gate workflow example
 
 ---

@@ -15,10 +15,10 @@ mod tests {
     /// Verify that the docs-conformance CI job exists in the workflow file
     #[test]
     fn m9_gate_ci_workflow_has_docs_conformance_job() {
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         assert!(
             ci_path.exists(),
-            "CI workflow file should exist at .github/workflows/ci.yml"
+            "CI workflow file should exist at .github/workflows/test.yml"
         );
 
         let ci_content =
@@ -40,7 +40,7 @@ mod tests {
     /// Verify that the docs-conformance job runs the correct test command
     #[test]
     fn m9_gate_ci_runs_documentation_tests() {
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
@@ -62,7 +62,7 @@ mod tests {
     /// Verify that the docs-conformance job checks for fresh schema examples
     #[test]
     fn m9_gate_ci_verifies_schema_examples_fresh() {
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
@@ -84,7 +84,7 @@ mod tests {
     /// Verify that the CI provides clear instructions for regenerating examples
     #[test]
     fn m9_gate_ci_has_clear_error_messages() {
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
@@ -132,7 +132,7 @@ mod tests {
     /// Verify that the docs-conformance job runs on ubuntu-latest
     #[test]
     fn m9_gate_ci_runs_on_ubuntu() {
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
@@ -165,7 +165,7 @@ mod tests {
         println!("\n=== M9 Gate: Comprehensive CI Integration Validation ===\n");
 
         // 1. Verify CI workflow exists and has docs-conformance job
-        let ci_path = Path::new(".github/workflows/ci.yml");
+        let ci_path = Path::new(".github/workflows/test.yml");
         assert!(ci_path.exists(), "CI workflow file should exist");
         let ci_content = fs::read_to_string(ci_path).expect("Should read CI file");
         assert!(
