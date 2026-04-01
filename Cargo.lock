@@ -4246,6 +4246,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "regex",
  "serde",
  "serde_json",
  "strum",
