@@ -220,23 +220,204 @@ The minimum timeout is 5 seconds.
 
 ## Hooks
 
-Run scripts before or after any phase. Hooks receive context through environment
-variables (`XCHECKER_SPEC_ID`, `XCHECKER_PHASE`, `XCHECKER_HOOK_TYPE`) and a
-JSON payload on stdin.
+Hooks let you run custom shell scripts before and after any phase in the
+pipeline. Use them for linting, notifications, custom validation, or any
+side-effect you need tied to the spec lifecycle.
+
+### Hook points
+
+There are two hook points per phase:
+
+| Hook point | When it runs | Can abort the phase? |
+|------------|-------------|---------------------|
+| `pre_phase` | Before the LLM is invoked | Yes (when `on_fail = "fail"`) |
+| `post_phase` | After artifacts and receipt are written | No (always treated as warning) |
+
+Both hook points are available for every phase: `requirements`, `design`,
+`tasks`, `review`, `fixup`, and `final`.
+
+### Configuration syntax
+
+Each hook is defined as a TOML table under `[hooks.pre_phase.<phase>]` or
+`[hooks.post_phase.<phase>]`:
 
 ```toml
 [hooks.pre_phase.design]
 command = "./scripts/pre_design.sh"
-on_fail = "warn"          # "warn" (continue) or "fail" (abort phase)
-timeout = 60
+on_fail = "warn"          # "warn" (default) or "fail"
+timeout = 60              # seconds, default 60
 
 [hooks.post_phase.requirements]
 command = "./scripts/post_requirements.sh"
 on_fail = "fail"
+timeout = 30
 ```
 
-Hooks run from the invocation working directory via the platform shell (`sh -c`
-on Unix, `cmd /C` on Windows).
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `command` | Yes | -- | Shell command to execute |
+| `on_fail` | No | `"warn"` | `"warn"`: log and continue; `"fail"`: abort the phase |
+| `timeout` | No | `60` | Maximum execution time in seconds |
+
+You can configure multiple hooks across different phases in the same config
+file. Each phase supports at most one `pre_phase` hook and one `post_phase`
+hook.
+
+### How hooks receive context
+
+Hooks receive context in two ways:
+
+**Environment variables** -- always set for every hook invocation:
+
+| Variable | Description | Example value |
+|----------|-------------|---------------|
+| `XCHECKER_SPEC_ID` | The spec identifier | `my-feature` |
+| `XCHECKER_PHASE` | The phase name | `requirements`, `design`, `tasks`, etc. |
+| `XCHECKER_HOOK_TYPE` | The hook point | `pre_phase` or `post_phase` |
+
+**JSON payload on stdin** -- a JSON object with the same context:
+
+```json
+{"spec_id":"my-feature","phase":"design","hook_type":"pre_phase"}
+```
+
+If the hook does not read stdin, the payload is silently discarded. Hooks are
+free to ignore stdin and rely entirely on environment variables.
+
+### Execution environment
+
+- Hooks run via the platform shell: `sh -c` on Unix, `cmd /C` on Windows.
+- The working directory is the directory where `xchecker` was invoked (not the
+  spec directory), so relative paths like `./scripts/...` work naturally.
+- Stdout and stderr are captured (truncated to 2 KiB each).
+- Hooks are subject to their configured `timeout`. A hook that exceeds its
+  timeout is terminated and treated as a failure.
+
+### Error handling
+
+**Pre-phase hooks:**
+
+- `on_fail = "warn"` (default): A non-zero exit code or timeout is logged as a
+  warning. The warning is recorded in the phase receipt under the `warnings`
+  array. The phase proceeds normally.
+- `on_fail = "fail"`: A non-zero exit code or timeout aborts the phase
+  immediately. A failure receipt is written with a `hook_failure: "pre_phase"`
+  flag for audit purposes. The LLM is never invoked.
+
+**Post-phase hooks:**
+
+Post-phase hooks run after the phase has already succeeded -- artifacts have
+been written and the receipt has been committed. Because of this, post-phase
+hook failures are **always treated as warnings** regardless of the `on_fail`
+setting. This ensures that completed work is never discarded due to a
+notification script failing.
+
+**Hook execution errors** (e.g., command not found, spawn failure) are handled
+the same way as non-zero exit codes: they respect `on_fail` for pre-phase
+hooks and are always warnings for post-phase hooks.
+
+### Receipt integration
+
+Hook outcomes are recorded in the phase receipt:
+
+- Pre-phase hook warnings appear in the receipt's `warnings` array as strings
+  like `hook_failed:pre_phase:design:./scripts/lint.sh:exit_code=1` or
+  `hook_timeout:pre_phase:design:./scripts/lint.sh`.
+- Pre-phase hook failures set the receipt flag `hook_failure: "pre_phase"`.
+- Pre-phase hook execution errors set the receipt flag
+  `hook_error: "pre_phase"`.
+- Post-phase hook warnings are logged but not written to the receipt (the
+  receipt is already committed when the post-phase hook runs).
+
+### Practical examples
+
+**Lint before fixup:**
+
+```toml
+[hooks.pre_phase.fixup]
+command = "cargo clippy --workspace --all-targets -- -D warnings"
+on_fail = "fail"
+timeout = 120
+```
+
+If `clippy` finds warnings, the fixup phase is aborted so you can address lint
+issues before applying LLM-proposed changes.
+
+**Notify after review:**
+
+```toml
+[hooks.post_phase.review]
+command = "curl -s -X POST https://hooks.slack.com/services/T.../B.../xxx -d '{\"text\":\"Review phase completed for spec '\"$XCHECKER_SPEC_ID\"'\"}'"
+on_fail = "warn"
+timeout = 10
+```
+
+Sends a Slack notification when the review phase finishes. The short timeout
+and `on_fail = "warn"` ensure a network hiccup does not block the workflow.
+
+**Custom validation after requirements:**
+
+```toml
+[hooks.post_phase.requirements]
+command = "./scripts/validate_requirements.sh"
+on_fail = "warn"
+timeout = 30
+```
+
+Where `validate_requirements.sh` reads stdin for context:
+
+```bash
+#!/usr/bin/env bash
+# Read the JSON context from stdin
+CONTEXT=$(cat)
+SPEC_ID=$(echo "$CONTEXT" | jq -r .spec_id)
+
+# Check that the requirements artifact exists and has content
+ARTIFACT=".xchecker/specs/${SPEC_ID}/artifacts/00-requirements.md"
+if [ ! -s "$ARTIFACT" ]; then
+  echo "ERROR: requirements artifact is empty or missing" >&2
+  exit 1
+fi
+
+echo "Requirements validation passed for ${SPEC_ID}"
+```
+
+**Gate design on requirements quality:**
+
+```toml
+[hooks.pre_phase.design]
+command = "./scripts/check_requirements_quality.sh"
+on_fail = "fail"
+timeout = 30
+```
+
+This blocks the design phase from starting unless the requirements artifact
+passes your quality checks.
+
+**All phases -- universal logging:**
+
+```toml
+[hooks.pre_phase.requirements]
+command = "echo \"Starting $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+
+[hooks.pre_phase.design]
+command = "echo \"Starting $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+
+[hooks.pre_phase.tasks]
+command = "echo \"Starting $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+
+[hooks.post_phase.requirements]
+command = "echo \"Finished $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+
+[hooks.post_phase.design]
+command = "echo \"Finished $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+
+[hooks.post_phase.tasks]
+command = "echo \"Finished $XCHECKER_PHASE for $XCHECKER_SPEC_ID\" >> /tmp/xchecker.log"
+```
+
+Each phase must be configured individually -- there is no wildcard hook that
+applies to all phases.
 
 ---
 
