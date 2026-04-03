@@ -3,6 +3,7 @@ pub mod cache;
 pub mod canonicalization;
 pub mod error;
 pub mod exit_codes;
+pub mod failure_taxonomy;
 pub use xchecker_lock as lock;
 pub mod logging;
 pub mod paths;
