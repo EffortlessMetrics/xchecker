@@ -2,7 +2,10 @@
 #
 # This workflow implements the test-fast and test-full lanes:
 # - test-fast: Runs on every PR for quick feedback (~30s)
-# - test-full: Runs nightly and on main branch for comprehensive coverage
+# - test-full: Runs on push to main for comprehensive coverage
+#
+# Schedule runs are limited to ubuntu-latest to conserve runner minutes.
+# Use workflow_dispatch with platform=all to run on all 3 platforms manually.
 #
 # See docs/TESTING.md for test lane documentation.
 
@@ -14,8 +17,8 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Run nightly at 2:00 AM UTC
-    - cron: '0 2 * * *'
+    # Run weekly on Monday at 2:00 AM UTC (was daily; reduced to save minutes)
+    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       test_lane:
@@ -26,6 +29,18 @@ on:
         options:
           - fast
           - full
+      platform:
+        description: 'Platform(s) to run on'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ubuntu-only
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -38,6 +53,7 @@ jobs:
   test-fast:
     name: Test Fast (${{ matrix.os }})
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'fast')
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -73,10 +89,13 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Schedule runs use ubuntu-only to save runner minutes.
+        # Push runs and manual 'all' dispatches use all 3 platforms.
+        os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.platform == 'ubuntu-only')) && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest","macos-latest","windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -100,11 +119,43 @@ jobs:
       - name: Run test-full (all tests) - Locked
         run: cargo test --all-features --locked
         env:
-          # Increase property test cases for nightly runs
           PROPTEST_CASES: 128
 
-      - name: Run test-full (all tests) - Fresh Resolve (Linux)
-        if: runner.os == 'Linux'
+      - name: Run doc tests
+        run: cargo test --doc
+
+  # ============================================================================
+  # FRESH RESOLVE: Catches dependency drift (weekly schedule only)
+  # ============================================================================
+  # Separated from test-full so push builds are not doubled.
+  # Runs as part of the weekly schedule and on manual 'full' dispatches.
+  fresh-resolve:
+    name: Fresh Resolve (ubuntu)
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-cargo-fresh-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ubuntu-cargo-fresh-
+            ubuntu-cargo-
+
+      - name: Fresh resolve and test
         shell: bash
         run: |
           set -euo pipefail
@@ -123,20 +174,7 @@ jobs:
           cargo update
           cargo test --all-features
         env:
-          # Increase property test cases for nightly runs
           PROPTEST_CASES: 128
-
-      - name: Run test-full (all tests) - Fresh Resolve (non-Linux)
-        if: runner.os != 'Linux'
-        run: |
-          cargo update
-          cargo test --all-features
-        env:
-          # Increase property test cases for nightly runs
-          PROPTEST_CASES: 128
-
-      - name: Run doc tests
-        run: cargo test --doc
 
   # ============================================================================
   # PROPERTY TESTS: Dedicated property-based testing job
@@ -147,6 +185,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -191,6 +230,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.test_lane == 'full')
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
       XCHECKER_E2E: "1"
@@ -243,6 +283,7 @@ jobs:
   # ============================================================================
   example-validation:
     name: Example Validation (${{ matrix.os }})
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -281,6 +322,7 @@ jobs:
   # ============================================================================
   walkthrough-validation:
     name: Walkthrough Validation (${{ matrix.os }})
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
