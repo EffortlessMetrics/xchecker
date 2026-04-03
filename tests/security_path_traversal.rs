@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serial_test::serial;
 use tempfile::TempDir;
 use xchecker::OrchestratorHandle;
 use xchecker::artifact::{Artifact, ArtifactType};
@@ -42,6 +43,7 @@ impl SecurityTestEnvironment {
 /// Validates that ArtifactManager rejects paths attempting to escape the spec directory
 /// Requirements: FR-TEST-6
 #[test]
+#[serial]
 fn test_artifact_path_traversal_rejection() -> Result<()> {
     let env = SecurityTestEnvironment::new("artifact-traversal")?;
     let manager = env.handle.artifact_manager();
@@ -68,6 +70,7 @@ fn test_artifact_path_traversal_rejection() -> Result<()> {
 /// Validates that FixupParser rejects diffs targeting files outside the repo
 /// Requirements: FR-TEST-6
 #[test]
+#[serial]
 fn test_fixup_path_traversal_rejection() -> Result<()> {
     let env = SecurityTestEnvironment::new("fixup-traversal")?;
 

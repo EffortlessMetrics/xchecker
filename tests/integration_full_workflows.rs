@@ -15,6 +15,7 @@
 //! - R4.2: Resume scenarios and failure recovery
 
 use anyhow::Result;
+use serial_test::serial;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -126,6 +127,7 @@ impl WorkflowTestEnvironment {
 /// Test 1: Complete spec generation flow (Requirements → Design → Tasks)
 /// Validates R1.1 requirements for full workflow execution
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_complete_spec_generation_flow() -> Result<()> {
     let env = WorkflowTestEnvironment::new("complete-flow")?;
@@ -252,6 +254,7 @@ async fn test_complete_spec_generation_flow() -> Result<()> {
 /// Test 2: Resume scenarios and failure recovery
 /// Validates R4.2 requirements for phase resumption and failure handling
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_resume_scenarios_and_failure_recovery() -> Result<()> {
     let env = WorkflowTestEnvironment::new("resume-recovery")?;
@@ -354,6 +357,7 @@ async fn test_resume_scenarios_and_failure_recovery() -> Result<()> {
 /// Test 3: Determinism with identical inputs producing same outputs
 /// Validates R2.2 and R2.5 requirements for deterministic behavior
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_determinism_with_identical_inputs() -> Result<()> {
     // Create two separate environments with identical configurations
@@ -487,6 +491,7 @@ async fn test_determinism_with_identical_inputs() -> Result<()> {
 /// Test 4: Multi-phase workflow with dependency validation
 /// Validates proper phase dependency checking and artifact propagation
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_multi_phase_workflow_with_dependencies() -> Result<()> {
     let env = WorkflowTestEnvironment::new("dependencies")?;
@@ -589,6 +594,7 @@ async fn test_multi_phase_workflow_with_dependencies() -> Result<()> {
 /// Test 5: Artifact content validation and structure verification
 /// Validates that generated artifacts have proper structure and content
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_artifact_content_validation() -> Result<()> {
     let env = WorkflowTestEnvironment::new("content-validation")?;
@@ -684,6 +690,7 @@ async fn test_artifact_content_validation() -> Result<()> {
 /// Test 6: Error propagation and recovery across phases
 /// Validates proper error handling in multi-phase scenarios
 #[tokio::test]
+#[serial]
 #[ignore = "requires_claude_stub"]
 async fn test_error_propagation_and_recovery() -> Result<()> {
     if !test_support::should_run_e2e() {

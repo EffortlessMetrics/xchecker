@@ -16,6 +16,7 @@
 //! - Receipt writing with fixup results works
 
 use anyhow::Result;
+use serial_test::serial;
 use std::fs;
 use tempfile::TempDir;
 use xchecker::fixup::{FixupMode, FixupParser};
@@ -39,6 +40,7 @@ fn setup_test_environment(test_name: &str) -> Result<(PhaseOrchestrator, TempDir
 
 /// Test that fixup command parsing works in resume
 #[tokio::test]
+#[serial]
 async fn test_fixup_command_parsing() -> Result<()> {
     let (orchestrator, _temp_dir) = setup_test_environment("command-parsing")?;
 

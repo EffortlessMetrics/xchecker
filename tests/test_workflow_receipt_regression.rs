@@ -11,6 +11,7 @@
 //! 4. Packet evidence is preserved
 
 use anyhow::Result;
+use serial_test::serial;
 use tempfile::TempDir;
 use xchecker::orchestrator::{OrchestratorConfig, PhaseOrchestrator};
 
@@ -55,6 +56,7 @@ fn dry_run_config() -> OrchestratorConfig {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_requirements_receipt_has_llm_info() -> Result<()> {
     let env = setup_test("llm-info");
     let orchestrator = env.orchestrator;
@@ -83,6 +85,7 @@ async fn test_requirements_receipt_has_llm_info() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_requirements_receipt_has_pipeline_info() -> Result<()> {
     let env = setup_test("pipeline-info");
     let orchestrator = env.orchestrator;
@@ -109,6 +112,7 @@ async fn test_requirements_receipt_has_pipeline_info() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_receipt_packet_evidence_preserved() -> Result<()> {
     let env = setup_test("packet-evidence");
     let orchestrator = env.orchestrator;
@@ -138,6 +142,7 @@ async fn test_receipt_packet_evidence_preserved() -> Result<()> {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_multi_phase_receipts_consistent_metadata() -> Result<()> {
     let env = setup_test("multi-phase");
     let orchestrator = env.orchestrator;
@@ -171,6 +176,7 @@ async fn test_multi_phase_receipts_consistent_metadata() -> Result<()> {
 /// and workflow execution contain the same key metadata fields, ensuring
 /// consistency regardless of execution path.
 #[tokio::test]
+#[serial]
 async fn test_single_phase_vs_workflow_receipt_parity() -> Result<()> {
     // Run Requirements via single-phase path
     let env_single = setup_test("single-phase-parity");

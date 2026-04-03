@@ -9,6 +9,7 @@
 //! Requirements: R6.8, R6.9, R7.1, R7.2, R7.3
 
 use anyhow::Result;
+use serial_test::serial;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -208,6 +209,7 @@ fn test_error_receipt_exit_code_alignment() {
 
 /// Test that timeout creates partial artifact with correct naming
 #[tokio::test]
+#[serial]
 async fn test_timeout_creates_partial_artifact() -> Result<()> {
     let env = setup_test_environment("timeout-partial");
     let spec_base = env.spec_base;
@@ -598,6 +600,7 @@ mod integration_tests {
 
     /// Integration test for timeout behavior (requires mock or stub)
     #[tokio::test]
+    #[serial]
     #[ignore = "requires_claude_stub"]
     async fn test_timeout_full_integration() -> Result<()> {
         let _env_guard = test_support::EnvVarGuard::set("CLAUDE_STUB_HANG_SECS", "10");

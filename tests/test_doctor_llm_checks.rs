@@ -15,6 +15,7 @@
 //! These tests ensure the doctor command properly validates the LLM backend
 //! configuration before any actual LLM calls are made.
 
+use serial_test::serial;
 use std::env;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use tempfile::{NamedTempFile, TempDir};
@@ -90,6 +91,7 @@ fn find_check<'a>(
 // ===== Test Scenario 1: No provider set → should default and pass/warn based on binary availability =====
 
 #[test]
+#[serial]
 fn test_no_provider_set_defaults_to_claude_cli() {
     let _env = TestEnv::new();
 
@@ -139,6 +141,7 @@ fn test_no_provider_set_defaults_to_claude_cli() {
 }
 
 #[test]
+#[serial]
 fn test_no_provider_no_binary_in_path_fails() {
     let _env = TestEnv::new();
 
@@ -191,6 +194,7 @@ fn test_no_provider_no_binary_in_path_fails() {
 // ===== Test Scenario 2: Provider = "claude-cli" with invalid binary path → should fail =====
 
 #[test]
+#[serial]
 fn test_claude_cli_with_invalid_binary_path_fails() {
     let _env = TestEnv::new();
 
@@ -239,6 +243,7 @@ fn test_claude_cli_with_invalid_binary_path_fails() {
 // ===== Test Scenario 3: Provider = "claude-cli" with valid custom binary path → should pass =====
 
 #[test]
+#[serial]
 fn test_claude_cli_with_valid_custom_binary_passes() {
     let _env = TestEnv::new();
 
@@ -286,6 +291,7 @@ fn test_claude_cli_with_valid_custom_binary_passes() {
 // ===== Test Scenario 4: Invalid/unsupported provider → should fail during config validation =====
 
 #[test]
+#[serial]
 fn test_unsupported_provider_fails_config_validation() {
     let _env = TestEnv::new();
 
@@ -316,6 +322,7 @@ fn test_unsupported_provider_fails_config_validation() {
 }
 
 #[test]
+#[serial]
 fn test_unknown_provider_fails_config_validation() {
     let _env = TestEnv::new();
 
@@ -338,6 +345,7 @@ fn test_unknown_provider_fails_config_validation() {
 // ===== Test Scenario 5: Doctor JSON output includes llm_provider check =====
 
 #[test]
+#[serial]
 fn test_doctor_json_output_includes_llm_provider_check() {
     let _env = TestEnv::new();
 
@@ -388,6 +396,7 @@ fn test_doctor_json_output_includes_llm_provider_check() {
 // ===== Test Scenario 6: Doctor strict mode with warnings =====
 
 #[test]
+#[serial]
 fn test_doctor_strict_mode_with_llm_warnings() {
     let _env = TestEnv::new();
 
@@ -441,6 +450,7 @@ fn test_doctor_strict_mode_with_llm_warnings() {
 // ===== Test Scenario 7: Verify check is present in all statuses =====
 
 #[test]
+#[serial]
 fn test_llm_provider_check_always_present() {
     let _env = TestEnv::new();
 
@@ -482,6 +492,7 @@ fn test_llm_provider_check_always_present() {
 // ===== Test Scenario 8: Provider check details are informative =====
 
 #[test]
+#[serial]
 fn test_llm_provider_check_details_are_informative() {
     let _env = TestEnv::new();
 
@@ -521,6 +532,7 @@ fn test_llm_provider_check_details_are_informative() {
 // ===== Test Scenario 9: Multiple doctor runs produce consistent results =====
 
 #[test]
+#[serial]
 fn test_llm_provider_check_consistency() {
     let _env = TestEnv::new();
 
@@ -566,6 +578,7 @@ fn test_llm_provider_check_consistency() {
 // ===== Test Scenario 10: Edge case - relative path for binary =====
 
 #[test]
+#[serial]
 fn test_llm_provider_with_relative_path() {
     let _env = TestEnv::new();
 
