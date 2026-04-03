@@ -393,7 +393,10 @@ mod tests {
             "Unbounded cache caused OOM on CI runners with 2 GB RAM",
         )
         .evidence("OOM kill at 1.8 GB RSS")
-        .alternative("Use an LRU eviction policy", "Adds complexity for marginal benefit vs a hard cap")
+        .alternative(
+            "Use an LRU eviction policy",
+            "Adds complexity for marginal benefit vs a hard cap",
+        )
         .confidence(0.9)
         .reversible(true)
         .build();
@@ -409,7 +412,10 @@ mod tests {
         assert_eq!(parsed.description, receipt.description);
         assert_eq!(parsed.rationale, receipt.rationale);
         assert_eq!(parsed.evidence, receipt.evidence);
-        assert_eq!(parsed.alternatives_considered, receipt.alternatives_considered);
+        assert_eq!(
+            parsed.alternatives_considered,
+            receipt.alternatives_considered
+        );
         assert!((parsed.confidence - receipt.confidence).abs() < f64::EPSILON);
         assert_eq!(parsed.reversible, receipt.reversible);
     }
@@ -447,7 +453,10 @@ mod tests {
         ];
         for kind in &kinds {
             let display = format!("{kind}");
-            assert!(!display.is_empty(), "Display for {kind:?} should not be empty");
+            assert!(
+                !display.is_empty(),
+                "Display for {kind:?} should not be empty"
+            );
         }
     }
 
@@ -455,8 +464,14 @@ mod tests {
     fn serde_route_kind_variants() {
         // Ensure all named variants serialize to snake_case and round-trip.
         let kinds = vec![
-            (RouteKind::SerializeGlobalStateTests, "\"serialize_global_state_tests\""),
-            (RouteKind::AdvisoryPerfOnNonStrictRunner, "\"advisory_perf_on_non_strict_runner\""),
+            (
+                RouteKind::SerializeGlobalStateTests,
+                "\"serialize_global_state_tests\"",
+            ),
+            (
+                RouteKind::AdvisoryPerfOnNonStrictRunner,
+                "\"advisory_perf_on_non_strict_runner\"",
+            ),
             (RouteKind::CapabilitySkip, "\"capability_skip\""),
             (RouteKind::DependencyPin, "\"dependency_pin\""),
             (RouteKind::CorrectnessFix, "\"correctness_fix\""),
