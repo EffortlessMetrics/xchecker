@@ -1091,6 +1091,182 @@ impl Default for ReviewPhase {
     }
 }
 
+/// Implementation of Final phase
+///
+/// The Final phase produces a consolidated summary of the entire specification,
+/// confirming that requirements, design, tasks, and review have been completed.
+/// It generates a final readiness report (50-final.md) and structured metadata
+/// (50-final.core.yaml).
+#[derive(Debug, Clone)]
+pub struct FinalPhase;
+
+impl FinalPhase {
+    /// Create a new Final phase instance
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
+impl Phase for FinalPhase {
+    fn id(&self) -> PhaseId {
+        PhaseId::Final
+    }
+
+    fn deps(&self) -> &'static [PhaseId] {
+        // Final phase requires at least Tasks to be complete (can skip review/fixup)
+        &[PhaseId::Tasks]
+    }
+
+    fn can_resume(&self) -> bool {
+        true
+    }
+
+    fn prompt(&self, ctx: &PhaseContext) -> String {
+        format!(
+            r"You are a technical writer producing the final readiness summary for a specification.
+
+Your task is to consolidate all specification artifacts (requirements, design, tasks, and any review/fixup results) into a concise readiness report.
+
+# Final Summary Guidelines
+
+1. **Specification Overview**: Brief description of what was specified
+2. **Phase Completion Status**: List each completed phase with a one-line summary
+3. **Key Decisions**: Highlight the most important architectural and design decisions
+4. **Implementation Readiness**: Confirm the specification is ready for implementation or note blockers
+5. **Risk Assessment**: Note any open risks, assumptions, or areas needing future attention
+
+# Output Format
+
+Start with `# Final Specification Report` and organize into the sections above.
+Keep the report concise (aim for 1-2 pages). Focus on actionable information
+that an implementation team needs to get started.
+
+Spec ID: {}
+Phase: Final
+{}",
+            ctx.spec_id, ANTI_SUMMARY_INSTRUCTIONS
+        )
+    }
+
+    fn make_packet(&self, ctx: &PhaseContext) -> Result<Packet> {
+        let mut content = String::new();
+        let mut files = Vec::new();
+
+        content.push_str("=== SPEC GENERATION CONTEXT ===\n");
+        content.push_str(&format!("Spec ID: {}\n", ctx.spec_id));
+        content.push_str("Phase: Final\n");
+        content.push_str(&format!("Base Directory: {}\n", ctx.spec_dir.display()));
+        content.push('\n');
+
+        content.push_str("=== SPECIFICATION ARTIFACTS FOR FINAL SUMMARY ===\n");
+
+        // Include all available artifacts
+        let artifact_files = [
+            ("artifacts/00-requirements.md", "Requirements Document"),
+            (
+                "artifacts/00-requirements.core.yaml",
+                "Requirements Core Data",
+            ),
+            ("artifacts/10-design.md", "Design Document"),
+            ("artifacts/10-design.core.yaml", "Design Core Data"),
+            ("artifacts/20-tasks.md", "Tasks Document"),
+            ("artifacts/20-tasks.core.yaml", "Tasks Core Data"),
+            ("artifacts/30-review.md", "Review Document"),
+            ("artifacts/30-review.core.yaml", "Review Core Data"),
+            ("artifacts/40-fixup.md", "Fixup Document"),
+            ("artifacts/40-fixup.core.yaml", "Fixup Core Data"),
+        ];
+
+        for (rel_path, label) in &artifact_files {
+            let full_path = ctx.spec_dir.join(rel_path);
+            if full_path.exists() {
+                match std::fs::read_to_string(&full_path) {
+                    Ok(file_content) => {
+                        content.push_str(&format!("--- {label} ({rel_path}) ---\n"));
+                        content.push_str(&file_content);
+                        content.push_str("\n\n");
+
+                        files.push(FileEvidence {
+                            path: rel_path.to_string(),
+                            range: None,
+                            blake3_pre_redaction: blake3::hash(file_content.as_bytes())
+                                .to_hex()
+                                .to_string(),
+                            priority: xchecker_utils::types::Priority::Upstream,
+                        });
+                    }
+                    Err(e) => {
+                        content.push_str(&format!("Error reading {rel_path}: {e}\n"));
+                    }
+                }
+            }
+        }
+
+        let blake3_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+        let (max_bytes, max_lines) = packet_limits_from_config(ctx);
+
+        let evidence = PacketEvidence {
+            files,
+            max_bytes,
+            max_lines,
+        };
+
+        let mut budget_used = xchecker_packet::BudgetUsage::new(max_bytes, max_lines);
+        budget_used.add_content(content.len(), content.lines().count());
+
+        Ok(Packet::new(content, blake3_hash, evidence, budget_used))
+    }
+
+    fn postprocess(&self, raw: &str, ctx: &PhaseContext) -> Result<PhaseResult> {
+        let final_content = raw.trim().to_string();
+
+        let final_artifact = Artifact {
+            name: "50-final.md".to_string(),
+            content: final_content.clone(),
+            artifact_type: ArtifactType::Markdown,
+            blake3_hash: blake3::hash(final_content.as_bytes()).to_hex().to_string(),
+        };
+
+        let core_yaml_content = format!(
+            r#"# Final phase data for spec {}
+spec_id: "{}"
+phase: "final"
+version: "1.0"
+
+metadata:
+  specification_complete: true
+
+generated_at: "{}"
+"#,
+            ctx.spec_id,
+            ctx.spec_id,
+            chrono::Utc::now().to_rfc3339()
+        );
+
+        let core_yaml_artifact = Artifact {
+            name: "50-final.core.yaml".to_string(),
+            content: core_yaml_content.clone(),
+            artifact_type: ArtifactType::CoreYaml,
+            blake3_hash: blake3::hash(core_yaml_content.as_bytes())
+                .to_hex()
+                .to_string(),
+        };
+
+        Ok(PhaseResult {
+            artifacts: vec![final_artifact, core_yaml_artifact],
+            next_step: NextStep::Complete,
+            metadata: PhaseMetadata::default(),
+        })
+    }
+}
+
+impl Default for FinalPhase {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

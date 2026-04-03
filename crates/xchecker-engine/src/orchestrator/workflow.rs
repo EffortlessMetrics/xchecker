@@ -99,11 +99,6 @@ impl PhaseOrchestrator {
         while current_phase_index < standard_phases.len() {
             let phase_id = standard_phases[current_phase_index];
 
-            // Skip Final phase for now (not implemented)
-            if phase_id == PhaseId::Final {
-                break;
-            }
-
             println!("Executing phase: {}", phase_id.as_str());
 
             let result = match self
@@ -260,11 +255,10 @@ impl PhaseOrchestrator {
                     .await?
             }
             PhaseId::Final => {
-                return Err(XCheckerError::Phase(PhaseError::InvalidTransition {
-                    from: "current state".to_string(),
-                    to: "Final phase not yet implemented".to_string(),
-                })
-                .into());
+                use crate::phases::FinalPhase;
+                let phase = FinalPhase::new();
+                self.execute_phase_with_next_step_handling(&phase, config)
+                    .await?
             }
         };
 

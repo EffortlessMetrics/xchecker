@@ -13,7 +13,7 @@ use crate::fixup::{FixupMode, FixupPhase};
 use crate::hooks::{HookContext, HookExecutor, HookType, execute_and_process_hook};
 use crate::packet::PacketBuilder;
 use crate::phase::{Phase, PhaseContext};
-use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
+use crate::phases::{DesignPhase, FinalPhase, RequirementsPhase, ReviewPhase, TasksPhase};
 use crate::status::artifact::{Artifact, ArtifactType};
 use crate::types::{ErrorKind, FileType, LlmInfo, PacketEvidence, PhaseId, PipelineInfo};
 
@@ -417,7 +417,13 @@ impl PhaseOrchestrator {
         })
     }
 
-    /// Execute a phase with resume support (handles partial artifacts)
+    /// Execute a phase with resume support (handles partial artifacts).
+    ///
+    /// When a partial artifact exists from a previous failed run:
+    /// - If the phase supports resumption (`can_resume() == true`), the partial
+    ///   content is stored as a context file so the LLM can incorporate it.
+    /// - The partial artifact is then deleted and the phase re-executed.
+    /// - On success, any remaining partial artifacts are cleaned up (R4.5).
     async fn execute_phase_with_resume(
         &self,
         phase: &dyn Phase,
@@ -435,11 +441,30 @@ impl PhaseOrchestrator {
             );
 
             if !config.dry_run {
-                // In a real implementation, we might want to ask the user if they want to:
-                // 1. Continue from partial (not implemented yet)
-                // 2. Start fresh (delete partial and re-run)
-                // For now, we'll delete the partial and start fresh
-                println!("Deleting partial artifact and starting fresh...");
+                if phase.can_resume() {
+                    // Read partial content and store as context for the re-run
+                    match self.artifact_manager().read_partial_artifact(phase_id) {
+                        Ok(partial_content) => {
+                            println!(
+                                "Resuming {} phase with partial context...",
+                                phase_id.as_str()
+                            );
+                            let context_name = format!("{}-partial-resume", phase_id.as_str());
+                            if let Err(e) = self
+                                .artifact_manager()
+                                .store_context_file(&context_name, &partial_content)
+                            {
+                                eprintln!("Warning: Failed to store partial context: {e}");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Warning: Failed to read partial artifact: {e}");
+                        }
+                    }
+                }
+
+                // Delete the partial artifact before re-executing
+                println!("Cleaning up partial artifact and re-executing...");
                 self.artifact_manager().delete_partial_artifact(phase_id)?;
             }
         }
@@ -1732,7 +1757,7 @@ The system implements comprehensive error handling with:
 
                 Ok(Box::new(FixupPhase::new_with_mode(fixup_mode)))
             }
-            PhaseId::Final => Err(anyhow::anyhow!("Final phase not yet implemented")),
+            PhaseId::Final => Ok(Box::new(FinalPhase::new())),
         }
     }
 }

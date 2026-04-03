@@ -828,7 +828,6 @@ pub fn redact_user_string(text: &str) -> String {
 /// # Returns
 /// Optional redacted text (None if input was None)
 #[must_use]
-#[allow(dead_code)] // Duplicate of SecretRedactor method, candidate for removal
 pub fn redact_user_optional(text: &Option<String>) -> Option<String> {
     text.as_ref().map(|s| redact_user_string(s))
 }
@@ -841,7 +840,6 @@ pub fn redact_user_optional(text: &Option<String>) -> Option<String> {
 /// # Returns
 /// Vector of redacted strings
 #[must_use]
-#[allow(dead_code)] // Duplicate of SecretRedactor method, candidate for removal
 pub fn redact_user_strings(strings: &[String]) -> Vec<String> {
     strings.iter().map(|s| redact_user_string(s)).collect()
 }

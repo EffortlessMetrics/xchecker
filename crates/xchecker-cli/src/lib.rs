@@ -2,27 +2,13 @@
 //!
 //! This crate provides the command-line interface for the xchecker tool,
 //! including command parsing, argument handling, and CLI-specific logic.
+//!
+//! The main CLI implementation currently lives in `src/cli.rs` of the root crate.
+//! This microcrate re-exports stable types for downstream consumers and will
+//! absorb the full CLI implementation in a future refactor.
 
 // Re-export types from their new locations after modularization
 pub use xchecker_config::{CliArgs, Config};
 pub use xchecker_utils::error::XCheckerError;
 pub use xchecker_utils::exit_codes::ExitCode;
 pub use xchecker_utils::types::PhaseId;
-
-/// Main CLI entry point
-///
-/// This function parses command-line arguments and executes the appropriate command.
-pub async fn run_cli() -> Result<ExitCode, anyhow::Error> {
-    // CLI logic will be extracted from src/cli.rs
-    // For now, this is a placeholder
-    todo!("CLI extraction in progress - see src/cli.rs for current implementation")
-}
-
-/// Parse CLI arguments
-///
-/// This function parses command-line arguments and returns the parsed configuration.
-pub fn parse_args() -> Result<CliArgs, anyhow::Error> {
-    // CLI argument parsing will be extracted from src/cli.rs
-    // For now, this is a placeholder
-    todo!("CLI argument parsing extraction in progress - see src/cli.rs for current implementation")
-}
