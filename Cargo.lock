@@ -4251,6 +4251,7 @@ dependencies = [
  "serde_json",
  "strum",
  "tempfile",
+ "toml",
  "which",
  "xchecker-config",
  "xchecker-utils",

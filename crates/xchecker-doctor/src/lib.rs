@@ -7,6 +7,7 @@
 pub use xchecker_utils::types::{CheckStatus, DoctorCheck, DoctorOutput};
 
 pub mod docs_doctor;
+pub mod release_doctor;
 pub mod tests_doctor;
 pub mod wsl;
 
