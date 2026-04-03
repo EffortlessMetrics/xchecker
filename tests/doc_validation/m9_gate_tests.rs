@@ -44,10 +44,10 @@ mod tests {
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
-        // Check that it runs the test_doc_validation test
+        // Check that it runs the doc_validation test with dev-tools feature
         assert!(
-            ci_content.contains("cargo test --test test_doc_validation"),
-            "CI should run documentation validation tests"
+            ci_content.contains("cargo test --features dev-tools --test doc_validation"),
+            "CI should run documentation validation tests with dev-tools feature"
         );
 
         // Check that it uses serial execution for deterministic output
@@ -136,10 +136,10 @@ mod tests {
         let ci_content =
             fs::read_to_string(ci_path).expect("Should be able to read CI workflow file");
 
-        // Find the docs-conformance section
+        // Find the docs-conformance job definition (not the comment in the header)
         let docs_section_start = ci_content
-            .find("docs-conformance:")
-            .expect("Should find docs-conformance job");
+            .find("\n  docs-conformance:")
+            .expect("Should find docs-conformance job definition");
 
         // Get the section (next 500 chars should be enough)
         // Use safe UTF-8 slicing by finding the nearest valid char boundary
@@ -176,8 +176,8 @@ mod tests {
 
         // 2. Verify correct test command
         assert!(
-            ci_content.contains("cargo test --test test_doc_validation"),
-            "Should run test_doc_validation"
+            ci_content.contains("cargo test --features dev-tools --test doc_validation"),
+            "Should run doc_validation with dev-tools feature"
         );
         assert!(
             ci_content.contains("--test-threads=1"),

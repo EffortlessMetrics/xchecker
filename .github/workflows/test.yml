@@ -435,14 +435,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run documentation validation tests
-        run: cargo test --test test_doc_validation -- --test-threads=1
+        run: cargo test --features dev-tools --test doc_validation -- --test-threads=1
 
       - name: Verify generated schema examples are fresh
         run: |
           git diff --exit-code docs/schemas/ || {
             echo "Generated schema examples are out of sync!"
             echo ""
-            echo "Run 'cargo test --test test_doc_validation doc_validation::schema_examples_tests -- --nocapture' to regenerate and commit updated files under docs/schemas/*"
+            echo "Run 'cargo test --features dev-tools --test doc_validation doc_validation::schema_examples_tests -- --nocapture' to regenerate and commit updated files under docs/schemas/*"
             echo ""
             exit 1
           }
