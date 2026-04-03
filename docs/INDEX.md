@@ -64,3 +64,9 @@ For xchecker developers.
 | [Runtime Requirements](contributor/REQUIREMENTS_RUNTIME_V1.md) | V1 runtime specification |
 | [Security Gate Review](contributor/SECURITY_GATE_REVIEW.md) | Security audit trail |
 | [Claude Stub](contributor/claude-stub.md) | Test harness reference |
+
+## Project
+
+| Document | Description |
+|----------|-------------|
+| [Roadmap](ROADMAP.md) | Now / Next / Later priorities |
