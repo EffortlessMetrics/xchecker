@@ -14,7 +14,6 @@ Write-Host "=== Validating Walkthrough Code Snippets ===" -ForegroundColor Cyan
 Write-Host "Project root: $ProjectRoot"
 
 $script:Errors = 0
-$script:Warnings = 0
 
 # Valid xchecker subcommands
 $ValidCommands = @("spec", "resume", "status", "clean", "doctor", "init", "benchmark", "test", "gate", "project", "template")
@@ -24,58 +23,61 @@ $ValidGlobalFlags = @("--version", "--help", "-h", "-V")
 
 function Extract-BashBlocks {
     param([string]$FilePath)
-    
+
     $content = Get-Content $FilePath -Raw
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        return @()
+    }
     $pattern = '```bash\r?\n([\s\S]*?)```'
-    $matches = [regex]::Matches($content, $pattern)
-    
+    $regexMatches = [regex]::Matches($content, $pattern)
+
     $blocks = @()
-    foreach ($match in $matches) {
-        $blocks += $match.Groups[1].Value
+    foreach ($m in $regexMatches) {
+        $blocks += $m.Groups[1].Value
     }
     return $blocks
 }
 
 function Validate-XCheckerCommands {
     param([string]$FilePath)
-    
+
     Write-Host ""
-    Write-Host "Checking: $FilePath" -ForegroundColor White
-    
-    $blocks = Extract-BashBlocks -FilePath $FilePath
-    
+    Write-Host "Checking commands: $FilePath" -ForegroundColor White
+
+    $blocks = @(Extract-BashBlocks -FilePath $FilePath)
+
     if ($blocks.Count -eq 0) {
-        Write-Host "  No bash code blocks found" -ForegroundColor Yellow
+        Write-Host "  [SKIP] No bash code blocks found" -ForegroundColor Yellow
         return
     }
-    
+
     $allContent = $blocks -join "`n"
     $lines = $allContent -split "`n"
-    
-    $xchecker_cmds = $lines | Where-Object { $_ -match '^\s*xchecker\s+' }
-    
+
+    $xchecker_cmds = @($lines | Where-Object { $_ -match '^\s*xchecker\s+' })
+
     if ($xchecker_cmds.Count -eq 0) {
-        Write-Host "  No xchecker commands found" -ForegroundColor Yellow
+        Write-Host "  [SKIP] No xchecker commands found" -ForegroundColor Yellow
         return
     }
-    
+
     foreach ($cmd in $xchecker_cmds) {
         # Skip empty lines and comments
         if ([string]::IsNullOrWhiteSpace($cmd) -or $cmd.Trim().StartsWith("#")) {
             continue
         }
-        
+
         # Extract the subcommand
         $parts = $cmd.Trim() -split '\s+'
         if ($parts.Count -ge 2) {
             $subcmd = $parts[1]
-            
+
             if ($ValidCommands -contains $subcmd) {
-                Write-Host "  OK Valid command: xchecker $subcmd" -ForegroundColor Green
+                Write-Host "  [PASS] Valid command: xchecker $subcmd" -ForegroundColor Green
             } elseif ($ValidGlobalFlags -contains $subcmd) {
-                Write-Host "  OK Valid flag: xchecker $subcmd" -ForegroundColor Green
+                Write-Host "  [PASS] Valid flag: xchecker $subcmd" -ForegroundColor Green
             } else {
-                Write-Host "  FAIL Unknown command: xchecker $subcmd" -ForegroundColor Red
+                Write-Host "  [FAIL] Unknown command: xchecker $subcmd" -ForegroundColor Red
                 $script:Errors++
             }
         }
@@ -84,42 +86,49 @@ function Validate-XCheckerCommands {
 
 function Check-InternalLinks {
     param([string]$FilePath)
-    
+
     Write-Host ""
-    Write-Host "Checking internal links in: $FilePath" -ForegroundColor White
-    
+    Write-Host "Checking internal links: $FilePath" -ForegroundColor White
+
     $content = Get-Content $FilePath -Raw
-    $pattern = '\[.*?\]\(([^)]+\.md)\)'
-    $matches = [regex]::Matches($content, $pattern)
-    
-    if ($matches.Count -eq 0) {
-        Write-Host "  No internal links found" -ForegroundColor Yellow
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        Write-Host "  [SKIP] File is empty" -ForegroundColor Yellow
         return
     }
-    
+    $pattern = '\[.*?\]\(([^)]+\.md(?:#[^)]*)?)\)'
+    $regexMatches = [regex]::Matches($content, $pattern)
+
+    if ($regexMatches.Count -eq 0) {
+        Write-Host "  [SKIP] No internal links found" -ForegroundColor Yellow
+        return
+    }
+
     $dir = Split-Path -Parent $FilePath
-    
-    foreach ($match in $matches) {
-        $link = $match.Groups[1].Value
-        
+
+    foreach ($m in $regexMatches) {
+        $link = $m.Groups[1].Value
+
+        # Strip anchor fragment (e.g. "FILE.md#section")
+        $linkPath = ($link -split '#')[0]
+
         # Resolve relative path
-        if ($link.StartsWith("/")) {
-            $target = Join-Path $ProjectRoot $link.Substring(1)
+        if ($linkPath.StartsWith("/")) {
+            $target = Join-Path $ProjectRoot $linkPath.Substring(1)
         } else {
-            $target = Join-Path $dir $link
+            $target = Join-Path $dir $linkPath
         }
-        
+
         # Normalize path
         try {
             $target = [System.IO.Path]::GetFullPath($target)
         } catch {
             # Keep original if normalization fails
         }
-        
-        if (Test-Path $target) {
-            Write-Host "  OK Link exists: $link" -ForegroundColor Green
+
+        if (Test-Path $target -PathType Leaf) {
+            Write-Host "  [PASS] Link exists: $link" -ForegroundColor Green
         } else {
-            Write-Host "  FAIL Broken link: $link" -ForegroundColor Red
+            Write-Host "  [FAIL] Broken link: $link -> $target" -ForegroundColor Red
             $script:Errors++
         }
     }
@@ -127,42 +136,67 @@ function Check-InternalLinks {
 
 function Check-JsonExamples {
     param([string]$FilePath)
-    
+
     Write-Host ""
-    Write-Host "Checking JSON examples in: $FilePath" -ForegroundColor White
-    
+    Write-Host "Checking JSON examples: $FilePath" -ForegroundColor White
+
     $content = Get-Content $FilePath -Raw
-    $pattern = '```json\r?\n([\s\S]*?)```'
-    $matches = [regex]::Matches($content, $pattern)
-    
-    if ($matches.Count -eq 0) {
-        Write-Host "  No JSON code blocks found" -ForegroundColor Yellow
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        Write-Host "  [SKIP] File is empty" -ForegroundColor Yellow
         return
     }
-    
-    $blockCount = $matches.Count
-    Write-Host "  Found $blockCount JSON block(s)"
-    Write-Host "  OK JSON blocks present (manual validation recommended)" -ForegroundColor Green
+    $pattern = '```json\r?\n([\s\S]*?)```'
+    $regexMatches = [regex]::Matches($content, $pattern)
+
+    if ($regexMatches.Count -eq 0) {
+        Write-Host "  [SKIP] No JSON code blocks found" -ForegroundColor Yellow
+        return
+    }
+
+    $blockCount = $regexMatches.Count
+    Write-Host "  [PASS] Found $blockCount JSON block(s)" -ForegroundColor Green
 }
 
 # Main validation
 Write-Host ""
 Write-Host "=== Walkthrough Files ===" -ForegroundColor Cyan
 
-$WalkthroughFiles = @(
-    (Join-Path $ProjectRoot "docs\WALKTHROUGH_20_MINUTES.md"),
-    (Join-Path $ProjectRoot "docs\WALKTHROUGH_SPEC_TO_PR.md")
+# Discover walkthrough files: check both legacy locations and new locations
+$WalkthroughFiles = @()
+
+# Legacy locations
+$legacyPaths = @(
+    (Join-Path $ProjectRoot "docs" "WALKTHROUGH_20_MINUTES.md"),
+    (Join-Path $ProjectRoot "docs" "WALKTHROUGH_SPEC_TO_PR.md")
 )
+foreach ($f in $legacyPaths) {
+    if (Test-Path $f -PathType Leaf) {
+        $WalkthroughFiles += $f
+    }
+}
+
+# New Diataxis tutorial locations
+$tutorialPaths = @(
+    (Join-Path $ProjectRoot "docs" "tutorials" "QUICKSTART.md"),
+    (Join-Path $ProjectRoot "docs" "tutorials" "SPEC_TO_PR.md")
+)
+foreach ($f in $tutorialPaths) {
+    if (Test-Path $f -PathType Leaf) {
+        $WalkthroughFiles += $f
+    }
+}
+
+if ($WalkthroughFiles.Count -eq 0) {
+    Write-Host "[FAIL] No walkthrough files found in docs/ or docs/tutorials/" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Found $($WalkthroughFiles.Count) walkthrough file(s)"
 
 foreach ($file in $WalkthroughFiles) {
-    if (Test-Path $file) {
-        Validate-XCheckerCommands -FilePath $file
-        Check-InternalLinks -FilePath $file
-        Check-JsonExamples -FilePath $file
-    } else {
-        Write-Host "File not found: $file" -ForegroundColor Red
-        $script:Errors++
-    }
+    Validate-XCheckerCommands -FilePath $file
+    Check-InternalLinks -FilePath $file
+    Check-JsonExamples -FilePath $file
 }
 
 # Summary
@@ -173,6 +207,6 @@ if ($script:Errors -eq 0) {
     exit 0
 } else {
     $errCount = $script:Errors
-    Write-Host "Found $errCount error(s)" -ForegroundColor Red
+    Write-Host "FAILED: Found $errCount error(s)" -ForegroundColor Red
     exit 1
 }

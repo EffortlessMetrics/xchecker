@@ -1,70 +1,77 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Validation script for fullstack-nextjs example
-# This script validates the example structure and configuration
+# This script validates the example structure and configuration.
+# Designed to run in CI (GitHub Actions) on ubuntu, macos, and windows (Git Bash).
 
-set -e
+set -euo pipefail
 
 echo "=== Validating fullstack-nextjs example ==="
 
-# Get script directory
+# Get script directory (works on all platforms)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXAMPLE_DIR="$(dirname "$SCRIPT_DIR")"
+EXAMPLE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+echo "Example directory: $EXAMPLE_DIR"
 cd "$EXAMPLE_DIR"
+
+ERRORS=0
+
+check_file() {
+    local path="$1"
+    local label="$2"
+    if [ -f "$path" ]; then
+        echo "  [PASS] $label exists: $path"
+    else
+        echo "  [FAIL] $label not found: $path"
+        ERRORS=$((ERRORS + 1))
+    fi
+}
+
+check_dir() {
+    local path="$1"
+    local label="$2"
+    if [ -d "$path" ]; then
+        echo "  [PASS] $label exists: $path"
+    else
+        echo "  [FAIL] $label not found: $path"
+        ERRORS=$((ERRORS + 1))
+    fi
+}
 
 # Check workspace.yaml exists
 echo ""
 echo "Checking workspace.yaml..."
-if [ ! -f "workspace.yaml" ]; then
-    echo "ERROR: workspace.yaml not found"
-    exit 1
-fi
-echo "  ✓ workspace.yaml exists"
+check_file "workspace.yaml" "workspace.yaml"
 
 # Check .xchecker/config.toml exists
 echo ""
 echo "Checking .xchecker/config.toml..."
-if [ ! -f ".xchecker/config.toml" ]; then
-    echo "ERROR: .xchecker/config.toml not found"
-    exit 1
-fi
-echo "  ✓ .xchecker/config.toml exists"
+check_file ".xchecker/config.toml" ".xchecker/config.toml"
 
 # Check spec directory structure
 echo ""
 echo "Checking spec directory structure..."
 SPEC_DIR=".xchecker/specs/task-manager"
-if [ ! -d "$SPEC_DIR" ]; then
-    echo "ERROR: Spec directory not found: $SPEC_DIR"
-    exit 1
-fi
-echo "  ✓ Spec directory exists"
+check_dir "$SPEC_DIR" "Spec directory"
 
 # Check context directory
 CONTEXT_DIR="$SPEC_DIR/context"
-if [ ! -d "$CONTEXT_DIR" ]; then
-    echo "ERROR: Context directory not found: $CONTEXT_DIR"
-    exit 1
-fi
-echo "  ✓ Context directory exists"
+check_dir "$CONTEXT_DIR" "Context directory"
 
 # Check problem statement
-PROBLEM_STATEMENT="$CONTEXT_DIR/problem-statement.md"
-if [ ! -f "$PROBLEM_STATEMENT" ]; then
-    echo "ERROR: Problem statement not found: $PROBLEM_STATEMENT"
-    exit 1
-fi
-echo "  ✓ Problem statement exists"
+check_file "$CONTEXT_DIR/problem-statement.md" "Problem statement"
 
 # Check README exists
 echo ""
 echo "Checking README.md..."
-if [ ! -f "README.md" ]; then
-    echo "ERROR: README.md not found"
+check_file "README.md" "README.md"
+
+# Summary
+echo ""
+if [ "$ERRORS" -eq 0 ]; then
+    echo "=== All validations passed ==="
+    exit 0
+else
+    echo "=== FAILED: $ERRORS error(s) found ==="
     exit 1
 fi
-echo "  ✓ README.md exists"
-
-echo ""
-echo "=== All validations passed ==="
-exit 0

@@ -1,5 +1,6 @@
 # Validation script for fullstack-nextjs example (PowerShell)
-# This script validates the example structure and configuration
+# This script validates the example structure and configuration.
+# Designed to run in CI (GitHub Actions) on Windows.
 
 $ErrorActionPreference = "Stop"
 
@@ -9,60 +10,72 @@ Write-Host "=== Validating fullstack-nextjs example ===" -ForegroundColor Cyan
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ExampleDir = Split-Path -Parent $ScriptDir
 
+Write-Host "Example directory: $ExampleDir"
+
 Push-Location $ExampleDir
 
-try {
-    # Check workspace.yaml exists and is valid YAML
-    Write-Host "`nChecking workspace.yaml..." -ForegroundColor Yellow
-    if (-not (Test-Path "workspace.yaml")) {
-        Write-Host "ERROR: workspace.yaml not found" -ForegroundColor Red
-        exit 1
+$script:Errors = 0
+
+function Check-FileExists {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+    if (Test-Path $Path -PathType Leaf) {
+        Write-Host "  [PASS] $Label exists: $Path" -ForegroundColor Green
+    } else {
+        Write-Host "  [FAIL] $Label not found: $Path" -ForegroundColor Red
+        $script:Errors++
     }
-    Write-Host "  workspace.yaml exists" -ForegroundColor Green
+}
+
+function Check-DirExists {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+    if (Test-Path $Path -PathType Container) {
+        Write-Host "  [PASS] $Label exists: $Path" -ForegroundColor Green
+    } else {
+        Write-Host "  [FAIL] $Label not found: $Path" -ForegroundColor Red
+        $script:Errors++
+    }
+}
+
+try {
+    # Check workspace.yaml exists
+    Write-Host "`nChecking workspace.yaml..." -ForegroundColor Yellow
+    Check-FileExists -Path "workspace.yaml" -Label "workspace.yaml"
 
     # Check .xchecker/config.toml exists
     Write-Host "`nChecking .xchecker/config.toml..." -ForegroundColor Yellow
-    if (-not (Test-Path ".xchecker/config.toml")) {
-        Write-Host "ERROR: .xchecker/config.toml not found" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  .xchecker/config.toml exists" -ForegroundColor Green
+    Check-FileExists -Path (Join-Path ".xchecker" "config.toml") -Label ".xchecker/config.toml"
 
     # Check spec directory structure
     Write-Host "`nChecking spec directory structure..." -ForegroundColor Yellow
-    $SpecDir = ".xchecker/specs/task-manager"
-    if (-not (Test-Path $SpecDir)) {
-        Write-Host "ERROR: Spec directory not found: $SpecDir" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  Spec directory exists" -ForegroundColor Green
+    $SpecDir = Join-Path ".xchecker" "specs" "task-manager"
+    Check-DirExists -Path $SpecDir -Label "Spec directory"
 
     # Check context directory
-    $ContextDir = "$SpecDir/context"
-    if (-not (Test-Path $ContextDir)) {
-        Write-Host "ERROR: Context directory not found: $ContextDir" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  Context directory exists" -ForegroundColor Green
+    $ContextDir = Join-Path $SpecDir "context"
+    Check-DirExists -Path $ContextDir -Label "Context directory"
 
     # Check problem statement
-    $ProblemStatement = "$ContextDir/problem-statement.md"
-    if (-not (Test-Path $ProblemStatement)) {
-        Write-Host "ERROR: Problem statement not found: $ProblemStatement" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  Problem statement exists" -ForegroundColor Green
+    Check-FileExists -Path (Join-Path $ContextDir "problem-statement.md") -Label "Problem statement"
 
     # Check README exists
     Write-Host "`nChecking README.md..." -ForegroundColor Yellow
-    if (-not (Test-Path "README.md")) {
-        Write-Host "ERROR: README.md not found" -ForegroundColor Red
+    Check-FileExists -Path "README.md" -Label "README.md"
+
+    # Summary
+    Write-Host ""
+    if ($script:Errors -eq 0) {
+        Write-Host "=== All validations passed ===" -ForegroundColor Green
+        exit 0
+    } else {
+        Write-Host "=== FAILED: $($script:Errors) error(s) found ===" -ForegroundColor Red
         exit 1
     }
-    Write-Host "  README.md exists" -ForegroundColor Green
-
-    Write-Host "`n=== All validations passed ===" -ForegroundColor Green
-    exit 0
 }
 finally {
     Pop-Location
