@@ -9,6 +9,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use tokio::time::timeout;
 use xchecker_utils::types::RunnerMode;
 
@@ -254,8 +256,6 @@ impl LlmBackend for GeminiCliBackend {
         // Set process group on Unix for killpg support
         #[cfg(unix)]
         {
-            #[allow(unused_imports)]
-            use std::os::unix::process::CommandExt;
             unsafe {
                 cmd.pre_exec(|| {
                     // Create a new process group
@@ -266,7 +266,7 @@ impl LlmBackend for GeminiCliBackend {
         }
 
         // Execute with timeout
-        let child = cmd
+        let mut child = cmd
             .spawn()
             .map_err(|e| LlmError::Transport(format!("Failed to spawn Gemini CLI: {e}")))?;
 
@@ -279,6 +279,22 @@ impl LlmBackend for GeminiCliBackend {
                     )));
                 }
                 Err(_) => {
+                    // Timeout occurred, terminate and reap child process to avoid zombies
+                    let pid = child.id();
+                    #[cfg(unix)]
+                    if let Some(pid) = pid {
+                        // Kill the entire process group when running natively.
+                        unsafe {
+                            let _ = libc::kill(-(pid as i32), libc::SIGKILL);
+                        }
+                    }
+
+                    #[cfg(not(unix))]
+                    {
+                        let _ = child.kill().await;
+                    }
+
+                    let _ = child.wait().await;
                     return Err(LlmError::Timeout {
                         duration: inv.timeout,
                     });

@@ -5,12 +5,13 @@
 //! `phase_exec.rs`.
 
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 
 use crate::error::{PhaseError, XCheckerError};
 use crate::fixup::{FixupMode, FixupPhase};
 use crate::phase::Phase;
 use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
-use crate::types::{FileType, PhaseId, PipelineInfo};
+use crate::types::{FileType, PacketEvidence, PhaseId, PipelineInfo};
 
 use super::{OrchestratorConfig, PhaseOrchestrator};
 
@@ -98,11 +99,6 @@ impl PhaseOrchestrator {
 
         while current_phase_index < standard_phases.len() {
             let phase_id = standard_phases[current_phase_index];
-
-            // Skip Final phase for now (not implemented)
-            if phase_id == PhaseId::Final {
-                break;
-            }
 
             println!("Executing phase: {}", phase_id.as_str());
 
@@ -260,15 +256,87 @@ impl PhaseOrchestrator {
                     .await?
             }
             PhaseId::Final => {
-                return Err(XCheckerError::Phase(PhaseError::InvalidTransition {
-                    from: "current state".to_string(),
-                    to: "Final phase not yet implemented".to_string(),
-                })
-                .into());
+                self.execute_final_phase(config).await?
             }
         };
 
         Ok(execution_result)
+    }
+
+    /// Execute the Final phase as a no-op completion marker.
+    ///
+    /// This keeps the workflow terminal phase functional without invoking LLM providers.
+    /// It writes a completion receipt with empty outputs and packet evidence.
+    async fn execute_final_phase(
+        &self,
+        config: &OrchestratorConfig,
+    ) -> Result<PhaseExecutionResult> {
+        let mut flags = HashMap::new();
+        flags.insert("phase".to_string(), PhaseId::Final.as_str().to_string());
+        flags.insert("result".to_string(), "completed".to_string());
+
+        let model_full_name = config
+            .full_config
+            .as_ref()
+            .and_then(|cfg| cfg.llm.model.clone())
+            .or_else(|| config.config.get("model").cloned())
+            .unwrap_or_else(|| "internal".to_string());
+
+        let runner = config
+            .config
+            .get("runner_mode")
+            .cloned()
+            .unwrap_or_else(|| "native".to_string());
+
+        let model_alias = config.config.get("model").cloned();
+
+        let packet = PacketEvidence {
+            files: Vec::new(),
+            max_bytes: 0,
+            max_lines: 0,
+        };
+
+        let receipt = self.receipt_manager().create_receipt_with_redactor(
+            config.redactor.as_ref(),
+            self.spec_id(),
+            PhaseId::Final,
+            0,
+            Vec::new(),
+            env!("CARGO_PKG_VERSION"),
+            "n/a",
+            &model_full_name,
+            model_alias,
+            flags,
+            packet,
+            None,
+            None,
+            vec!["final phase completed".to_string()],
+            None,
+            &runner,
+            None,
+            None,
+            None,
+            None,
+            Some(PipelineInfo {
+                execution_strategy: Some("controlled".to_string()),
+            }),
+        );
+
+        self.receipt_manager()
+            .write_receipt(&receipt)
+            .with_context(|| {
+                format!(
+                    "Failed to write final phase receipt for {}",
+                    self.spec_id()
+                )
+            })?;
+
+        Ok(PhaseExecutionResult {
+            success: true,
+            rewind_triggered: false,
+            rewind_target: None,
+            error: None,
+        })
     }
 
     /// Execute a phase and handle `NextStep` results.
