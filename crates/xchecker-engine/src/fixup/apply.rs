@@ -206,7 +206,26 @@ impl FixupParser {
         let blake3_first8 = blake3_hash[..8].to_string();
 
         // Create .bak backup (FR-FIX-006)
-        let backup_path = target_path.with_extension("bak");
+        let base_name = target_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let mut backup_path = target_path.with_extension("bak");
+
+        if backup_path.exists() {
+            let mut suffix = 1_u32;
+            loop {
+                let candidate_name = format!("{base_name}.bak.{suffix}");
+                let candidate_path = target_path.with_file_name(candidate_name);
+                if !candidate_path.exists() {
+                    backup_path = candidate_path;
+                    break;
+                }
+                suffix += 1;
+            }
+        }
+
         fs::copy(target_path, &backup_path).map_err(|e| FixupError::TempCopyFailed {
             file: diff.target_file.clone(),
             reason: format!("Failed to create .bak backup: {e}"),
