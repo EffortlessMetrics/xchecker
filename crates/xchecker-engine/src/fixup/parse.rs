@@ -169,8 +169,11 @@ impl FixupParser {
         let mut diffs = Vec::new();
 
         // Regex to match fenced diff blocks: ```diff ... ```
-        // Use (?s) flag to make . match newlines
-        let diff_block_regex = Regex::new(r"(?s)```diff\n(.*?)\n```").unwrap();
+        // Use (?s) flag to make . match newlines and accept common spacing variants.
+        let diff_block_regex = Regex::new(
+            r"(?ms)^[ \t]{0,3}```[ \t]*diff[ \t]*\r?\n(.*?)\r?\n[ \t]{0,3}```[ \t]*",
+        )
+        .unwrap();
 
         for (block_index, captures) in diff_block_regex.captures_iter(content).enumerate() {
             let diff_content = captures
@@ -223,12 +226,19 @@ impl FixupParser {
             }
         }
 
-        let target_file = new_file
-            .or(old_file)
-            .ok_or_else(|| FixupError::InvalidDiffFormat {
-                block_index,
-                reason: "No --- or +++ headers found".to_string(),
-            })?;
+        let target_file = match (old_file, new_file) {
+            (Some("/dev/null"), Some("/dev/null")) => None,
+            (Some("/dev/null"), Some(new)) if new != "/dev/null" => Some(new),
+            (Some(old), Some("/dev/null")) if old != "/dev/null" => Some(old),
+            (Some(_old), Some(new)) if new != "/dev/null" => Some(new),
+            (Some(old), None) if old != "/dev/null" => Some(old),
+            (None, Some(new)) if new != "/dev/null" => Some(new),
+            _ => None,
+        }
+        .ok_or_else(|| FixupError::InvalidDiffFormat {
+            block_index,
+            reason: "No --- or +++ headers found".to_string(),
+        })?;
 
         // Remove a/ and b/ prefixes if present (common in git diffs)
         let target_file = if target_file.starts_with("a/") || target_file.starts_with("b/") {
@@ -255,10 +265,18 @@ impl FixupParser {
         let mut current_hunk_header: Option<((usize, usize), (usize, usize))> = None;
 
         // Regex to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
-        // Note: Optional count groups must come after their respective start numbers
-        let hunk_header_regex = Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@").unwrap();
+        // Note: Optional count groups must come after their respective start numbers.
+        let hunk_header_regex =
+            Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ \t]*$").unwrap();
 
         for line in lines {
+            if line.starts_with("@@") && !hunk_header_regex.is_match(line) {
+                return Err(FixupError::InvalidDiffFormat {
+                    block_index,
+                    reason: format!("Malformed hunk header: {line}"),
+                });
+            }
+
             if let Some(captures) = hunk_header_regex.captures(line) {
                 // Save previous hunk if exists
                 if let Some((old_range, new_range)) = current_hunk_header {
@@ -290,9 +308,13 @@ impl FixupParser {
                     }
                 })?;
 
-                let old_count: usize = captures
-                    .get(2)
-                    .map_or(1, |m| m.as_str().parse().unwrap_or(1));
+                let old_count: usize = match captures.get(2) {
+                    Some(m) => m.as_str().parse().map_err(|_| FixupError::InvalidDiffFormat {
+                        block_index,
+                        reason: "Invalid old count in hunk header".to_string(),
+                    })?,
+                    None => 1,
+                };
 
                 let new_start: usize = captures.get(3).unwrap().as_str().parse().map_err(|_| {
                     FixupError::InvalidDiffFormat {
@@ -301,9 +323,13 @@ impl FixupParser {
                     }
                 })?;
 
-                let new_count: usize = captures
-                    .get(4)
-                    .map_or(1, |m| m.as_str().parse().unwrap_or(1));
+                let new_count: usize = match captures.get(4) {
+                    Some(m) => m.as_str().parse().map_err(|_| FixupError::InvalidDiffFormat {
+                        block_index,
+                        reason: "Invalid new count in hunk header".to_string(),
+                    })?,
+                    None => 1,
+                };
 
                 current_hunk_header = Some(((old_start, old_count), (new_start, new_count)));
                 current_hunk_lines = vec![(*line).to_string()];
@@ -580,9 +606,64 @@ some content
 ```
 "#;
 
+        let result = parser.parse_diffs(content);
+        assert!(matches!(result, Err(FixupError::InvalidDiffFormat { .. })));
+    }
+
+    #[test]
+    fn test_parse_diff_block_with_spacing_variants() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+
+        let content = r#"
+FIXUP PLAN:
+The following changes are needed:
+
+``` diff
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,4 @@   
+fn main() {
++    println!("Hello, world!");
+     // TODO: implement
+}
+```   
+"#;
+
         let diffs = parser.parse_diffs(content).unwrap();
         assert_eq!(diffs.len(), 1);
-        assert_eq!(diffs[0].hunks.len(), 0);
+        assert_eq!(diffs[0].target_file, "src/main.rs");
+        assert_eq!(diffs[0].hunks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_add_and_delete_diffs_with_dev_null() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+
+        let content = r#"
+FIXUP PLAN:
+Add and delete changes:
+
+```diff
+--- /dev/null
++++ b/src/new_file.rs
+@@ -0,0 +1,3 @@
++pub fn new_file() {}
+```
+
+```diff
+--- a/src/old_file.rs
++++ /dev/null
+@@ -1,3 +0,0 @@
+-pub fn old_file() {}
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        assert_eq!(diffs.len(), 2);
+        assert_eq!(diffs[0].target_file, "src/new_file.rs");
+        assert_eq!(diffs[1].target_file, "src/old_file.rs");
     }
 
     #[test]

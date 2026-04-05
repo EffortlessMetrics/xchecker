@@ -1,12 +1,15 @@
 use anyhow::{Context, Result};
 use camino::Utf8PathBuf;
 use std::fs;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::atomic_write::write_file_atomic;
 use crate::error::XCheckerError;
 use crate::types::{PhaseId, Receipt};
 
 use super::ReceiptManager;
+
+static RECEIPT_FILENAME_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 impl ReceiptManager {
     /// Write a receipt to disk using atomic operations with JCS canonical JSON
@@ -19,9 +22,12 @@ impl ReceiptManager {
             )
         })?;
 
-        // Generate receipt filename with emitted_at timestamp
+        // Generate a receipt filename using the existing second-level pattern when possible,
+        // while adding a disambiguator when multiple receipts land in the same second.
         let timestamp_str = receipt.emitted_at.format("%Y%m%d_%H%M%S").to_string();
-        let filename = format!("{}-{}.json", receipt.phase, timestamp_str);
+        let base_filename = format!("{}-{timestamp_str}", receipt.phase);
+        let subsecond_nanos = receipt.emitted_at.timestamp_subsec_nanos();
+        let filename = self.unique_receipt_filename(&base_filename, subsecond_nanos);
         let receipt_path = self.receipts_path.join(&filename);
 
         // Serialize receipt to canonical JSON using JCS (RFC 8785)
@@ -90,9 +96,11 @@ impl ReceiptManager {
             if let Some(filename) = entry.file_name().to_str()
                 && filename.ends_with(".json")
             {
-                let content = fs::read_to_string(entry.path())?;
-                let receipt: Receipt = serde_json::from_str(&content)?;
-                receipts.push(receipt);
+                if let Ok(content) = fs::read_to_string(entry.path())
+                    && let Ok(receipt) = serde_json::from_str::<Receipt>(&content)
+                {
+                    receipts.push(receipt);
+                }
             }
         }
 
@@ -109,6 +117,34 @@ impl ReceiptManager {
     #[must_use]
     pub const fn receipts_path(&self) -> &Utf8PathBuf {
         &self.receipts_path
+    }
+
+    fn unique_receipt_filename(&self, base_filename: &str, subsecond_nanos: u32) -> String {
+        let candidate = if subsecond_nanos > 0 {
+            format!("{base_filename}-{subsecond_nanos:09}.json")
+        } else {
+            format!("{base_filename}.json")
+        };
+
+        if !self.receipts_path.join(&candidate).exists() {
+            return candidate;
+        }
+
+        let mut sequence = RECEIPT_FILENAME_SEQUENCE.fetch_add(1, Ordering::Relaxed) + 1;
+
+        loop {
+            let candidate = if subsecond_nanos > 0 {
+                format!("{base_filename}-{subsecond_nanos:09}-{sequence:09}.json")
+            } else {
+                format!("{base_filename}-{sequence:09}.json")
+            };
+
+            if !self.receipts_path.join(&candidate).exists() {
+                return candidate;
+            }
+
+            sequence += 1;
+        }
     }
 }
 
