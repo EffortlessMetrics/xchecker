@@ -27,9 +27,9 @@ mod tests {
             std::fs::read_to_string(readme_path).expect("Failed to read README.md");
 
         // Read CONFIGURATION.md
-        let config_path = Path::new("docs/CONFIGURATION.md");
-        let config_content =
-            std::fs::read_to_string(config_path).expect("Failed to read docs/CONFIGURATION.md");
+        let config_path = Path::new("docs/guides/CONFIGURATION.md");
+        let config_content = std::fs::read_to_string(config_path)
+            .expect("Failed to read docs/guides/CONFIGURATION.md");
 
         // Verify XCHECKER_HOME is mentioned in README
         assert!(
@@ -278,9 +278,9 @@ mod tests {
             std::fs::read_to_string(readme_path).expect("Failed to read README.md");
 
         // Read CONFIGURATION.md
-        let config_path = Path::new("docs/CONFIGURATION.md");
-        let config_content =
-            std::fs::read_to_string(config_path).expect("Failed to read docs/CONFIGURATION.md");
+        let config_path = Path::new("docs/guides/CONFIGURATION.md");
+        let config_content = std::fs::read_to_string(config_path)
+            .expect("Failed to read docs/guides/CONFIGURATION.md");
 
         // Verify thread-local override is mentioned in documentation
         // This is important for test isolation

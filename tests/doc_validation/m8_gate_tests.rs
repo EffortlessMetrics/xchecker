@@ -108,10 +108,10 @@ mod tests {
     /// M8 Gate Test 5: Verify CONTRACTS.md exists and documents JCS
     #[test]
     fn m8_gate_contracts_documents_jcs() {
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         assert!(
             contracts_path.exists(),
-            "M8 Gate: CONTRACTS.md must exist at docs/CONTRACTS.md"
+            "M8 Gate: CONTRACTS.md must exist at docs/reference/CONTRACTS.md"
         );
 
         let contracts_content =
@@ -141,7 +141,7 @@ mod tests {
     /// M8 Gate Test 6: Verify CONTRACTS.md documents array sorting
     #[test]
     fn m8_gate_contracts_documents_array_sorting() {
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         let contracts_content =
             std::fs::read_to_string(contracts_path).expect("M8 Gate: Failed to read CONTRACTS.md");
 
@@ -174,7 +174,7 @@ mod tests {
     /// M8 Gate Test 7: Verify CONTRACTS.md documents deprecation policy
     #[test]
     fn m8_gate_contracts_documents_deprecation_policy() {
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         let contracts_content =
             std::fs::read_to_string(contracts_path).expect("M8 Gate: Failed to read CONTRACTS.md");
 
@@ -242,7 +242,7 @@ mod tests {
     /// M8 Gate Test 9: Verify CONTRACTS.md mentions schema files
     #[test]
     fn m8_gate_contracts_mentions_schema_files() {
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         let contracts_content =
             std::fs::read_to_string(contracts_path).expect("M8 Gate: Failed to read CONTRACTS.md");
 
@@ -303,7 +303,7 @@ mod tests {
         println!("✓ CHANGELOG has breaking changes section");
 
         // 5. Verify CONTRACTS.md exists
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         assert!(contracts_path.exists(), "M8 Gate: CONTRACTS.md must exist");
         println!("✓ CONTRACTS.md exists");
 

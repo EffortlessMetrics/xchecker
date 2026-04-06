@@ -32,10 +32,10 @@ mod tests {
     #[test]
     fn test_jcs_documentation() {
         // 1. Parse CONTRACTS.md and verify it mentions JCS
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         assert!(
             contracts_path.exists(),
-            "CONTRACTS.md should exist at docs/CONTRACTS.md"
+            "CONTRACTS.md should exist at docs/reference/CONTRACTS.md"
         );
 
         let contracts_content =
@@ -365,10 +365,10 @@ mod tests {
     #[test]
     fn test_array_sorting_documentation() {
         // 1. Parse CONTRACTS.md and verify it documents array sorting
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         assert!(
             contracts_path.exists(),
-            "CONTRACTS.md should exist at docs/CONTRACTS.md"
+            "CONTRACTS.md should exist at docs/reference/CONTRACTS.md"
         );
 
         let contracts_content =
@@ -558,10 +558,10 @@ mod tests {
     #[test]
     fn test_deprecation_policy() {
         // 1. Parse CONTRACTS.md and verify it documents deprecation policy
-        let contracts_path = Path::new("docs/CONTRACTS.md");
+        let contracts_path = Path::new("docs/reference/CONTRACTS.md");
         assert!(
             contracts_path.exists(),
-            "CONTRACTS.md should exist at docs/CONTRACTS.md"
+            "CONTRACTS.md should exist at docs/reference/CONTRACTS.md"
         );
 
         let contracts_content =

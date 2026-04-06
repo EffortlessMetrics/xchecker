@@ -34,6 +34,12 @@ export XCHECKER_HOME=/tmp/xchecker-build-${BUILD_ID}
 XCHECKER_HOME=/tmp/test xchecker status my-feature
 ```
 
+The resolution order (highest priority first):
+
+1. **Thread-local override** -- `with_isolated_home()` for test isolation
+2. **`XCHECKER_HOME` environment variable** -- explicit directory override
+3. **Default** -- `./.xchecker` relative to working directory
+
 The state directory structure:
 
 ```
@@ -44,6 +50,10 @@ The state directory structure:
     receipts/              # Execution audit trails
     context/               # Packet previews for debugging
 ```
+
+For test isolation, `with_isolated_home()` sets a thread-local override that
+takes precedence over the environment variable, avoiding process-global
+`set_var` races in parallel tests.
 
 ---
 

@@ -48,6 +48,58 @@ $ xchecker resume my-api --phase design
 - **CI-ready from day one.**
   Deterministic exit codes, JSON output on every command, and policy gates you can wire into any CI pipeline.
 
+## Key Features
+
+### Multi-Phase Orchestration
+
+xchecker walks each spec through a sequential phase pipeline:
+
+```
+Requirements → Design → Tasks → Review → Fixup → Final
+```
+
+Each phase builds a context packet, invokes the LLM, and writes artifacts atomically. If a phase exceeds its `phase_timeout` (default 600s), execution stops with: "Phase execution exceeded timeout" and exit code 10.
+
+### State Directory
+
+xchecker stores all state in `.xchecker/` by default. Override the location with the `XCHECKER_HOME` environment variable:
+
+```bash
+XCHECKER_HOME=/tmp/build xchecker status my-feature
+```
+
+Directory structure:
+
+```
+.xchecker/
+  specs/<spec-id>/
+    artifacts/    # Generated requirements, design, and task documents
+    receipts/     # Execution audit trails with BLAKE3 hashes
+    context/      # Packet previews and debugging files
+```
+
+### Lockfile System
+
+Lock reproducibility metadata (model version, CLI version, schema version) with `--create-lock`, then detect drift with `lock_drift` in status output. Use `--strict-lock` to fail hard on any drift.
+
+### Fixup System
+
+The fixup phase proposes file changes as unified diffs. By default, xchecker runs in Preview Mode — showing pending changes without applying them. Pass `--apply-fixups` to apply validated diffs to your working tree.
+
+### Standardized Exit Codes
+
+Every command sets a deterministic `exit_code` that matches the receipt's `exit_code` field:
+
+| Code | Name | Description |
+|------|------|-------------|
+| 0 | SUCCESS | Operation completed |
+| 2 | CLI_ARGS | Invalid arguments |
+| 7 | PACKET_OVERFLOW | Packet size exceeded |
+| 8 | SECRET_DETECTED | Secret found in packet |
+| 9 | LOCK_HELD | Lock already held |
+| 10 | PHASE_TIMEOUT | Phase timed out |
+| 70 | CLAUDE_FAILURE | LLM provider failure |
+
 ## Install
 
 ```bash

@@ -1,6 +1,6 @@
-//! Regenerate secret patterns documentation in docs/SECURITY.md
+//! Regenerate secret patterns documentation in docs/explanation/SECURITY_MODEL.md
 //!
-//! This binary regenerates the "Default Secret Patterns" section in docs/SECURITY.md
+//! This binary regenerates the "Default Secret Patterns" section in docs/explanation/SECURITY_MODEL.md
 //! using the canonical pattern definitions from `DEFAULT_SECRET_PATTERNS`.
 //!
 //! The generated content is placed between these markers:
@@ -45,7 +45,7 @@ fn replace_generated_block(content: &str, body: &str) -> Result<String, String> 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Regenerating secret patterns documentation...\n");
 
-    let security_doc_path = Path::new("docs/SECURITY.md");
+    let security_doc_path = Path::new("docs/explanation/SECURITY_MODEL.md");
     if !security_doc_path.exists() {
         return Err(format!("File not found: {}", security_doc_path.display()).into());
     }
@@ -62,12 +62,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if content changed
     if current_content == new_content {
-        println!("✓ docs/SECURITY.md is already up-to-date");
+        println!("✓ docs/explanation/SECURITY_MODEL.md is already up-to-date");
         println!("\nPattern summary:");
     } else {
         // Write updated content
         fs::write(security_doc_path, &new_content)?;
-        println!("✓ Updated docs/SECURITY.md");
+        println!("✓ Updated docs/explanation/SECURITY_MODEL.md");
         println!("\nPattern summary:");
     }
 

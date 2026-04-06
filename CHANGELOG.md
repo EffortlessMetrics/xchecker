@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-04
+
 ### Added
 
 - **Workspace and Project Commands**: You can now manage multiple specs in a single project with `project init`, `project add-spec`, `project status`, `project history`, and `project list`. This replaces manual spec juggling with a structured multi-spec workflow.

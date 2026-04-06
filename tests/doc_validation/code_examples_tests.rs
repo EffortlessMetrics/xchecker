@@ -167,7 +167,7 @@ fn test_doctor_shell_examples() -> Result<()> {
 /// Test shell examples from CONTRACTS.md
 #[test]
 fn test_contracts_shell_examples() -> Result<()> {
-    let contracts_path = Path::new("docs/CONTRACTS.md");
+    let contracts_path = Path::new("docs/reference/CONTRACTS.md");
     if !contracts_path.exists() {
         println!("docs/CONTRACTS.md not found, skipping test");
         return Ok(());
@@ -324,7 +324,7 @@ fn test_doctor_toml_examples() -> Result<()> {
 /// Test TOML examples from CONTRACTS.md
 #[test]
 fn test_contracts_toml_examples() -> Result<()> {
-    let contracts_path = Path::new("docs/CONTRACTS.md");
+    let contracts_path = Path::new("docs/reference/CONTRACTS.md");
     if !contracts_path.exists() {
         println!("docs/CONTRACTS.md not found, skipping test");
         return Ok(());
@@ -566,7 +566,7 @@ fn strip_json_comments(json_str: &str) -> String {
 /// Test JSON examples from CONTRACTS.md
 #[test]
 fn test_contracts_json_examples() -> Result<()> {
-    let contracts_path = Path::new("docs/CONTRACTS.md");
+    let contracts_path = Path::new("docs/reference/CONTRACTS.md");
     if !contracts_path.exists() {
         println!("docs/CONTRACTS.md not found, skipping test");
         return Ok(());
@@ -1159,7 +1159,7 @@ fn test_jq_examples_from_docs() -> Result<()> {
         "README.md",
         "docs/CONFIGURATION.md",
         "docs/DOCTOR.md",
-        "docs/CONTRACTS.md",
+        "docs/reference/CONTRACTS.md",
     ];
 
     let mut jq_examples_found = 0;

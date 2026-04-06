@@ -1,6 +1,6 @@
 //! Secret patterns documentation validation tests
 //!
-//! These tests ensure that docs/SECURITY.md stays in sync with the canonical
+//! These tests ensure that docs/explanation/SECURITY_MODEL.md stays in sync with the canonical
 //! secret pattern definitions in `src/redaction.rs`.
 //!
 //! If these tests fail, run:
@@ -40,28 +40,28 @@ mod tests {
 
     #[test]
     fn test_security_md_exists() {
-        let path = "docs/SECURITY.md";
+        let path = "docs/explanation/SECURITY_MODEL.md";
         assert!(
             std::path::Path::new(path).exists(),
-            "docs/SECURITY.md must exist"
+            "docs/explanation/SECURITY_MODEL.md must exist"
         );
     }
 
     #[test]
     fn test_security_md_has_generated_markers() {
-        let content =
-            fs::read_to_string("docs/SECURITY.md").expect("Failed to read docs/SECURITY.md");
+        let content = fs::read_to_string("docs/explanation/SECURITY_MODEL.md")
+            .expect("Failed to read docs/explanation/SECURITY_MODEL.md");
 
         assert!(
             content.contains(BEGIN_MARKER),
-            "docs/SECURITY.md must contain begin marker: {}\n\
+            "docs/explanation/SECURITY_MODEL.md must contain begin marker: {}\n\
              Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs",
             BEGIN_MARKER
         );
 
         assert!(
             content.contains(END_MARKER),
-            "docs/SECURITY.md must contain end marker: {}\n\
+            "docs/explanation/SECURITY_MODEL.md must contain end marker: {}\n\
              Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs",
             END_MARKER
         );
@@ -69,11 +69,11 @@ mod tests {
 
     #[test]
     fn test_security_md_patterns_match_code() {
-        let content =
-            fs::read_to_string("docs/SECURITY.md").expect("Failed to read docs/SECURITY.md");
+        let content = fs::read_to_string("docs/explanation/SECURITY_MODEL.md")
+            .expect("Failed to read docs/explanation/SECURITY_MODEL.md");
 
         let doc_content = extract_generated_block(&content)
-            .expect("Failed to extract generated block from docs/SECURITY.md");
+            .expect("Failed to extract generated block from docs/explanation/SECURITY_MODEL.md");
 
         // Generate expected content from canonical definitions
         let patterns = default_pattern_defs();
@@ -108,7 +108,7 @@ mod tests {
             };
 
             panic!(
-                "docs/SECURITY.md secret patterns are out of sync with code!\n\n\
+                "docs/explanation/SECURITY_MODEL.md secret patterns are out of sync with code!\n\n\
                  {}\n\n\
                  Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs\n\n\
                  This ensures documentation matches the canonical pattern definitions in src/redaction.rs",
@@ -120,14 +120,14 @@ mod tests {
     #[test]
     fn test_pattern_count_matches() {
         let patterns = default_pattern_defs();
-        let content =
-            fs::read_to_string("docs/SECURITY.md").expect("Failed to read docs/SECURITY.md");
+        let content = fs::read_to_string("docs/explanation/SECURITY_MODEL.md")
+            .expect("Failed to read docs/explanation/SECURITY_MODEL.md");
 
         // Check that the documented count matches actual count
         let expected_count_text = format!("**{} default secret patterns**", patterns.len());
         assert!(
             content.contains(&expected_count_text),
-            "docs/SECURITY.md should state '{}' but doesn't.\n\
+            "docs/explanation/SECURITY_MODEL.md should state '{}' but doesn't.\n\
              Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs",
             expected_count_text
         );
@@ -136,14 +136,14 @@ mod tests {
     #[test]
     fn test_all_pattern_ids_documented() {
         let patterns = default_pattern_defs();
-        let content =
-            fs::read_to_string("docs/SECURITY.md").expect("Failed to read docs/SECURITY.md");
+        let content = fs::read_to_string("docs/explanation/SECURITY_MODEL.md")
+            .expect("Failed to read docs/explanation/SECURITY_MODEL.md");
 
         for pattern in patterns {
             let pattern_marker = format!("| `{}` |", pattern.id);
             assert!(
                 content.contains(&pattern_marker),
-                "Pattern '{}' is not documented in docs/SECURITY.md.\n\
+                "Pattern '{}' is not documented in docs/explanation/SECURITY_MODEL.md.\n\
                  Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs",
                 pattern.id
             );
@@ -160,14 +160,14 @@ mod tests {
             *by_category.entry(p.category).or_default() += 1;
         }
 
-        let content =
-            fs::read_to_string("docs/SECURITY.md").expect("Failed to read docs/SECURITY.md");
+        let content = fs::read_to_string("docs/explanation/SECURITY_MODEL.md")
+            .expect("Failed to read docs/explanation/SECURITY_MODEL.md");
 
         for (category, count) in by_category {
             let header = format!("#### {} ({} patterns)", category, count);
             assert!(
                 content.contains(&header),
-                "docs/SECURITY.md should contain '{}' but doesn't.\n\
+                "docs/explanation/SECURITY_MODEL.md should contain '{}' but doesn't.\n\
                  Run: cargo run --features dev-tools --bin regenerate_secret_patterns_docs",
                 header
             );
