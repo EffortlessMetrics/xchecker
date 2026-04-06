@@ -1151,8 +1151,13 @@ async fn execute_spec_command(
     // Check for lockfile drift (R10.2, R10.4)
     let model_full_name = config.defaults.model.as_deref().unwrap_or("haiku");
     let claude_cli_version = detect_claude_cli_version().unwrap_or_else(|_| "unknown".to_string());
-    let _lock_drift =
-        check_lockfile_drift(spec_id, strict_lock, model_full_name, &claude_cli_version)?;
+    let _lock_drift = check_lockfile_drift(
+        spec_id,
+        strict_lock,
+        model_full_name,
+        &claude_cli_version,
+        config,
+    )?;
 
     // Configure execution using shared helper, passing problem statement for prompt construction
     let orchestrator_config = build_orchestrator_config(
@@ -1904,6 +1909,70 @@ fn execute_status_command(spec_id: &str, json: bool, config: &Config) -> Result<
         println!("    {key} = {value} (from {source})");
     }
 
+    println!("\n  Governed flow:");
+    match crate::lock::FlowLock::load(spec_id) {
+        Ok(Some(flow_lock)) => {
+            println!("    Flow lock: present");
+            println!("    Flow version: {}", flow_lock.flow_version);
+            println!("    Stage graph: {}", flow_lock.stage_graph_version);
+            println!("    Gate set: {}", flow_lock.gate_set_version);
+            println!("    Prompt pack: {}", flow_lock.prompt_pack_version);
+            println!("    Adapter: {}", flow_lock.adapter_version);
+            println!("    Provider policy: {}", flow_lock.provider_policy);
+
+            if let Some(drift) = flow_lock.detect_drift(&build_flow_context(config)) {
+                println!("    Drift detected:");
+                if let Some(flow_version) = drift.flow_version {
+                    println!(
+                        "      - Flow version: {} -> {}",
+                        flow_version.locked, flow_version.current
+                    );
+                }
+                if let Some(stage_graph) = drift.stage_graph_version {
+                    println!(
+                        "      - Stage graph: {} -> {}",
+                        stage_graph.locked, stage_graph.current
+                    );
+                }
+                if let Some(gate_set) = drift.gate_set_version {
+                    println!(
+                        "      - Gate set: {} -> {}",
+                        gate_set.locked, gate_set.current
+                    );
+                }
+                if let Some(prompt_pack) = drift.prompt_pack_version {
+                    println!(
+                        "      - Prompt pack: {} -> {}",
+                        prompt_pack.locked, prompt_pack.current
+                    );
+                }
+                if let Some(adapter) = drift.adapter_version {
+                    println!("      - Adapter: {} -> {}", adapter.locked, adapter.current);
+                }
+                if let Some(provider_policy) = drift.provider_policy {
+                    println!(
+                        "      - Provider policy: {} -> {}",
+                        provider_policy.locked, provider_policy.current
+                    );
+                }
+                if let Some(tool_context) = drift.tool_context_version {
+                    println!(
+                        "      - Tool context: {} -> {}",
+                        tool_context.locked, tool_context.current
+                    );
+                }
+            } else {
+                println!("    Drift: none");
+            }
+        }
+        Ok(None) => {
+            println!("    Flow lock: not created");
+        }
+        Err(e) => {
+            println!("    Flow lock: unreadable ({e})");
+        }
+    }
+
     // Check for partial artifacts and resume capabilities
     let phases = [
         PhaseId::Requirements,
@@ -2114,8 +2183,13 @@ async fn execute_resume_command(
     // Check for lockfile drift (R10.2, R10.4)
     let model_full_name = config.defaults.model.as_deref().unwrap_or("haiku");
     let claude_cli_version = detect_claude_cli_version().unwrap_or_else(|_| "unknown".to_string());
-    let _lock_drift =
-        check_lockfile_drift(spec_id, strict_lock, model_full_name, &claude_cli_version)?;
+    let _lock_drift = check_lockfile_drift(
+        spec_id,
+        strict_lock,
+        model_full_name,
+        &claude_cli_version,
+        config,
+    )?;
 
     // Configure execution using shared helper
     // Note: Problem statement is not passed for resume - it's already persisted in spec dir
@@ -2934,7 +3008,7 @@ fn execute_gate_command(
 
 /// Execute the init command to initialize a spec with optional lockfile
 fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Result<()> {
-    use crate::lock::XCheckerLock;
+    use crate::lock::{FlowLock, XCheckerLock};
 
     println!("{}", styled_info(&format!("Initializing spec: {spec_id}")));
 
@@ -2948,21 +3022,6 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
     if spec_dir.exists() {
         println!("  Spec directory already exists: {}", spec_dir.display());
 
-        // Check if lockfile exists
-        let lock_path = spec_dir.join("lock.json");
-        if lock_path.exists() {
-            println!("  Lockfile already exists: {}", lock_path.display());
-
-            if create_lock {
-                println!(
-                    "  {} Warning: --create-lock specified but lockfile already exists",
-                    styled_warning()
-                );
-                println!("  To update the lockfile, delete it first and run init again");
-            }
-
-            return Ok(());
-        }
     } else {
         // Create directory structure (ignore benign races)
         crate::paths::ensure_dir_all(&artifacts_dir).with_context(|| {
@@ -2996,6 +3055,9 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
 
     // Create lockfile if requested
     if create_lock {
+        let lock_path = spec_dir.join("lock.json");
+        let flow_lock_path = spec_dir.join("flow.lock");
+
         // Get model from config or use default
         let model = config.defaults.model.as_deref().unwrap_or("haiku");
 
@@ -3004,23 +3066,50 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
         let claude_cli_version =
             detect_claude_cli_version().unwrap_or_else(|_| "unknown".to_string());
 
-        let lock = XCheckerLock::new(model.to_string(), claude_cli_version.clone());
+        let mut created_any_lock = false;
 
-        lock.save(spec_id)
-            .with_context(|| "Failed to save lockfile")?;
+        if lock_path.exists() {
+            println!("  Lockfile already exists: {}", lock_path.display());
+        } else {
+            let lock = XCheckerLock::new(model.to_string(), claude_cli_version.clone());
+            lock.save(spec_id)
+                .with_context(|| "Failed to save lockfile")?;
 
-        println!("  {} Created lockfile: lock.json", styled_check());
-        println!("    Model: {model}");
-        println!("    Claude CLI version: {claude_cli_version}");
-        println!("    Schema version: 1");
+            println!("  {} Created lockfile: lock.json", styled_check());
+            println!("    Model: {model}");
+            println!("    Claude CLI version: {claude_cli_version}");
+            println!("    Schema version: 1");
+            created_any_lock = true;
+        }
 
-        println!("\n  Lockfile will track drift for:");
-        println!("    - Model changes (current: {model})");
-        println!("    - Claude CLI version changes (current: {claude_cli_version})");
-        println!("    - Schema version changes (current: 1)");
+        if flow_lock_path.exists() {
+            println!("  Flow lock already exists: {}", flow_lock_path.display());
+        } else {
+            let flow_lock = FlowLock::new(build_flow_context(config));
+            flow_lock
+                .save(spec_id)
+                .with_context(|| "Failed to save flow lock")?;
+
+            println!("  {} Created flow lock: flow.lock", styled_check());
+            println!("    Flow version: {}", flow_lock.flow_version);
+            println!("    Stage graph: {}", flow_lock.stage_graph_version);
+            println!("    Gate set: {}", flow_lock.gate_set_version);
+            println!("    Prompt pack: {}", flow_lock.prompt_pack_version);
+            println!("    Adapter: {}", flow_lock.adapter_version);
+            println!("    Provider policy: {}", flow_lock.provider_policy);
+            created_any_lock = true;
+        }
+
+        println!("\n  Lockfiles will track drift for:");
+        println!("    - Legacy runtime drift: model, Claude CLI version, schema version");
+        println!("    - Governed flow drift: stage graph, gates, prompt pack, adapter, policy");
+        if !created_any_lock {
+            println!("  {} No new lockfiles created", styled_warning());
+            println!("    Delete the existing lock files first if you need to re-pin them");
+        }
         println!("\n  Use --strict-lock flag to hard fail on drift detection");
     } else {
-        println!("\n  No lockfile created (use --create-lock to pin model and CLI version)");
+        println!("\n  No lockfiles created (use --create-lock to pin runtime and flow contracts)");
     }
 
     println!(
@@ -3067,68 +3156,146 @@ fn detect_claude_cli_version() -> Result<String> {
     Ok(version)
 }
 
+fn build_flow_context(config: &Config) -> crate::lock::FlowContext {
+    let execution_strategy = config
+        .llm
+        .execution_strategy
+        .as_deref()
+        .unwrap_or("controlled");
+    let provider = config.llm.provider.as_deref().unwrap_or("unspecified");
+    let prompt_template = config.llm.prompt_template.as_deref().unwrap_or("default");
+    let model = config.defaults.model.as_deref().unwrap_or("haiku");
+
+    crate::lock::FlowContext {
+        flow_version: format!("xchecker-kernel@{}", env!("CARGO_PKG_VERSION")),
+        stage_graph_version: "requirements-design-tasks-review-fixup-final.v1".to_string(),
+        gate_set_version: "xchecker-default-gates.v1".to_string(),
+        prompt_pack_version: format!("builtin:{prompt_template}"),
+        adapter_version: format!("strategy={execution_strategy};provider={provider}"),
+        provider_policy: format!("provider={provider};model={model}"),
+        tool_context_version: "builtin-tool-context.v1".to_string(),
+    }
+}
+
 /// Check for lockfile drift and warn or fail based on `strict_lock` flag
 fn check_lockfile_drift(
     spec_id: &str,
     strict_lock: bool,
     model_full_name: &str,
     claude_cli_version: &str,
+    config: &Config,
 ) -> Result<Option<crate::types::LockDrift>> {
-    use crate::lock::{RunContext, XCheckerLock};
+    use crate::lock::{FlowLock, RunContext, XCheckerLock};
 
     // Try to load lockfile
     let lock = match XCheckerLock::load(spec_id) {
-        Ok(Some(lock)) => lock,
-        Ok(None) => return Ok(None), // No lockfile, no drift
+        Ok(Some(lock)) => Some(lock),
+        Ok(None) => None,
         Err(e) => {
             eprintln!("⚠ Warning: Failed to load lockfile: {e}");
-            return Ok(None);
+            None
         }
     };
 
-    // Create current run context
-    let context = RunContext {
-        model_full_name: model_full_name.to_string(),
-        claude_cli_version: claude_cli_version.to_string(),
-        schema_version: "1".to_string(),
+    let legacy_drift = if let Some(lock) = lock {
+        let context = RunContext {
+            model_full_name: model_full_name.to_string(),
+            claude_cli_version: claude_cli_version.to_string(),
+            schema_version: "1".to_string(),
+        };
+        lock.detect_drift(&context)
+    } else {
+        None
     };
 
-    // Detect drift
-    if let Some(drift) = lock.detect_drift(&context) {
-        // Print drift warning
+    let flow_drift = match FlowLock::load(spec_id) {
+        Ok(Some(lock)) => lock.detect_drift(&build_flow_context(config)),
+        Ok(None) => None,
+        Err(e) => {
+            eprintln!("⚠ Warning: Failed to load flow lock: {e}");
+            None
+        }
+    };
+
+    if let Some(drift) = &legacy_drift {
         eprintln!("\n⚠ Lockfile drift detected for spec '{spec_id}':");
 
-        if let Some(ref model_drift) = drift.model_full_name {
+        if let Some(model_drift) = &drift.model_full_name {
             eprintln!("  Model: {} → {}", model_drift.locked, model_drift.current);
         }
 
-        if let Some(ref cli_drift) = drift.claude_cli_version {
+        if let Some(cli_drift) = &drift.claude_cli_version {
             eprintln!("  Claude CLI: {} → {}", cli_drift.locked, cli_drift.current);
         }
 
-        if let Some(ref schema_drift) = drift.schema_version {
+        if let Some(schema_drift) = &drift.schema_version {
             eprintln!(
                 "  Schema: {} → {}",
                 schema_drift.locked, schema_drift.current
             );
         }
-
-        if strict_lock {
-            eprintln!("\n✗ Strict lock mode enabled: failing due to drift");
-            eprintln!("  To proceed, either:");
-            eprintln!(
-                "    - Update the lockfile: rm .xchecker/specs/{spec_id}/lock.json && xchecker init {spec_id} --create-lock"
-            );
-            eprintln!("    - Remove --strict-lock flag to allow drift with warning");
-
-            return Err(anyhow::anyhow!("Lockfile drift detected in strict mode"));
-        }
-        eprintln!("\n  Continuing with drift (use --strict-lock to fail on drift)");
-
-        Ok(Some(drift))
-    } else {
-        Ok(None)
     }
+
+    if let Some(drift) = &flow_drift {
+        eprintln!("\n⚠ Flow lock drift detected for spec '{spec_id}':");
+
+        if let Some(flow_version) = &drift.flow_version {
+            eprintln!(
+                "  Flow version: {} → {}",
+                flow_version.locked, flow_version.current
+            );
+        }
+        if let Some(stage_graph) = &drift.stage_graph_version {
+            eprintln!(
+                "  Stage graph: {} → {}",
+                stage_graph.locked, stage_graph.current
+            );
+        }
+        if let Some(gate_set) = &drift.gate_set_version {
+            eprintln!(
+                "  Gate set: {} → {}",
+                gate_set.locked, gate_set.current
+            );
+        }
+        if let Some(prompt_pack) = &drift.prompt_pack_version {
+            eprintln!(
+                "  Prompt pack: {} → {}",
+                prompt_pack.locked, prompt_pack.current
+            );
+        }
+        if let Some(adapter) = &drift.adapter_version {
+            eprintln!("  Adapter: {} → {}", adapter.locked, adapter.current);
+        }
+        if let Some(provider_policy) = &drift.provider_policy {
+            eprintln!(
+                "  Provider policy: {} → {}",
+                provider_policy.locked, provider_policy.current
+            );
+        }
+        if let Some(tool_context) = &drift.tool_context_version {
+            eprintln!(
+                "  Tool context: {} → {}",
+                tool_context.locked, tool_context.current
+            );
+        }
+    }
+
+    if strict_lock && (legacy_drift.is_some() || flow_drift.is_some()) {
+        eprintln!("\n✗ Strict lock mode enabled: failing due to drift");
+        eprintln!("  To proceed, either:");
+        eprintln!(
+            "    - Update the lockfiles: rm .xchecker/specs/{spec_id}/lock.json .xchecker/specs/{spec_id}/flow.lock && xchecker init {spec_id} --create-lock"
+        );
+        eprintln!("    - Remove --strict-lock flag to allow drift with warning");
+
+        return Err(anyhow::anyhow!("Lock drift detected in strict mode"));
+    }
+
+    if legacy_drift.is_some() || flow_drift.is_some() {
+        eprintln!("\n  Continuing with drift (use --strict-lock to fail on drift)");
+    }
+
+    Ok(legacy_drift)
 }
 
 struct SpinnerGuard {
