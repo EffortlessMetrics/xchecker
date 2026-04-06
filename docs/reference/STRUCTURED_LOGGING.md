@@ -150,7 +150,7 @@ The Logger struct includes a `SecretRedactor` instance (`Logger::redactor` field
 redactor: SecretRedactor,
 ```
 
-This ensures all log output passes through the default secret pattern detectors before emission. See [SECURITY.md](SECURITY.md#default-secret-patterns) for the complete list of patterns.
+This ensures all log output passes through the default secret pattern detectors before emission. See the [Security Guide](../guides/SECURITY.md) for the complete list of patterns.
 
 ## Testing
 
@@ -191,7 +191,7 @@ logger.info("Starting phase");
 
 - [tracing crate documentation](https://docs.rs/tracing/)
 - [tracing-subscriber documentation](https://docs.rs/tracing-subscriber/)
-- [SECURITY.md](SECURITY.md) - Complete list of secret patterns that are automatically redacted
+- [Security Guide](../guides/SECURITY.md) - Complete list of secret patterns that are automatically redacted
 - FR-OBS-001: Structured logging with spec_id, phase, duration_ms, runner_mode
 - FR-OBS-002: Secret redaction in logs
 - FR-OBS-003: Actionable context in error logs

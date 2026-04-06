@@ -599,5 +599,5 @@ code application -- the system fails safe.
 ## See also
 
 - [Security Guide](../guides/SECURITY.md) -- User-facing security guide
-- [CONFIGURATION.md](../CONFIGURATION.md) -- Secret pattern configuration options
-- [PERFORMANCE.md](../PERFORMANCE.md) -- Packet size limits that affect security scanning
+- [Configuration Guide](../guides/CONFIGURATION.md) -- Secret pattern configuration options
+- [Performance](PERFORMANCE.md) -- Packet size limits that affect security scanning

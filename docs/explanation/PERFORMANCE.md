@@ -449,6 +449,6 @@ xchecker benchmark --runner-mode wsl
 
 ## See Also
 
-- [CONFIGURATION.md](CONFIGURATION.md) - Performance-related configuration options
-- [SECURITY.md](SECURITY.md) - Security scanning performance considerations
-- [INDEX.md](INDEX.md) - Documentation index
+- [Configuration Guide](../guides/CONFIGURATION.md) - Performance-related configuration options
+- [Security Guide](../guides/SECURITY.md) - Security scanning performance considerations
+- [Documentation Index](../INDEX.md) - Documentation index

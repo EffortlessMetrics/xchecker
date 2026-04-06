@@ -1037,7 +1037,7 @@ pub fn log_doctor_report(report: &crate::types::DoctorOutput) {
         );
         println!(
             "{}",
-            "     See docs/DOCTOR.md for troubleshooting steps.".with(Color::Yellow)
+            "     See docs/guides/DOCTOR.md for troubleshooting steps.".with(Color::Yellow)
         );
     }
 }

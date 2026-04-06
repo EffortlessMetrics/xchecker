@@ -1,5 +1,17 @@
 # xchecker Documentation
 
+## Start Here
+
+Use this path for the first 10 minutes in a real repo:
+
+1. Run `xchecker doctor` to confirm your provider, config, and workspace are ready.
+2. Generate your first spec with `xchecker spec my-feature`.
+3. Inspect progress and artifacts with `xchecker status my-feature`.
+4. Continue the next phase with `xchecker resume my-feature --phase design`.
+
+Canonical docs live under `tutorials/`, `guides/`, `reference/`, `explanation/`, and `contributor/`.
+Top-level files such as `docs/CONFIGURATION.md` remain as compatibility redirects.
+
 ## Tutorials
 
 Learn xchecker by doing.
@@ -53,6 +65,7 @@ For xchecker developers.
 
 | Document | Description |
 |----------|-------------|
+| [Contributor Index](contributor/INDEX.md) | Entry point for local development and architecture docs |
 | [Orchestrator Internals](contributor/ORCHESTRATOR_INTERNALS.md) | Engine module architecture and invariants |
 | [Testing](contributor/TESTING.md) | Test lanes, profiles, and infrastructure |
 | [Test Matrix](contributor/TEST_MATRIX.md) | Complete test inventory (853 tests) |

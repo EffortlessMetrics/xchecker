@@ -17,7 +17,7 @@ use std::sync::LazyLock;
 /// This struct provides the canonical, single source of truth for all secret
 /// pattern definitions. The same definitions are used for:
 /// - Runtime secret detection and redaction
-/// - Documentation generation (docs/SECURITY.md)
+/// - Documentation generation (docs/guides/SECURITY.md)
 /// - Test validation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SecretPatternDef {

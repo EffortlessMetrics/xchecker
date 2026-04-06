@@ -868,7 +868,7 @@ jobs:
 
 - [TEST_MATRIX.md](TEST_MATRIX.md) - Detailed test inventory and statistics
 - [claude-stub.md](claude-stub.md) - Test harness documentation
-- [CONFIGURATION.md](CONFIGURATION.md) - Runtime configuration options
+- [Configuration Reference](../reference/CONFIGURATION.md) - Runtime configuration options
 - [INDEX.md](INDEX.md) - Documentation index
 - `.github/workflows/test.yml` - Consolidated CI/test configuration
 - `.github/workflows/xchecker-gate.yml` - Gate workflow example

@@ -265,7 +265,7 @@ Or use a pre-built Docker image with xchecker installed.
 
 ## See Also
 
-- [GitHub Actions Configuration](../.github/workflows/xchecker-gate.yml)
+- [GitHub Actions Configuration](../../.github/workflows/xchecker-gate.yml)
 - [Gate JSON Schema](../schemas/gate-json.v1.json)
-- [CI Profiles](../CI_PROFILES.md)
-- [Testing Documentation](../TESTING.md)
+- [CI Profiles](../contributor/CI_PROFILES.md)
+- [Testing Documentation](../contributor/TESTING.md)

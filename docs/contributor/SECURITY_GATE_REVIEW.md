@@ -16,7 +16,7 @@
   - Hard stop (exit code 8) if secrets detected in packets.
 - **Verification:**
   - Unit tests in `src/redaction.rs` cover detection, redaction, and configuration.
-  - `docs/SECURITY.md` documents the feature.
+  - `docs/guides/SECURITY.md` documents the feature.
 
 ## 2. Path Validation (FR-FIX)
 
@@ -30,7 +30,7 @@
   - Symlinks and hardlinks rejected by default (Unix only for hardlinks).
 - **Verification:**
   - Unit tests in `src/paths.rs` cover traversal, absolute paths, and symlinks.
-  - `docs/SECURITY.md` documents the feature.
+  - `docs/guides/SECURITY.md` documents the feature.
 
 ## 3. Process Execution (FR-RUN)
 
@@ -44,7 +44,7 @@
   - Argument validation (e.g., null byte rejection).
 - **Verification:**
   - `tests/command_injection_tests.rs` verifies security properties.
-  - `docs/SECURITY.md` documents the feature.
+  - `docs/guides/SECURITY.md` documents the feature.
 
 ## 4. Changelog References
 

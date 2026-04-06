@@ -399,7 +399,7 @@ xchecker resume <spec-id> --phase <phase> --dry-run
 ## More Information
 
 - [xchecker Documentation](https://github.com/your-org/xchecker)
-- [Configuration Guide](../../docs/CONFIGURATION.md)
+- [Configuration Guide](../../docs/guides/CONFIGURATION.md)
 "#,
         name = template.name,
         description = template.description,
@@ -425,7 +425,7 @@ fn ensure_minimal_config() -> Result<()> {
     }
 
     let config_content = r#"# xchecker configuration
-# See docs/CONFIGURATION.md for all options
+# See docs/guides/CONFIGURATION.md for all options
 
 [defaults]
 # model = "haiku"

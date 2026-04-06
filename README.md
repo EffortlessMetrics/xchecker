@@ -127,7 +127,8 @@ cd xchecker && cargo install --path .
 | Look up a command or exit code      | [reference/CLI.md](docs/reference/CLI.md)                    |
 | Understand how it works             | [explanation/ARCHITECTURE.md](docs/explanation/ARCHITECTURE.md) |
 | Embed xchecker as a library        | [reference/CLI.md#embedding](docs/reference/CLI.md#embedding-as-a-library) |
-| Contribute                          | [contributor/](docs/contributor/)                            |
+| Browse the docs map                 | [docs/INDEX.md](docs/INDEX.md)                              |
+| Contribute                          | [contributor/INDEX.md](docs/contributor/INDEX.md)           |
 
 ## License
 

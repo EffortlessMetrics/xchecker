@@ -512,8 +512,8 @@ execution_strategy = "externaltool"  # Reserved for V15+
 ```
 
 **See Also:**
-- **Configuration**: [CONFIGURATION.md](../CONFIGURATION.md) for `[llm]` section details
-- **Provider Details**: [LLM_PROVIDERS.md](../LLM_PROVIDERS.md) for full provider guide
+- **Configuration**: [Configuration Reference](../reference/CONFIGURATION.md) for `[llm]` section details
+- **Provider Details**: [LLM Providers](../guides/LLM_PROVIDERS.md) for full provider guide
 
 ## LLM Behavior
 
@@ -803,8 +803,8 @@ xchecker spec my-spec --no-strict-validation
 - Empty or placeholder content
 
 **See Also:**
-- [CONFIGURATION.md](../CONFIGURATION.md) -- Full config reference including `[defaults].strict_validation`
-- [TEST_MATRIX.md](../TEST_MATRIX.md) -- FR-VLD test coverage for validation
+- [Configuration Reference](../reference/CONFIGURATION.md) -- Full config reference including `[defaults].strict_validation`
+- [Test Matrix](TEST_MATRIX.md) -- FR-VLD test coverage for validation
 
 ### Exit Codes
 
@@ -1020,10 +1020,10 @@ Future improvements to consider (non-urgent, tracked for deliberate scheduling):
 
 ## See Also
 
-- [CONFIGURATION.md](../CONFIGURATION.md) -- Full configuration reference and LLM/runner knobs
-- [SECURITY.md](../SECURITY.md) -- Secret detection and redaction
-- [TRACEABILITY.md](../TRACEABILITY.md) -- Requirements traceability
-- [TEST_MATRIX.md](../TEST_MATRIX.md) -- Complete test inventory and classification
+- [Configuration Reference](../reference/CONFIGURATION.md) -- Full configuration reference and LLM/runner knobs
+- [Security Guide](../guides/SECURITY.md) -- Secret detection and redaction
+- [Traceability](TRACEABILITY.md) -- Requirements traceability
+- [Test Matrix](TEST_MATRIX.md) -- Complete test inventory and classification
 - [INDEX.md](../INDEX.md) -- Documentation navigation index
 
 ### Related Test Files

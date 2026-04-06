@@ -13,7 +13,7 @@ This spec describes the xchecker runtime:
   outputs and enforces constraints on processes, filesystem, secrets, and
   configuration.
 
-The **multi-provider LLM and ecosystem work (V11–V18)** is intentionally out of scope here and lives in a separate document ([LLM_PROVIDERS.md](LLM_PROVIDERS.md)).
+The **multi-provider LLM and ecosystem work (V11–V18)** is intentionally out of scope here and lives in a separate document ([LLM Providers](../guides/LLM_PROVIDERS.md)).
 
 **Current Runtime State (V1–V10):**
 
@@ -572,4 +572,4 @@ Everything above (FR-RUN through FR-SCHEMA, NFR1–NFR7) is **runtime**.
 - FR-EXEC, FR-WORKSPACE, FR-GATE, FR-TEMPLATES, FR-HOOKS, FR-SHOWCASE.
 - NFR8 (LLM cost control), NFR9 (OpenRouter budgets).
 
-Those live in **[LLM_PROVIDERS.md](LLM_PROVIDERS.md)** and represent the **next phase** of the project.
+Those live in **[LLM Providers](../guides/LLM_PROVIDERS.md)** and represent the **next phase** of the project.
