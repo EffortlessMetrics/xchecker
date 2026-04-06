@@ -31,7 +31,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
@@ -42,33 +42,33 @@ keywords = ["cli", "spec", "requirements", "workflow", "automation"]
 
 [workspace.dependencies]
 # Internal crates (27 total)
-xchecker-benchmark = { path = "crates/xchecker-benchmark", version = "1.1.0" }
-xchecker-cli = { path = "crates/xchecker-cli", version = "1.1.0" }
-xchecker-config = { path = "crates/xchecker-config", version = "1.1.0" }
-xchecker-doctor = { path = "crates/xchecker-doctor", version = "1.1.0" }
-xchecker-engine = { path = "crates/xchecker-engine", version = "1.1.0" }
-xchecker-error-redaction = { path = "crates/xchecker-error-redaction", version = "1.1.0" }
-xchecker-error-reporter = { path = "crates/xchecker-error-reporter", version = "1.1.0" }
-xchecker-extraction = { path = "crates/xchecker-extraction", version = "1.1.0" }
-xchecker-fixup-model = { path = "crates/xchecker-fixup-model", version = "1.1.0" }
-xchecker-gate = { path = "crates/xchecker-gate", version = "1.1.0" }
-xchecker-hooks = { path = "crates/xchecker-hooks", version = "1.1.0" }
-xchecker-llm = { path = "crates/xchecker-llm", version = "1.1.0" }
-xchecker-lock = { path = "crates/xchecker-lock", version = "1.1.0" }
-xchecker-packet = { path = "crates/xchecker-packet", version = "1.1.0" }
-xchecker-phase-api = { path = "crates/xchecker-phase-api", version = "1.1.0" }
-xchecker-phases = { path = "crates/xchecker-phases", version = "1.1.0" }
-xchecker-prompt-template = { path = "crates/xchecker-prompt-template", version = "1.1.0" }
-xchecker-receipt = { path = "crates/xchecker-receipt", version = "1.1.0" }
-xchecker-redaction = { path = "crates/xchecker-redaction", version = "1.1.0" }
-xchecker-runner = { path = "crates/xchecker-runner", version = "1.1.0" }
-xchecker-selectors = { path = "crates/xchecker-selectors", version = "1.1.0" }
-xchecker-status = { path = "crates/xchecker-status", version = "1.1.0" }
-xchecker-templates = { path = "crates/xchecker-templates", version = "1.1.0" }
-xchecker-tui = { path = "crates/xchecker-tui", version = "1.1.0" }
-xchecker-utils = { path = "crates/xchecker-utils", version = "1.1.0" }
-xchecker-validation = { path = "crates/xchecker-validation", version = "1.1.0" }
-xchecker-workspace = { path = "crates/xchecker-workspace", version = "1.1.0" }
+xchecker-benchmark = { path = "crates/xchecker-benchmark", version = "1.2.0" }
+xchecker-cli = { path = "crates/xchecker-cli", version = "1.2.0" }
+xchecker-config = { path = "crates/xchecker-config", version = "1.2.0" }
+xchecker-doctor = { path = "crates/xchecker-doctor", version = "1.2.0" }
+xchecker-engine = { path = "crates/xchecker-engine", version = "1.2.0" }
+xchecker-error-redaction = { path = "crates/xchecker-error-redaction", version = "1.2.0" }
+xchecker-error-reporter = { path = "crates/xchecker-error-reporter", version = "1.2.0" }
+xchecker-extraction = { path = "crates/xchecker-extraction", version = "1.2.0" }
+xchecker-fixup-model = { path = "crates/xchecker-fixup-model", version = "1.2.0" }
+xchecker-gate = { path = "crates/xchecker-gate", version = "1.2.0" }
+xchecker-hooks = { path = "crates/xchecker-hooks", version = "1.2.0" }
+xchecker-llm = { path = "crates/xchecker-llm", version = "1.2.0" }
+xchecker-lock = { path = "crates/xchecker-lock", version = "1.2.0" }
+xchecker-packet = { path = "crates/xchecker-packet", version = "1.2.0" }
+xchecker-phase-api = { path = "crates/xchecker-phase-api", version = "1.2.0" }
+xchecker-phases = { path = "crates/xchecker-phases", version = "1.2.0" }
+xchecker-prompt-template = { path = "crates/xchecker-prompt-template", version = "1.2.0" }
+xchecker-receipt = { path = "crates/xchecker-receipt", version = "1.2.0" }
+xchecker-redaction = { path = "crates/xchecker-redaction", version = "1.2.0" }
+xchecker-runner = { path = "crates/xchecker-runner", version = "1.2.0" }
+xchecker-selectors = { path = "crates/xchecker-selectors", version = "1.2.0" }
+xchecker-status = { path = "crates/xchecker-status", version = "1.2.0" }
+xchecker-templates = { path = "crates/xchecker-templates", version = "1.2.0" }
+xchecker-tui = { path = "crates/xchecker-tui", version = "1.2.0" }
+xchecker-utils = { path = "crates/xchecker-utils", version = "1.2.0" }
+xchecker-validation = { path = "crates/xchecker-validation", version = "1.2.0" }
+xchecker-workspace = { path = "crates/xchecker-workspace", version = "1.2.0" }
 
 # Security-Critical Dependencies (pinned with = for exact versions)
 reqwest = { version = "=0.13.1", features = ["json", "rustls"], default-features = false }
@@ -122,7 +122,7 @@ proptest = "1.9.0"
 
 [package]
 name = "xchecker"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
 rust-version = "1.89"
 description = "Spec pipeline with receipts and gateable JSON contracts"
@@ -254,3 +254,4 @@ pulldown-cmark = "0.13.0"
 shell-words = "1.1.1"
 assert_cmd = "2.1.2"
 predicates = "3.1.3"
+
