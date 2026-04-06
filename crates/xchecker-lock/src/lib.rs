@@ -1,8 +1,14 @@
-//! File locking system for xchecker with advisory semantics and crash recovery
+//! File locking system for xchecker with advisory semantics and crash recovery.
 //!
 //! This module provides exclusive file locking per spec ID directory to prevent
 //! concurrent execution. The locking is advisory and coordinates xchecker processes
 //! but is not a security boundary.
+//!
+//! In addition to process locks, this crate also defines the kernel-side trust
+//! objects used to keep governed flows reproducible:
+//! - `lock.json`: legacy execution lock for model / CLI drift detection
+//! - `flow.lock`: reproducibility envelope for the governed flow boundary
+//! - `promotions/<phase>.lock`: trust object for artifacts promoted through a gate
 
 use anyhow::Result;
 use camino::Utf8PathBuf;
@@ -59,6 +65,95 @@ pub struct RunContext {
     pub model_full_name: String,
     pub claude_cli_version: String,
     pub schema_version: String,
+}
+
+/// Context for a governed flow boundary.
+///
+/// This intentionally pins promoted execution contracts rather than scratch
+/// reasoning. The goal is to make replay / resume deterministic at promotion
+/// points without freezing exploratory thought inside a stage.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FlowContext {
+    pub flow_version: String,
+    pub stage_graph_version: String,
+    pub gate_set_version: String,
+    pub prompt_pack_version: String,
+    pub adapter_version: String,
+    pub provider_policy: String,
+    pub tool_context_version: String,
+}
+
+/// Reproducibility lock for the governed flow boundary (`flow.lock`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FlowLock {
+    /// Schema version for this flow lock format
+    pub schema_version: String,
+    /// RFC3339 UTC timestamp when the lock was created
+    pub created_at: DateTime<Utc>,
+    /// Version of the flow pack or flow definition
+    pub flow_version: String,
+    /// Version of the stage graph / phase topology
+    pub stage_graph_version: String,
+    /// Version of the gate set used at promotion points
+    pub gate_set_version: String,
+    /// Version of the prompt pack used by the flow
+    pub prompt_pack_version: String,
+    /// Version of the adapter / harness boundary
+    pub adapter_version: String,
+    /// Capability or provider selection policy applied to the flow
+    pub provider_policy: String,
+    /// Version of tool permissions / MCP context configuration
+    pub tool_context_version: String,
+}
+
+/// Drift information for a `FlowLock`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct FlowLockDrift {
+    pub flow_version: Option<DriftPair>,
+    pub stage_graph_version: Option<DriftPair>,
+    pub gate_set_version: Option<DriftPair>,
+    pub prompt_pack_version: Option<DriftPair>,
+    pub adapter_version: Option<DriftPair>,
+    pub provider_policy: Option<DriftPair>,
+    pub tool_context_version: Option<DriftPair>,
+}
+
+/// Artifact frozen by a promotion lock.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PromotionArtifact {
+    /// Artifact path relative to the spec directory
+    pub path: String,
+    /// Canonical BLAKE3 hash of the promoted artifact
+    pub blake3_canonicalized: String,
+}
+
+/// Trust object for artifacts that crossed a gate and became promoted state.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PromotionLock {
+    /// Schema version for this promotion lock format
+    pub schema_version: String,
+    /// RFC3339 UTC timestamp when the promotion happened
+    pub promoted_at: DateTime<Utc>,
+    /// Spec identifier this promotion belongs to
+    pub spec_id: String,
+    /// Stage / phase whose artifacts were promoted
+    pub phase: String,
+    /// Winning candidate identifier, if selection happened among alternatives
+    pub selected_candidate_id: Option<String>,
+    /// Gate name that approved the promotion
+    pub gate_name: String,
+    /// Version of the gate logic used to approve the promotion
+    pub gate_version: String,
+    /// Actor or system identity that approved the promotion
+    pub approved_by: Option<String>,
+    /// Receipt path that produced the promotable output
+    pub parent_receipt_path: Option<String>,
+    /// Packet lineage identifiers carried into this promotion
+    pub parent_packet_lineage: Vec<String>,
+    /// Promoted artifacts and their content hashes
+    pub artifacts: Vec<PromotionArtifact>,
+    /// Non-fatal warnings carried with the promotion event
+    pub warnings: Vec<String>,
 }
 
 /// Drift pair showing locked vs current value
@@ -277,6 +372,230 @@ impl XCheckerLock {
     /// Get the UTF-8 path to the lockfile for a spec ID
     fn get_lock_path_utf8(spec_id: &str) -> Utf8PathBuf {
         spec_root(spec_id).join("lock.json")
+    }
+}
+
+impl FlowLock {
+    /// Create a new flow lock from the current governed flow context.
+    #[must_use]
+    pub fn new(context: FlowContext) -> Self {
+        Self {
+            schema_version: "1".to_string(),
+            created_at: Utc::now(),
+            flow_version: context.flow_version,
+            stage_graph_version: context.stage_graph_version,
+            gate_set_version: context.gate_set_version,
+            prompt_pack_version: context.prompt_pack_version,
+            adapter_version: context.adapter_version,
+            provider_policy: context.provider_policy,
+            tool_context_version: context.tool_context_version,
+        }
+    }
+
+    /// Detect drift between the locked flow boundary and the current flow context.
+    #[must_use]
+    pub fn detect_drift(&self, current: &FlowContext) -> Option<FlowLockDrift> {
+        let mut drift = FlowLockDrift::default();
+
+        if self.flow_version != current.flow_version {
+            drift.flow_version = Some(DriftPair {
+                locked: self.flow_version.clone(),
+                current: current.flow_version.clone(),
+            });
+        }
+
+        if self.stage_graph_version != current.stage_graph_version {
+            drift.stage_graph_version = Some(DriftPair {
+                locked: self.stage_graph_version.clone(),
+                current: current.stage_graph_version.clone(),
+            });
+        }
+
+        if self.gate_set_version != current.gate_set_version {
+            drift.gate_set_version = Some(DriftPair {
+                locked: self.gate_set_version.clone(),
+                current: current.gate_set_version.clone(),
+            });
+        }
+
+        if self.prompt_pack_version != current.prompt_pack_version {
+            drift.prompt_pack_version = Some(DriftPair {
+                locked: self.prompt_pack_version.clone(),
+                current: current.prompt_pack_version.clone(),
+            });
+        }
+
+        if self.adapter_version != current.adapter_version {
+            drift.adapter_version = Some(DriftPair {
+                locked: self.adapter_version.clone(),
+                current: current.adapter_version.clone(),
+            });
+        }
+
+        if self.provider_policy != current.provider_policy {
+            drift.provider_policy = Some(DriftPair {
+                locked: self.provider_policy.clone(),
+                current: current.provider_policy.clone(),
+            });
+        }
+
+        if self.tool_context_version != current.tool_context_version {
+            drift.tool_context_version = Some(DriftPair {
+                locked: self.tool_context_version.clone(),
+                current: current.tool_context_version.clone(),
+            });
+        }
+
+        if drift.flow_version.is_none()
+            && drift.stage_graph_version.is_none()
+            && drift.gate_set_version.is_none()
+            && drift.prompt_pack_version.is_none()
+            && drift.adapter_version.is_none()
+            && drift.provider_policy.is_none()
+            && drift.tool_context_version.is_none()
+        {
+            None
+        } else {
+            Some(drift)
+        }
+    }
+
+    /// Load `flow.lock` from the spec directory.
+    pub fn load(spec_id: &str) -> Result<Option<Self>, io::Error> {
+        let lock_path = Self::get_lock_path(spec_id);
+
+        if !lock_path.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(&lock_path)?;
+        let lock: Self = serde_json::from_str(&content)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        Ok(Some(lock))
+    }
+
+    /// Save `flow.lock` to the spec directory.
+    pub fn save(&self, spec_id: &str) -> Result<(), io::Error> {
+        let lock_path = Self::get_lock_path_utf8(spec_id);
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        write_file_atomic(&lock_path, &json).map_err(io::Error::other)?;
+        Ok(())
+    }
+
+    fn get_lock_path(spec_id: &str) -> PathBuf {
+        Self::get_lock_path_utf8(spec_id).into_std_path_buf()
+    }
+
+    fn get_lock_path_utf8(spec_id: &str) -> Utf8PathBuf {
+        spec_root(spec_id).join("flow.lock")
+    }
+}
+
+impl PromotionLock {
+    /// Create a new promotion lock for a promoted phase result.
+    #[must_use]
+    pub fn new(
+        spec_id: String,
+        phase: String,
+        gate_name: String,
+        gate_version: String,
+        artifacts: Vec<PromotionArtifact>,
+    ) -> Self {
+        Self {
+            schema_version: "1".to_string(),
+            promoted_at: Utc::now(),
+            spec_id,
+            phase,
+            selected_candidate_id: None,
+            gate_name,
+            gate_version,
+            approved_by: None,
+            parent_receipt_path: None,
+            parent_packet_lineage: Vec::new(),
+            artifacts,
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Load the promotion lock for a specific phase.
+    pub fn load(spec_id: &str, phase: &str) -> Result<Option<Self>, io::Error> {
+        let lock_path = Self::get_lock_path(spec_id, phase);
+
+        if !lock_path.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(&lock_path)?;
+        let lock: Self = serde_json::from_str(&content)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        Ok(Some(lock))
+    }
+
+    /// List all promotion locks for a spec, sorted by phase name.
+    pub fn list(spec_id: &str) -> Result<Vec<Self>, io::Error> {
+        let dir = Self::promotions_dir_utf8(spec_id);
+        if !dir.as_std_path().exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut locks = Vec::new();
+        for entry in fs::read_dir(dir.as_std_path())? {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+
+            let content = fs::read_to_string(&path)?;
+            let lock: Self = serde_json::from_str(&content)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            locks.push(lock);
+        }
+
+        locks.sort_by(|a, b| a.phase.cmp(&b.phase));
+        Ok(locks)
+    }
+
+    /// Save this promotion lock under `promotions/<phase>.lock`.
+    pub fn save(&self) -> Result<(), io::Error> {
+        let lock_path = Self::get_lock_path_utf8(&self.spec_id, &self.phase);
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        write_file_atomic(&lock_path, &json).map_err(io::Error::other)?;
+        Ok(())
+    }
+
+    fn get_lock_path(spec_id: &str, phase: &str) -> PathBuf {
+        Self::get_lock_path_utf8(spec_id, phase).into_std_path_buf()
+    }
+
+    fn get_lock_path_utf8(spec_id: &str, phase: &str) -> Utf8PathBuf {
+        Self::promotions_dir_utf8(spec_id).join(format!("{}.lock", sanitize_lock_component(phase)))
+    }
+
+    fn promotions_dir_utf8(spec_id: &str) -> Utf8PathBuf {
+        spec_root(spec_id).join("promotions")
+    }
+}
+
+fn sanitize_lock_component(input: &str) -> String {
+    let sanitized: String = input
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => ch,
+            _ => '-',
+        })
+        .collect();
+
+    if sanitized.is_empty() {
+        "unknown".to_string()
+    } else {
+        sanitized
     }
 }
 
@@ -1374,6 +1693,128 @@ mod tests {
         assert_eq!(parsed["schema_version"], "1");
         assert_eq!(parsed["model_full_name"], "haiku");
         assert_eq!(parsed["claude_cli_version"], "0.8.1");
+    }
+
+    #[test]
+    fn test_flow_lock_no_drift() {
+        let context = FlowContext {
+            flow_version: "flow.v1".to_string(),
+            stage_graph_version: "stages.v1".to_string(),
+            gate_set_version: "gates.v1".to_string(),
+            prompt_pack_version: "prompts.v1".to_string(),
+            adapter_version: "adapter.v1".to_string(),
+            provider_policy: "capability-router.v1".to_string(),
+            tool_context_version: "mcp.v1".to_string(),
+        };
+
+        let lock = FlowLock::new(context.clone());
+        let drift = lock.detect_drift(&context);
+        assert!(drift.is_none(), "Expected no flow drift when values match");
+    }
+
+    #[test]
+    fn test_flow_lock_detects_multiple_drift_fields() {
+        let lock = FlowLock::new(FlowContext {
+            flow_version: "flow.v1".to_string(),
+            stage_graph_version: "stages.v1".to_string(),
+            gate_set_version: "gates.v1".to_string(),
+            prompt_pack_version: "prompts.v1".to_string(),
+            adapter_version: "adapter.v1".to_string(),
+            provider_policy: "capability-router.v1".to_string(),
+            tool_context_version: "mcp.v1".to_string(),
+        });
+
+        let current = FlowContext {
+            flow_version: "flow.v2".to_string(),
+            stage_graph_version: "stages.v1".to_string(),
+            gate_set_version: "gates.v2".to_string(),
+            prompt_pack_version: "prompts.v1".to_string(),
+            adapter_version: "adapter.v2".to_string(),
+            provider_policy: "capability-router.v2".to_string(),
+            tool_context_version: "mcp.v1".to_string(),
+        };
+
+        let drift = lock.detect_drift(&current).expect("Expected flow drift");
+        assert!(drift.flow_version.is_some());
+        assert!(drift.gate_set_version.is_some());
+        assert!(drift.adapter_version.is_some());
+        assert!(drift.provider_policy.is_some());
+        assert!(drift.stage_graph_version.is_none());
+        assert!(drift.prompt_pack_version.is_none());
+        assert!(drift.tool_context_version.is_none());
+    }
+
+    #[test]
+    fn test_flow_lock_save_and_load() {
+        let _temp_dir = setup_test_env();
+
+        let spec_id = "test-spec-flow-lock";
+        let lock = FlowLock::new(FlowContext {
+            flow_version: "flow.v1".to_string(),
+            stage_graph_version: "stages.v1".to_string(),
+            gate_set_version: "gates.v1".to_string(),
+            prompt_pack_version: "prompts.v1".to_string(),
+            adapter_version: "adapter.v1".to_string(),
+            provider_policy: "capability-router.v1".to_string(),
+            tool_context_version: "mcp.v1".to_string(),
+        });
+
+        lock.save(spec_id).expect("Failed to save flow lock");
+        let loaded = FlowLock::load(spec_id)
+            .expect("Failed to load flow lock")
+            .expect("Flow lock should exist");
+
+        assert_eq!(loaded.flow_version, "flow.v1");
+        assert_eq!(loaded.gate_set_version, "gates.v1");
+        assert_eq!(loaded.provider_policy, "capability-router.v1");
+    }
+
+    #[test]
+    fn test_promotion_lock_save_load_and_list() {
+        let _temp_dir = setup_test_env();
+
+        let spec_id = "test-spec-promotion-lock";
+        let mut requirements = PromotionLock::new(
+            spec_id.to_string(),
+            "requirements".to_string(),
+            "requirements_gate".to_string(),
+            "gates.v1".to_string(),
+            vec![PromotionArtifact {
+                path: "artifacts/00-requirements.md".to_string(),
+                blake3_canonicalized: "abc123".to_string(),
+            }],
+        );
+        requirements.selected_candidate_id = Some("candidate-a".to_string());
+        requirements.parent_receipt_path = Some("receipts/requirements.json".to_string());
+        requirements.parent_packet_lineage = vec!["packet-req-1".to_string()];
+        requirements.warnings = vec!["minor-style-warning".to_string()];
+        requirements.save().expect("Failed to save requirements promotion");
+
+        let mut design = PromotionLock::new(
+            spec_id.to_string(),
+            "design".to_string(),
+            "design_gate".to_string(),
+            "gates.v1".to_string(),
+            vec![PromotionArtifact {
+                path: "artifacts/10-design.md".to_string(),
+                blake3_canonicalized: "def456".to_string(),
+            }],
+        );
+        design.approved_by = Some("policy-engine".to_string());
+        design.parent_packet_lineage = vec!["packet-req-1".to_string(), "packet-design-1".to_string()];
+        design.save().expect("Failed to save design promotion");
+
+        let loaded = PromotionLock::load(spec_id, "requirements")
+            .expect("Failed to load requirements promotion")
+            .expect("Requirements promotion should exist");
+        assert_eq!(loaded.gate_name, "requirements_gate");
+        assert_eq!(loaded.selected_candidate_id.as_deref(), Some("candidate-a"));
+        assert_eq!(loaded.artifacts.len(), 1);
+
+        let listed = PromotionLock::list(spec_id).expect("Failed to list promotions");
+        assert_eq!(listed.len(), 2);
+        assert!(listed.iter().any(|lock| lock.phase == "requirements"));
+        assert!(listed.iter().any(|lock| lock.phase == "design"));
     }
 
     #[test]
