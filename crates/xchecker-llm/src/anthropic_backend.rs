@@ -155,7 +155,7 @@ impl AnthropicBackend {
             .metadata
             .get("max_tokens")
             .and_then(|v| v.as_u64())
-            .map(|v| v as u32)
+            .map(|v| u32::try_from(v).unwrap_or(u32::MAX))
             .unwrap_or(self.default_params.max_tokens);
 
         let temperature = inv

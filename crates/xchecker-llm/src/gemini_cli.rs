@@ -204,7 +204,7 @@ impl GeminiCliBackend {
         if let Some(max_tokens_value) = inv.metadata.get("max_tokens")
             && let Some(max_tokens) = max_tokens_value.as_u64()
         {
-            return Some(max_tokens as u32);
+            return Some(u32::try_from(max_tokens).unwrap_or(u32::MAX));
         }
 
         // 2. Check if profile is specified and has max_tokens

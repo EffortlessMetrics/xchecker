@@ -1,6 +1,3 @@
-//! Hooks system: implemented and tested, not wired into orchestrator in v1.0.
-//! See FR-HOOKS for design rationale. Will be integrated in a future release.
-//!
 //! Hook system for executing scripts at key points in the xchecker workflow.
 //!
 //! Hooks allow users to run custom scripts before and after phase execution.
@@ -45,8 +42,6 @@ use xchecker_utils::types::PhaseId;
 pub use xchecker_config::{DEFAULT_HOOK_TIMEOUT_SECS, HookConfig, HookType, HooksConfig, OnFail};
 
 /// Error type for hook execution
-/// Reserved for hooks integration; not wired in v1.0
-#[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
 #[derive(Error, Debug, Clone)]
 pub enum HookError {
     #[error("Hook command failed with exit code {code}: {command}")]
@@ -73,8 +68,6 @@ pub enum HookError {
 }
 
 /// Result of hook execution
-/// Reserved for hooks integration; not wired in v1.0
-#[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
 #[derive(Debug, Clone)]
 pub struct HookResult {
     /// Whether the hook succeeded
@@ -93,9 +86,7 @@ pub struct HookResult {
 
 impl HookResult {
     /// Create a successful hook result
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn success(stdout: String, stderr: String, duration_ms: u64) -> Self {
         Self {
             success: true,
@@ -108,9 +99,7 @@ impl HookResult {
     }
 
     /// Create a failed hook result
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn failure(exit_code: i32, stdout: String, stderr: String, duration_ms: u64) -> Self {
         Self {
             success: false,
@@ -123,9 +112,7 @@ impl HookResult {
     }
 
     /// Create a timeout hook result
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn timeout(stdout: String, stderr: String, duration_ms: u64) -> Self {
         Self {
             success: false,
@@ -139,8 +126,6 @@ impl HookResult {
 }
 
 /// Context passed to hooks via environment variables and stdin
-/// Reserved for hooks integration; not wired in v1.0
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Clone, Serialize)]
 pub struct HookContext {
     /// Spec identifier
@@ -156,9 +141,7 @@ pub struct HookContext {
 
 impl HookContext {
     /// Create a new hook context
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn new(spec_id: &str, phase: PhaseId, hook_type: HookType) -> Self {
         Self {
             spec_id: spec_id.to_string(),
@@ -169,7 +152,6 @@ impl HookContext {
     }
 
     /// Add metadata to the context
-    /// Reserved for hooks integration; not wired in v1.0
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
         self.metadata.insert(key.to_string(), value.to_string());
@@ -177,16 +159,12 @@ impl HookContext {
     }
 
     /// Convert to JSON for stdin payload
-    /// Reserved for hooks integration; not wired in v1.0
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
 }
 
 /// Hook executor for running hooks with proper context and error handling
-/// Reserved for hooks integration; not wired in v1.0
-#[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
 pub struct HookExecutor {
     /// Project root directory where hooks run
     project_root: PathBuf,
@@ -194,9 +172,7 @@ pub struct HookExecutor {
 
 impl HookExecutor {
     /// Create a new hook executor
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
     pub fn new(project_root: PathBuf) -> Self {
         Self { project_root }
     }
@@ -210,8 +186,6 @@ impl HookExecutor {
     /// # Returns
     /// `HookResult` containing execution outcome
     ///
-    /// Reserved for hooks integration; not wired in v1.0
-    #[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
     pub async fn execute(
         &self,
         config: &HookConfig,
@@ -294,7 +268,6 @@ impl HookExecutor {
     /// - User explicitly opts into running shell commands via hook configuration
     /// - Hook commands are defined by the user, not derived from untrusted input
     /// - Environment variables are set by xchecker, not user-controlled
-    #[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
     fn build_command(
         &self,
         command: &str,
@@ -333,8 +306,6 @@ impl HookExecutor {
 }
 
 /// Truncate output to a reasonable size (2 KiB)
-/// Reserved for hooks integration; not wired in v1.0
-#[cfg_attr(not(test), allow(dead_code))]
 fn truncate_output(output: String) -> String {
     const MAX_OUTPUT_BYTES: usize = 2048;
     if output.len() > MAX_OUTPUT_BYTES {
@@ -346,8 +317,7 @@ fn truncate_output(output: String) -> String {
 }
 
 /// Warning message for hook failures that should be recorded in receipts
-/// Reserved for hooks integration; not wired in v1.0
-#[cfg_attr(not(test), allow(dead_code))]
+/// Warning emitted when a hook fails with `on_fail = "warn"`
 #[derive(Debug, Clone, Serialize)]
 pub struct HookWarning {
     /// Hook type (pre_phase or post_phase)
@@ -366,9 +336,7 @@ pub struct HookWarning {
 
 impl HookWarning {
     /// Create a warning from a hook result
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn from_result(
         hook_type: HookType,
         phase: PhaseId,
@@ -386,9 +354,7 @@ impl HookWarning {
     }
 
     /// Format as a warning string for receipt
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn to_warning_string(&self) -> String {
         if self.timed_out {
             format!(
@@ -405,8 +371,6 @@ impl HookWarning {
 }
 
 /// Outcome of hook execution with failure handling applied
-/// Reserved for hooks integration; not wired in v1.0
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub enum HookOutcome {
     /// Hook succeeded
@@ -425,17 +389,13 @@ pub enum HookOutcome {
 
 impl HookOutcome {
     /// Check if the hook execution should continue (success or warning)
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn should_continue(&self) -> bool {
         matches!(self, Self::Success(_) | Self::Warning { .. })
     }
 
     /// Get the warning if this is a warning outcome
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn warning(&self) -> Option<&HookWarning> {
         match self {
             Self::Warning { warning, .. } => Some(warning),
@@ -444,9 +404,7 @@ impl HookOutcome {
     }
 
     /// Get the error if this is a failure outcome
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn error(&self) -> Option<&HookError> {
         match self {
             Self::Failure { error, .. } => Some(error),
@@ -455,9 +413,7 @@ impl HookOutcome {
     }
 
     /// Get the underlying hook result
-    /// Reserved for hooks integration; not wired in v1.0
     #[must_use]
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn result(&self) -> &HookResult {
         match self {
             Self::Success(result) | Self::Warning { result, .. } | Self::Failure { result, .. } => {
@@ -483,7 +439,6 @@ impl HookOutcome {
 ///
 /// Reserved for hooks integration; not wired in v1.0
 #[must_use]
-#[cfg_attr(not(test), allow(dead_code))]
 pub fn process_hook_result(
     result: HookResult,
     config: &HookConfig,
@@ -500,10 +455,7 @@ pub fn process_hook_result(
 }
 
 /// Process a hook result using a caller-provided redactor for any user-facing output (FR-SEC-19).
-///
-/// Reserved for hooks integration; not wired in v1.0
 #[must_use]
-#[cfg_attr(not(test), allow(dead_code))]
 pub fn process_hook_result_with_redactor(
     result: HookResult,
     config: &HookConfig,
@@ -585,8 +537,6 @@ pub fn process_hook_result_with_redactor(
 /// # Returns
 /// A `HookOutcome` indicating whether to continue, warn, or fail
 ///
-/// Reserved for hooks integration; not wired in v1.0
-#[allow(dead_code)] // Reserved for hooks integration; not wired in v1.0
 pub async fn execute_and_process_hook(
     executor: &HookExecutor,
     config: &HookConfig,
