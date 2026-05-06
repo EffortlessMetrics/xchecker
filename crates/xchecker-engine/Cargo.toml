@@ -58,3 +58,6 @@ toml = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 dunce = { workspace = true }
+
+[lints]
+workspace = true

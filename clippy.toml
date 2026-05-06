@@ -1,0 +1,8 @@
+# Repository-local Clippy configuration for xchecker.
+#
+# This file intentionally contains no test carveouts such as
+# `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests`,
+# `allow-indexing-slicing-in-tests`, or `allow-dbg-in-tests`.
+#
+# Domain-specific disallowed methods/types/macros belong here once they are
+# needed. Baseline lint levels live in Cargo.toml and policy/clippy-lints.toml.

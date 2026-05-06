@@ -1,0 +1,2157 @@
+schema = 1
+
+# Existing suppression debt captured during the initial strict Clippy policy rollout.
+# New suppressions should prefer `#[expect(..., reason = "...")]`; these entries
+# keep current carveouts visible until follow-up cleanup PRs migrate them.
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "src/cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 1011
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "src/cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 2141
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "src/cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 2736
+
+[[debt]]
+lint = "clippy::items_after_test_module"
+path = "src/cli.rs"
+owner = "xchecker-maintainers"
+reason = "Test helper functions defined after tests is intentional"
+expires = "2026-08-01"
+last_seen_line = 3351
+
+[[debt]]
+lint = "clippy::await_holding_lock"
+path = "src/cli.rs"
+owner = "xchecker-maintainers"
+reason = "Test synchronization using mutex guards across awaits is intentional"
+expires = "2026-08-01"
+last_seen_line = 3352
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/claude_cli.rs"
+owner = "xchecker-maintainers"
+reason = "Will be used for validation and error reporting"
+expires = "2026-08-01"
+last_seen_line = 19
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/claude_cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 321
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/http_client.rs"
+owner = "xchecker-maintainers"
+reason = "Used by integration tests via pub use in mod.rs"
+expires = "2026-08-01"
+last_seen_line = 217
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-llm/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 23
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-llm/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Used by integration tests in tests/property_based_tests.rs"
+expires = "2026-08-01"
+last_seen_line = 37
+
+[[debt]]
+lint = "clippy::await_holding_lock"
+path = "crates/xchecker-llm/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Test synchronization using mutex guards across awaits is intentional"
+expires = "2026-08-01"
+last_seen_line = 544
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for LLM abstraction"
+expires = "2026-08-01"
+last_seen_line = 65
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for LLM abstraction"
+expires = "2026-08-01"
+last_seen_line = 78
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata field for LLM invocation tracking"
+expires = "2026-08-01"
+last_seen_line = 88
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata field for LLM invocation tracking"
+expires = "2026-08-01"
+last_seen_line = 91
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for LLM abstraction"
+expires = "2026-08-01"
+last_seen_line = 125
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/types.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for LLM abstraction"
+expires = "2026-08-01"
+last_seen_line = 197
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/budgeted_backend.rs"
+owner = "xchecker-maintainers"
+reason = "Deprecated but kept for backwards compatibility"
+expires = "2026-08-01"
+last_seen_line = 62
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-llm/src/gemini_cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 27
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-llm/src/gemini_cli.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 257
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 49
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 77
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 189
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 199
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 214
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 297
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-hooks/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for hooks integration; not wired in v1.0"
+expires = "2026-08-01"
+last_seen_line = 589
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for detailed redaction reporting"
+expires = "2026-08-01"
+last_seen_line = 409
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for structured reporting"
+expires = "2026-08-01"
+last_seen_line = 412
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for batch redaction"
+expires = "2026-08-01"
+last_seen_line = 584
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for optional fields"
+expires = "2026-08-01"
+last_seen_line = 598
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for custom pattern configuration"
+expires = "2026-08-01"
+last_seen_line = 605
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for pattern configuration"
+expires = "2026-08-01"
+last_seen_line = 618
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for pattern introspection"
+expires = "2026-08-01"
+last_seen_line = 760
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Extended API for pattern introspection"
+expires = "2026-08-01"
+last_seen_line = 772
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Duplicate of SecretRedactor method, candidate for removal"
+expires = "2026-08-01"
+last_seen_line = 831
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-redaction/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Duplicate of SecretRedactor method, candidate for removal"
+expires = "2026-08-01"
+last_seen_line = 844
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-workspace/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Test seam; not part of public API stability guarantees"
+expires = "2026-08-01"
+last_seen_line = 111
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 858
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Lock management utility"
+expires = "2026-08-01"
+last_seen_line = 886
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 903
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 910
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Lock cleanup utility for CLI commands"
+expires = "2026-08-01"
+last_seen_line = 1225
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/exit_codes.rs"
+owner = "xchecker-maintainers"
+reason = "Used in tests (line 103)"
+expires = "2026-08-01"
+last_seen_line = 133
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/exit_codes.rs"
+owner = "xchecker-maintainers"
+reason = "Error handling utility for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 156
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used when CLI adds --verbose flag"
+expires = "2026-08-01"
+last_seen_line = 31
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging in orchestrator"
+expires = "2026-08-01"
+last_seen_line = 86
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging in orchestrator"
+expires = "2026-08-01"
+last_seen_line = 98
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging in orchestrator"
+expires = "2026-08-01"
+last_seen_line = 109
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging in orchestrator"
+expires = "2026-08-01"
+last_seen_line = 122
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for detailed operation logging"
+expires = "2026-08-01"
+last_seen_line = 167
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for performance tracking"
+expires = "2026-08-01"
+last_seen_line = 178
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for performance reporting"
+expires = "2026-08-01"
+last_seen_line = 187
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for memory profiling"
+expires = "2026-08-01"
+last_seen_line = 205
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for performance analysis"
+expires = "2026-08-01"
+last_seen_line = 217
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 302
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 308
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 314
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 321
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 328
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured logging context"
+expires = "2026-08-01"
+last_seen_line = 335
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose logging control"
+expires = "2026-08-01"
+last_seen_line = 342
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for formatted verbose logging"
+expires = "2026-08-01"
+last_seen_line = 385
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured info logging"
+expires = "2026-08-01"
+last_seen_line = 422
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured warning logging"
+expires = "2026-08-01"
+last_seen_line = 445
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for structured error logging"
+expires = "2026-08-01"
+last_seen_line = 469
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for file operation logging"
+expires = "2026-08-01"
+last_seen_line = 523
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose packet logging"
+expires = "2026-08-01"
+last_seen_line = 555
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose packet logging"
+expires = "2026-08-01"
+last_seen_line = 566
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose packet logging"
+expires = "2026-08-01"
+last_seen_line = 574
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose execution logging"
+expires = "2026-08-01"
+last_seen_line = 593
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose canonicalization logging"
+expires = "2026-08-01"
+last_seen_line = 604
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for verbose redaction logging"
+expires = "2026-08-01"
+last_seen_line = 621
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for performance reporting"
+expires = "2026-08-01"
+last_seen_line = 641
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for file operation reporting"
+expires = "2026-08-01"
+last_seen_line = 655
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/logging.rs"
+owner = "xchecker-maintainers"
+reason = "Diagnostic logging utility"
+expires = "2026-08-01"
+last_seen_line = 861
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/atomic_write.rs"
+owner = "xchecker-maintainers"
+reason = "Test utility for cross-platform testing"
+expires = "2026-08-01"
+last_seen_line = 242
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/source.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 12
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/source.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 22
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-utils/src/cache.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 224
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/cache.rs"
+owner = "xchecker-maintainers"
+reason = "Cache management utility"
+expires = "2026-08-01"
+last_seen_line = 573
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/cache.rs"
+owner = "xchecker-maintainers"
+reason = "Diagnostic logging utility"
+expires = "2026-08-01"
+last_seen_line = 592
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/canonicalization.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future content-addressed storage"
+expires = "2026-08-01"
+last_seen_line = 39
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/canonicalization.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future content-addressed storage"
+expires = "2026-08-01"
+last_seen_line = 41
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/canonicalization.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 80
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/ring_buffer.rs"
+owner = "xchecker-maintainers"
+reason = "Standard collection API method"
+expires = "2026-08-01"
+last_seen_line = 44
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/ring_buffer.rs"
+owner = "xchecker-maintainers"
+reason = "Standard collection API method"
+expires = "2026-08-01"
+last_seen_line = 51
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/lock.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 412
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/lock.rs"
+owner = "xchecker-maintainers"
+reason = "Lock management utility"
+expires = "2026-08-01"
+last_seen_line = 440
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/lock.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 457
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/lock.rs"
+owner = "xchecker-maintainers"
+reason = "Lock introspection utility"
+expires = "2026-08-01"
+last_seen_line = 464
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/lock.rs"
+owner = "xchecker-maintainers"
+reason = "Lock cleanup utility for CLI commands"
+expires = "2026-08-01"
+last_seen_line = 778
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "API method for runner construction"
+expires = "2026-08-01"
+last_seen_line = 67
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Internal API for future use; CLI only supports native/wsl"
+expires = "2026-08-01"
+last_seen_line = 90
+
+[[debt]]
+lint = "unused_mut"
+path = "crates/xchecker-utils/src/runner/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 135
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-utils/src/runner/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 141
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Truncation tracking metadata"
+expires = "2026-08-01"
+last_seen_line = 53
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Truncation tracking metadata"
+expires = "2026-08-01"
+last_seen_line = 56
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 59
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 62
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Runner utility method for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 72
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-utils/src/runner/claude/detect.rs"
+owner = "xchecker-maintainers"
+reason = "Runner introspection utility"
+expires = "2026-08-01"
+last_seen_line = 113
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-tui/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 38
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/ring_buffer.rs"
+owner = "xchecker-maintainers"
+reason = "Standard collection API method"
+expires = "2026-08-01"
+last_seen_line = 42
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/ring_buffer.rs"
+owner = "xchecker-maintainers"
+reason = "Standard collection API method"
+expires = "2026-08-01"
+last_seen_line = 49
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "API method for runner construction"
+expires = "2026-08-01"
+last_seen_line = 68
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Internal API for future use; CLI only supports native/wsl"
+expires = "2026-08-01"
+last_seen_line = 91
+
+[[debt]]
+lint = "unused_mut"
+path = "crates/xchecker-runner/src/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 136
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-runner/src/claude/exec.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 142
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Truncation tracking metadata"
+expires = "2026-08-01"
+last_seen_line = 53
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Truncation tracking metadata"
+expires = "2026-08-01"
+last_seen_line = 56
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 59
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Buffer management metadata"
+expires = "2026-08-01"
+last_seen_line = 62
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/types.rs"
+owner = "xchecker-maintainers"
+reason = "Runner utility method for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 72
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-runner/src/claude/detect.rs"
+owner = "xchecker-maintainers"
+reason = "Runner introspection utility"
+expires = "2026-08-01"
+last_seen_line = 113
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-prompt-template/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Public API for template introspection"
+expires = "2026-08-01"
+last_seen_line = 83
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-prompt-template/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Public API for template introspection"
+expires = "2026-08-01"
+last_seen_line = 94
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-phase-api/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for workflow completion signaling"
+expires = "2026-08-01"
+last_seen_line = 31
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-phase-api/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for cross-phase artifact references"
+expires = "2026-08-01"
+last_seen_line = 45
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-phase-api/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata fields reserved for receipts and diagnostics"
+expires = "2026-08-01"
+last_seen_line = 67
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-phase-api/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata reserved for structured receipts"
+expires = "2026-08-01"
+last_seen_line = 85
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-phase-api/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Trait interface for resumable phases"
+expires = "2026-08-01"
+last_seen_line = 103
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-receipt/src/emit.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 24
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-receipt/src/emit.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 75
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-receipt/src/writer.rs"
+owner = "xchecker-maintainers"
+reason = "Receipt utility for tracking atomic write retries"
+expires = "2026-08-01"
+last_seen_line = 137
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-receipt/src/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Error handling utility for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 65
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-receipt/src/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Error handling utility for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 136
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-receipt/src/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 137
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error display API"
+expires = "2026-08-01"
+last_seen_line = 29
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for error display"
+expires = "2026-08-01"
+last_seen_line = 47
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative output method"
+expires = "2026-08-01"
+last_seen_line = 119
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error reporting API"
+expires = "2026-08-01"
+last_seen_line = 146
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error reporting API"
+expires = "2026-08-01"
+last_seen_line = 159
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Error reporting utility"
+expires = "2026-08-01"
+last_seen_line = 167
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error reporting utility"
+expires = "2026-08-01"
+last_seen_line = 181
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error reporting utility"
+expires = "2026-08-01"
+last_seen_line = 201
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative error reporting utility"
+expires = "2026-08-01"
+last_seen_line = 208
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-error-reporter/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Error reporting utility"
+expires = "2026-08-01"
+last_seen_line = 216
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Legacy/test-only; follow-up spec (V19+) to delete once tests migrate"
+expires = "2026-08-01"
+last_seen_line = 44
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Legacy/test-only; follow-up spec (V19+) to delete once tests migrate"
+expires = "2026-08-01"
+last_seen_line = 119
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 137
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 146
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 155
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Legacy/test-only; will be removed in V19+"
+expires = "2026-08-01"
+last_seen_line = 221
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Legacy/test-only; follow-up spec (V19+) to delete once tests migrate"
+expires = "2026-08-01"
+last_seen_line = 232
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/claude.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 463
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-engine/src/receipt/emit.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 24
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-engine/src/receipt/emit.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 75
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/receipt/writer.rs"
+owner = "xchecker-maintainers"
+reason = "Receipt utility for tracking atomic write retries"
+expires = "2026-08-01"
+last_seen_line = 137
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/receipt/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Error handling utility for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 65
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/receipt/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Error handling utility for receipt generation"
+expires = "2026-08-01"
+last_seen_line = 136
+
+[[debt]]
+lint = "clippy::too_many_arguments"
+path = "crates/xchecker-engine/src/receipt/errors.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 137
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 12
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 15
+
+[[debt]]
+lint = "unused_imports"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 19
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 408
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 427
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Test helper: kept for future test expansion"
+expires = "2026-08-01"
+last_seen_line = 455
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Test helper: kept for future test expansion"
+expires = "2026-08-01"
+last_seen_line = 472
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Test helper: kept for future test expansion"
+expires = "2026-08-01"
+last_seen_line = 485
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for workflow execution API"
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for workflow execution API"
+expires = "2026-08-01"
+last_seen_line = 38
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for workflow execution API"
+expires = "2026-08-01"
+last_seen_line = 57
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for complete workflow execution"
+expires = "2026-08-01"
+last_seen_line = 78
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for phase execution with rewind"
+expires = "2026-08-01"
+last_seen_line = 208
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/workflow.rs"
+owner = "xchecker-maintainers"
+reason = "Future-facing: used for phase execution with next step handling"
+expires = "2026-08-01"
+last_seen_line = 280
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/phase_exec.rs"
+owner = "xchecker-maintainers"
+reason = "Phase execution method for CLI/library usage"
+expires = "2026-08-01"
+last_seen_line = 235
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/orchestrator/phase_exec.rs"
+owner = "xchecker-maintainers"
+reason = "Phase execution method for CLI/library usage"
+expires = "2026-08-01"
+last_seen_line = 260
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/fixup/apply.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 401
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/packet/selectors.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative API constructor"
+expires = "2026-08-01"
+last_seen_line = 127
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/packet/model.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata for budget tracking"
+expires = "2026-08-01"
+last_seen_line = 69
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-engine/src/packet/model.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata for budget tracking"
+expires = "2026-08-01"
+last_seen_line = 72
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/selectors.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative API constructor"
+expires = "2026-08-01"
+last_seen_line = 128
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/model.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata for budget tracking"
+expires = "2026-08-01"
+last_seen_line = 69
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/model.rs"
+owner = "xchecker-maintainers"
+reason = "Metadata for budget tracking"
+expires = "2026-08-01"
+last_seen_line = 72
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Public API for packet inspection"
+expires = "2026-08-01"
+last_seen_line = 47
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Public API for evidence inspection"
+expires = "2026-08-01"
+last_seen_line = 60
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Public API for budget validation"
+expires = "2026-08-01"
+last_seen_line = 73
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 52
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 88
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 104
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 116
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 133
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 150
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder pattern method for API surface"
+expires = "2026-08-01"
+last_seen_line = 168
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder accessor for API surface"
+expires = "2026-08-01"
+last_seen_line = 186
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder accessor for API surface"
+expires = "2026-08-01"
+last_seen_line = 193
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder accessor for API surface"
+expires = "2026-08-01"
+last_seen_line = 199
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder accessor for API surface"
+expires = "2026-08-01"
+last_seen_line = 206
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder setter for API surface"
+expires = "2026-08-01"
+last_seen_line = 212
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder method for API surface"
+expires = "2026-08-01"
+last_seen_line = 218
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Builder configuration method"
+expires = "2026-08-01"
+last_seen_line = 231
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-packet/src/builder.rs"
+owner = "xchecker-maintainers"
+reason = "Diagnostic logging utility"
+expires = "2026-08-01"
+last_seen_line = 433
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/status.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for orchestration APIs; not currently used by CLI"
+expires = "2026-08-01"
+last_seen_line = 26
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/status.rs"
+owner = "xchecker-maintainers"
+reason = "Alternative formatting option"
+expires = "2026-08-01"
+last_seen_line = 244
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/status.rs"
+owner = "xchecker-maintainers"
+reason = "Public wrapper retained for compatibility"
+expires = "2026-08-01"
+last_seen_line = 253
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Hash field for future content verification"
+expires = "2026-08-01"
+last_seen_line = 38
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "API constructor for artifact creation"
+expires = "2026-08-01"
+last_seen_line = 45
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for debugging artifacts"
+expires = "2026-08-01"
+last_seen_line = 77
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "API constructor for artifact manager"
+expires = "2026-08-01"
+last_seen_line = 99
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 327
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 344
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 452
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 477
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 492
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-status/src/artifact.rs"
+owner = "xchecker-maintainers"
+reason = "Test harness/utility method"
+expires = "2026-08-01"
+last_seen_line = 513
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-config/src/config/model.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 176
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-doctor/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "CLI integration point"
+expires = "2026-08-01"
+last_seen_line = 42
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-doctor/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "CLI integration point"
+expires = "2026-08-01"
+last_seen_line = 54
+
+[[debt]]
+lint = "dead_code"
+path = "crates/xchecker-benchmark/src/lib.rs"
+owner = "xchecker-maintainers"
+reason = "Performance data for receipts"
+expires = "2026-08-01"
+last_seen_line = 87
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/m1_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 31
+
+[[debt]]
+lint = "dead_code"
+path = "tests/m1_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 40
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_phase_timeout.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_phase_timeout.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 30
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_phase_timeout.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 32
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_phase_timeout.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 34
+
+[[debt]]
+lint = "clippy::duplicated_attributes"
+path = "tests/property_based_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 2
+
+[[debt]]
+lint = "dead_code"
+path = "tests/property_based_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 1155
+
+[[debt]]
+lint = "dead_code"
+path = "tests/property_based_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 1163
+
+[[debt]]
+lint = "clippy::await_holding_lock"
+path = "tests/test_hooks_integration.rs"
+owner = "xchecker-maintainers"
+reason = "Lock serializes tests; safe in single-threaded test context"
+expires = "2026-08-01"
+last_seen_line = 60
+
+[[debt]]
+lint = "clippy::await_holding_lock"
+path = "tests/test_hooks_integration.rs"
+owner = "xchecker-maintainers"
+reason = "Lock serializes tests; safe in single-threaded test context"
+expires = "2026-08-01"
+last_seen_line = 123
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_wsl_runner.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 6
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_wsl_runner.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 16
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_wsl_runner.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 19
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_phase_timeout_scenarios.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 22
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_phase_timeout_scenarios.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 31
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_phase_timeout_scenarios.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 33
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_llm_budget_exhaustion_receipt.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future integration tests"
+expires = "2026-08-01"
+last_seen_line = 25
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/integration_m1_gate.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 27
+
+[[debt]]
+lint = "dead_code"
+path = "tests/integration_m1_gate.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 36
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_lockfile_concurrent_execution.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 10
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/integration_full_workflows.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 25
+
+[[debt]]
+lint = "dead_code"
+path = "tests/integration_full_workflows.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 52
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_windows_job_objects.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 216
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/m3_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 27
+
+[[debt]]
+lint = "dead_code"
+path = "tests/m3_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 36
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_workflow_receipt_regression.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 18
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_workflow_receipt_regression.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 27
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_workflow_receipt_regression.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 29
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 28
+
+[[debt]]
+lint = "dead_code"
+path = "tests/m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 37
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/m1_gate_simple.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/m1_gate_simple_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 21
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/security_path_traversal.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 8
+
+[[debt]]
+lint = "dead_code"
+path = "tests/security_path_traversal.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 17
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 107
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 161
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 228
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 285
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 389
+
+[[debt]]
+lint = "unused_imports"
+path = "tests/test_unix_process_termination.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 452
+
+[[debt]]
+lint = "clippy::permissions_set_readonly_false"
+path = "tests/test_fixup_apply_mode.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 490
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/test_m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 23
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 32
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 34
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 36
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_m4_gate_validation.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 38
+
+[[debt]]
+lint = "unused_mut"
+path = "tests/command_injection_tests.rs"
+owner = "xchecker-maintainers"
+reason = "mut needed on Unix for .output().await"
+expires = "2026-08-01"
+last_seen_line = 79
+
+[[debt]]
+lint = "clippy::duplicated_attributes"
+path = "tests/golden_pipeline_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 2
+
+[[debt]]
+lint = "clippy::duplicate_mod"
+path = "tests/golden_pipeline_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 25
+
+[[debt]]
+lint = "dead_code"
+path = "tests/golden_pipeline_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 34
+
+[[debt]]
+lint = "dead_code"
+path = "tests/test_support/mod.rs"
+owner = "xchecker-maintainers"
+reason = "Existing suppression captured as temporary lint-policy debt during strict baseline rollout."
+expires = "2026-08-01"
+last_seen_line = 5
+
+[[debt]]
+lint = "dead_code"
+path = "tests/doc_validation/code_examples_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Retained for parity with jq flags"
+expires = "2026-08-01"
+last_seen_line = 672
+
+[[debt]]
+lint = "dead_code"
+path = "tests/doc_validation/common.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 222
+
+[[debt]]
+lint = "dead_code"
+path = "tests/doc_validation/changelog_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 135
+
+[[debt]]
+lint = "dead_code"
+path = "tests/doc_validation/changelog_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 254
+
+[[debt]]
+lint = "dead_code"
+path = "tests/doc_validation/changelog_tests.rs"
+owner = "xchecker-maintainers"
+reason = "Reserved for future test cases"
+expires = "2026-08-01"
+last_seen_line = 387

@@ -1,0 +1,28 @@
+schema_version = "1.0"
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflow definitions are platform-required YAML."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "docs/**"
+kind = "documentation"
+owner = "docs"
+reason = "Project documentation is authored in Markdown and schema files."
+surface = "docs"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "schemas/**"
+kind = "json_schema"
+owner = "contracts"
+reason = "JSON schemas are the published machine-readable contracts."
+surface = "contracts"
+classification = "config"
+covered_by = ["cargo test --features dev-tools --test doc_validation -- --test-threads=1"]

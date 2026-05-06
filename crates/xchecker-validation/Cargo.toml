@@ -13,3 +13,6 @@ keywords.workspace = true
 [dependencies]
 xchecker-utils = { workspace = true }
 regex = { workspace = true }
+
+[lints]
+workspace = true
