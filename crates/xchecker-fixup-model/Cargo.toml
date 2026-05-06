@@ -12,3 +12,6 @@ keywords.workspace = true
 
 [dependencies]
 # No external dependencies - this is a pure types crate
+
+[lints]
+workspace = true

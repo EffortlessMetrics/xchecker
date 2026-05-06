@@ -157,7 +157,7 @@ pub struct PromotionLock {
 }
 
 /// Drift pair showing locked vs current value
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DriftPair {
     /// Value from lockfile
     pub locked: String,
@@ -1065,19 +1065,13 @@ impl FileLock {
     fn is_process_running(pid: u32) -> bool {
         #[cfg(unix)]
         {
-            // On Unix systems, use kill(pid, 0) to check if process exists
-            // Returns 0 if process exists and we can signal it
-            // Returns -1 with ESRCH if process doesn't exist
-            // Returns -1 with EPERM if process exists but we lack permission
-            let rc = unsafe { libc::kill(pid as i32, 0) };
-            if rc == 0 {
-                true
-            } else {
-                // If EPERM, the process exists but we can't signal it
-                matches!(
-                    io::Error::last_os_error().raw_os_error(),
-                    Some(code) if code == libc::EPERM
-                )
+            // On Unix systems, signal 0 checks whether a process exists.
+            // EPERM still means the process exists, but this user cannot signal it.
+            let pid = nix::unistd::Pid::from_raw(pid as i32);
+            match nix::sys::signal::kill(pid, None) {
+                Ok(()) => true,
+                Err(nix::errno::Errno::EPERM) => true,
+                Err(_) => false,
             }
         }
 

@@ -1,0 +1,5 @@
+schema_version = "0.3"
+
+# Panic-family exceptions are intentionally empty. Add only semantic entries
+# keyed by path + family + selector, with owner, classification, explanation,
+# optional expires, and advisory last_seen coordinates.

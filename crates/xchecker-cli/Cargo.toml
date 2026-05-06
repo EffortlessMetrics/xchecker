@@ -19,3 +19,6 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
+
+[lints]
+workspace = true

@@ -19,3 +19,6 @@ tempfile = { workspace = true }
 
 [dev-dependencies]
 xchecker-utils = { workspace = true, features = ["test-utils"] }
+
+[lints]
+workspace = true

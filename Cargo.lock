@@ -4391,7 +4391,7 @@ dependencies = [
  "camino",
  "chrono",
  "fd-lock",
- "libc",
+ "nix 0.31.1",
  "proptest",
  "serde",
  "serde_json",
@@ -4608,6 +4608,14 @@ dependencies = [
  "serde_yaml_ng",
  "tempfile",
  "xchecker-utils",
+]
+
+[[package]]
+name = "xtask"
+version = "1.2.0"
+dependencies = [
+ "chrono",
+ "toml",
 ]
 
 [[package]]

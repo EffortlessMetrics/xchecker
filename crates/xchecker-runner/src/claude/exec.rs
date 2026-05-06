@@ -133,21 +133,14 @@ impl Runner {
         stdin_content: &str,
         timeout_duration: Option<Duration>,
     ) -> Result<ClaudeResponse, RunnerError> {
-        #[allow(unused_mut)]
+        #[allow(unused_mut)] // Existing suppression carried forward as reviewed lint policy debt.
         let mut cmd = self.native_command_spec(args).to_tokio_command();
 
         // Set process group on Unix for killpg support
         #[cfg(unix)]
         {
-            #[allow(unused_imports)]
-            use std::os::unix::process::CommandExt;
-            unsafe {
-                cmd.pre_exec(|| {
-                    // Create a new process group
-                    libc::setpgid(0, 0);
-                    Ok(())
-                });
-            }
+            // Create a new process group for killpg support.
+            cmd.process_group(0);
         }
 
         self.execute_with_command(
