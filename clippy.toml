@@ -1,0 +1,3 @@
+# Repository-specific Clippy policy only. Do not add test carveouts here.
+# Disallowed methods/types/macros may be added once xchecker has domain-specific
+# process, filesystem, or provider-boundary rules to enforce.

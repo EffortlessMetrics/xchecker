@@ -1,0 +1,5 @@
+schema_version = "0.3"
+
+# Global default: no panic-family calls in production or tests. Any temporary
+# exception must use path + family + selector identity plus owner, explanation,
+# classification, and optional expiry. last_seen is advisory only.

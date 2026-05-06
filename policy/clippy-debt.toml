@@ -1,0 +1,39 @@
+schema = 1
+
+# Temporary, reviewed repo-local exceptions belong here. Each entry must carry
+# a lint, path, owner, reason, and expiry; expired entries fail the policy gate.
+
+[[debt]]
+lint = "rust::unsafe_code"
+path = "crates/xchecker-lock/src/lib.rs"
+owner = "runner-locking"
+reason = "Unix process existence probing currently calls libc::kill; migrate behind a reviewed runner abstraction before promoting unsafe_code to forbid."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "rust::unsafe_code"
+path = "crates/xchecker-runner/src/**/*.rs"
+owner = "runner-locking"
+reason = "Process-group and signal handling still use platform unsafe calls; isolate and document before promoting unsafe_code to forbid."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "rust::unsafe_code"
+path = "crates/xchecker-llm/src/**/*.rs"
+owner = "provider-runtime"
+reason = "Provider process-group setup and test environment mutation still use unsafe calls; move process-group handling into xchecker-runner and centralize environment mutation helpers before promoting unsafe_code to forbid."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "rust::unsafe_code"
+path = "crates/xchecker-utils/src/test_support.rs"
+owner = "test-infra"
+reason = "Test environment mutation helpers wrap Rust 2024 unsafe env APIs; document the serial-safety contract before promoting unsafe_code to forbid."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "rust::unsafe_code"
+path = "crates/xchecker-config/src/config/mod.rs"
+owner = "config"
+reason = "Configuration tests mutate environment variables directly; migrate to the shared test environment helper before promoting unsafe_code to forbid."
+expires = "2026-07-01"

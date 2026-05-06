@@ -1,0 +1,14 @@
+schema_version = "1.0"
+
+# Rust is the default implementation language. Non-Rust programming surfaces
+# require a structured policy receipt with owner, reason, surface,
+# classification, and CI coverage.
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflow definitions are platform-required YAML."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]

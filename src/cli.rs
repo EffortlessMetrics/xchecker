@@ -3021,7 +3021,6 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
     // Check if spec already exists
     if spec_dir.exists() {
         println!("  Spec directory already exists: {}", spec_dir.display());
-
     } else {
         // Create directory structure (ignore benign races)
         crate::paths::ensure_dir_all(&artifacts_dir).with_context(|| {
@@ -3252,10 +3251,7 @@ fn check_lockfile_drift(
             );
         }
         if let Some(gate_set) = &drift.gate_set_version {
-            eprintln!(
-                "  Gate set: {} → {}",
-                gate_set.locked, gate_set.current
-            );
+            eprintln!("  Gate set: {} → {}", gate_set.locked, gate_set.current);
         }
         if let Some(prompt_pack) = &drift.prompt_pack_version {
             eprintln!(
