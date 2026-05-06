@@ -1,9 +1,9 @@
 [package]
-name = "xchecker-selectors"
+name = "xtask"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "File selector patterns and glob matching for xchecker"
+publish = false
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -14,9 +14,6 @@ keywords.workspace = true
 workspace = true
 
 [dependencies]
-globset = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
-xchecker-utils = { workspace = true }
-
-[dev-dependencies]
-xchecker-utils = { workspace = true, features = ["test-utils"] }
+toml = { workspace = true }

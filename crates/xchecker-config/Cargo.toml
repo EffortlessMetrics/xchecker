@@ -13,6 +13,9 @@ keywords.workspace = true
 [features]
 test-utils = []
 
+[lints]
+workspace = true
+
 [dependencies]
 xchecker-utils = { workspace = true }
 xchecker-redaction = { workspace = true }

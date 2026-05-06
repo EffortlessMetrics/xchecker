@@ -141,6 +141,13 @@ impl Runner {
         {
             #[allow(unused_imports)]
             use std::os::unix::process::CommandExt;
+            // SAFETY: pre_exec must run after fork and before exec. The closure only
+            // calls the async-signal-safe setpgid syscall to isolate the child
+            // process group for later termination.
+            #[expect(
+                unsafe_code,
+                reason = "Unix process-group setup requires pre_exec FFI boundary"
+            )]
             unsafe {
                 cmd.pre_exec(|| {
                     // Create a new process group

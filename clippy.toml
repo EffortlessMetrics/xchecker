@@ -1,0 +1,3 @@
+# xchecker does not define repo-specific disallowed methods, types, macros, or
+# fields yet. Keep this file free of test carveouts; exceptions belong in
+# policy/clippy-debt.toml or narrow #[expect(..., reason = "...")] attributes.

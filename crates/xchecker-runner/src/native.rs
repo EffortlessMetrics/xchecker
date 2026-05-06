@@ -165,7 +165,13 @@ impl NativeRunner {
     fn terminate_process(pid: u32) {
         #[cfg(unix)]
         {
-            // Send SIGKILL to the process
+            // Send SIGKILL to the process.
+            // SAFETY: libc::kill is the platform syscall for signaling a PID; the
+            // caller supplies the PID obtained from the spawned child process.
+            #[expect(
+                unsafe_code,
+                reason = "Unix process termination requires kill syscall FFI"
+            )]
             unsafe {
                 libc::kill(pid as i32, libc::SIGKILL);
             }

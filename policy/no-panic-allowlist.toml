@@ -1,0 +1,5 @@
+schema_version = "0.3"
+
+# No panic-family exceptions are currently allowlisted. If one is unavoidable,
+# add an [[allow]] entry with path + family + selector identity, advisory
+# last_seen location, owner, classification, explanation, and optional expires.

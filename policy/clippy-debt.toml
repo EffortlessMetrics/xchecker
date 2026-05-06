@@ -1,0 +1,5 @@
+schema = 1
+
+# Temporary repo-specific lint exceptions belong here. New entries must include
+# lint, path, owner, reason, and expires. Keep this ledger empty unless a PR
+# deliberately introduces reviewed, expiring debt.

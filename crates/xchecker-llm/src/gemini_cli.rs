@@ -256,6 +256,12 @@ impl LlmBackend for GeminiCliBackend {
         {
             #[allow(unused_imports)]
             use std::os::unix::process::CommandExt;
+            // SAFETY: pre_exec runs in the child after fork and before exec. The
+            // closure only calls setpgid to isolate the Gemini process group.
+            #[expect(
+                unsafe_code,
+                reason = "Unix process-group setup requires pre_exec FFI boundary"
+            )]
             unsafe {
                 cmd.pre_exec(|| {
                     // Create a new process group
