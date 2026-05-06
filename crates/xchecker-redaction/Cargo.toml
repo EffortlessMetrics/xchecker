@@ -13,6 +13,9 @@ keywords.workspace = true
 [features]
 dev-tools = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 regex = { workspace = true }

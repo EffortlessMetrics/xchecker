@@ -14,6 +14,9 @@ keywords.workspace = true
 test-utils = ["dep:strum", "xchecker-lock/test-utils"]
 dev-tools = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }

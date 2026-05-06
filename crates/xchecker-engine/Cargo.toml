@@ -14,6 +14,9 @@ keywords.workspace = true
 test-utils = ["dep:strum"]
 legacy_claude = []
 
+[lints]
+workspace = true
+
 [dependencies]
 xchecker-utils = { workspace = true }
 xchecker-config = { workspace = true }

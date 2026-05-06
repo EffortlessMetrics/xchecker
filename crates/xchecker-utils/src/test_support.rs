@@ -28,6 +28,10 @@ impl EnvVarGuard {
     pub fn set(key: &str, value: &str) -> Self {
         let original = std::env::var_os(key);
         // SAFETY: Caller ensures test serialization via #[serial]. Value restored on drop.
+        #[expect(
+            unsafe_code,
+            reason = "test env mutation is serialized by EnvVarGuard contract"
+        )]
         unsafe {
             std::env::set_var(key, value);
         }
@@ -45,6 +49,10 @@ impl EnvVarGuard {
     pub fn cleared(key: &str) -> Self {
         let original = std::env::var_os(key);
         // SAFETY: Caller ensures test serialization via #[serial]. Value restored on drop.
+        #[expect(
+            unsafe_code,
+            reason = "test env mutation is serialized by EnvVarGuard contract"
+        )]
         unsafe {
             std::env::remove_var(key);
         }
@@ -59,8 +67,24 @@ impl Drop for EnvVarGuard {
     fn drop(&mut self) {
         // SAFETY: Restoring env var to prior state; caller ensured serialization.
         match &self.original {
-            Some(value) => unsafe { std::env::set_var(&self.key, value) },
-            None => unsafe { std::env::remove_var(&self.key) },
+            Some(value) => {
+                #[expect(
+                    unsafe_code,
+                    reason = "test env restoration is serialized by EnvVarGuard contract"
+                )]
+                unsafe {
+                    std::env::set_var(&self.key, value);
+                }
+            }
+            None => {
+                #[expect(
+                    unsafe_code,
+                    reason = "test env restoration is serialized by EnvVarGuard contract"
+                )]
+                unsafe {
+                    std::env::remove_var(&self.key);
+                }
+            }
         }
     }
 }

@@ -179,7 +179,11 @@ pub mod test_utils {
 
         // Remove all XCHECKER_* environment variables
         for key in keys {
-            // SAFETY: Called only in test contexts with proper synchronization
+            // SAFETY: Called only in test contexts with proper synchronization.
+            #[expect(
+                unsafe_code,
+                reason = "test-only config environment cleanup is serialized by callers"
+            )]
             unsafe {
                 env::remove_var(&key);
             }

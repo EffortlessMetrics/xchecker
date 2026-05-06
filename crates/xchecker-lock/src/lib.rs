@@ -157,7 +157,7 @@ pub struct PromotionLock {
 }
 
 /// Drift pair showing locked vs current value
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DriftPair {
     /// Value from lockfile
     pub locked: String,
@@ -1069,6 +1069,12 @@ impl FileLock {
             // Returns 0 if process exists and we can signal it
             // Returns -1 with ESRCH if process doesn't exist
             // Returns -1 with EPERM if process exists but we lack permission
+            // SAFETY: kill(pid, 0) does not deliver a signal; it only asks the OS
+            // whether the process exists and whether the caller may signal it.
+            #[expect(
+                unsafe_code,
+                reason = "libc exposes process-existence probing as unsafe FFI"
+            )]
             let rc = unsafe { libc::kill(pid as i32, 0) };
             if rc == 0 {
                 true
@@ -1788,7 +1794,9 @@ mod tests {
         requirements.parent_receipt_path = Some("receipts/requirements.json".to_string());
         requirements.parent_packet_lineage = vec!["packet-req-1".to_string()];
         requirements.warnings = vec!["minor-style-warning".to_string()];
-        requirements.save().expect("Failed to save requirements promotion");
+        requirements
+            .save()
+            .expect("Failed to save requirements promotion");
 
         let mut design = PromotionLock::new(
             spec_id.to_string(),
@@ -1801,7 +1809,8 @@ mod tests {
             }],
         );
         design.approved_by = Some("policy-engine".to_string());
-        design.parent_packet_lineage = vec!["packet-req-1".to_string(), "packet-design-1".to_string()];
+        design.parent_packet_lineage =
+            vec!["packet-req-1".to_string(), "packet-design-1".to_string()];
         design.save().expect("Failed to save design promotion");
 
         let loaded = PromotionLock::load(spec_id, "requirements")
