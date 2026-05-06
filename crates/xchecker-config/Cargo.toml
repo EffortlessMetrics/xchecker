@@ -26,3 +26,6 @@ camino = { workspace = true }
 [dev-dependencies]
 xchecker-utils = { workspace = true, features = ["test-utils"] }
 tempfile = { workspace = true }
+
+[lints]
+workspace = true

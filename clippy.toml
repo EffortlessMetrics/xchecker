@@ -1,0 +1,3 @@
+# xchecker keeps Clippy behavior in Cargo.toml and policy/clippy-lints.toml.
+# This file is reserved for repo-specific disallowed-methods/types/macros.
+# Do not add test carveouts such as allow-unwrap-in-tests or allow-panic-in-tests.

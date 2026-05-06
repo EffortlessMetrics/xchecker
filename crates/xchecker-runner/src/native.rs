@@ -165,10 +165,9 @@ impl NativeRunner {
     fn terminate_process(pid: u32) {
         #[cfg(unix)]
         {
-            // Send SIGKILL to the process
-            unsafe {
-                libc::kill(pid as i32, libc::SIGKILL);
-            }
+            // Send SIGKILL to the process.
+            let target = nix::unistd::Pid::from_raw(pid as i32);
+            let _signal_result = nix::sys::signal::kill(target, nix::sys::signal::Signal::SIGKILL);
         }
 
         #[cfg(windows)]

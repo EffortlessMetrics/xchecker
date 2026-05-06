@@ -24,7 +24,7 @@ pub(crate) struct GeminiCliBackend {
     /// Path to the Gemini CLI binary
     binary_path: PathBuf,
     /// Runner for executing Gemini CLI (reserved for future use with unified execution)
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Existing suppression carried forward as reviewed lint policy debt.
     runner: Runner,
     /// Default model to use
     default_model: String,
@@ -254,15 +254,7 @@ impl LlmBackend for GeminiCliBackend {
         // Set process group on Unix for killpg support
         #[cfg(unix)]
         {
-            #[allow(unused_imports)]
-            use std::os::unix::process::CommandExt;
-            unsafe {
-                cmd.pre_exec(|| {
-                    // Create a new process group
-                    libc::setpgid(0, 0);
-                    Ok(())
-                });
-            }
+            cmd.process_group(0);
         }
 
         // Execute with timeout
