@@ -21,3 +21,6 @@ tracing = { workspace = true }
 [dev-dependencies]
 # For testing
 xchecker-utils = { workspace = true, features = ["test-utils"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,6 @@
+schema_version = "0.3"
+
+# Semantic no-panic allowlist entries live here when a panic-family call cannot
+# be removed immediately. Identity is path + family + selector; last_seen is
+# advisory only. This initial policy PR establishes the schema and leaves the
+# large no-panic migration for follow-up cleanup PRs.

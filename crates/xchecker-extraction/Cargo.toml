@@ -12,3 +12,6 @@ keywords.workspace = true
 
 [dependencies]
 regex = { workspace = true }
+
+[lints]
+workspace = true
