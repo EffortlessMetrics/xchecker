@@ -10,15 +10,20 @@ use anyhow::{Context, Result};
 use crate::error::{PhaseError, XCheckerError};
 use crate::exit_codes;
 use crate::fixup::{FixupMode, FixupPhase};
-use crate::hooks::{HookContext, HookExecutor, HookType, execute_and_process_hook};
 use crate::packet::PacketBuilder;
 use crate::phase::{Phase, PhaseContext};
 use crate::phases::{DesignPhase, RequirementsPhase, ReviewPhase, TasksPhase};
 use crate::status::artifact::{Artifact, ArtifactType};
-use crate::types::{ErrorKind, FileType, LlmInfo, PacketEvidence, PhaseId, PipelineInfo};
+use crate::types::{ErrorKind, PacketEvidence, PhaseId, PipelineInfo};
 
-use super::llm::{ClaudeExecutionMetadata, LlmInvocationError};
+use super::llm::ClaudeExecutionMetadata;
 use super::{OrchestratorConfig, PhaseOrchestrator, PhaseTimeout};
+
+mod artifacts;
+mod hooks;
+mod llm_step;
+mod packet;
+mod receipts;
 
 /// Result of executing a phase through the orchestrator.
 ///
@@ -653,588 +658,54 @@ impl PhaseOrchestrator {
         config: &OrchestratorConfig,
     ) -> Result<ExecutionResult> {
         let phase_id = phase.id();
-        let pipeline_info = Some(PipelineInfo {
-            execution_strategy: Some("controlled".to_string()),
-        });
 
-        // Step 0: Remove stale .partial/ directories (FR-ORC-003, FR-ORC-007)
         self.artifact_manager()
             .remove_stale_partial_dir()
             .with_context(|| "Failed to remove stale .partial/ directory")?;
 
-        // Step 1: Validate transition (already done before calling this method)
-        // Step 2: Acquire exclusive lock (already done in constructor)
+        let hooks = self.run_pre_phase_hook(phase_id, config).await?;
+        if let Some(abort) = hooks.abort {
+            return Ok(abort);
+        }
 
-        // Create phase context
-        let phase_context = self.create_phase_context(phase_id, config)?;
+        let phase_input = self.prepare_phase_packet(phase, config)?;
 
-        // Check dependencies (Requirements phase has no deps)
-        self.check_phase_dependencies(phase)?;
+        if let Some(secret_result) = self.write_secret_detected_result(
+            phase_id,
+            config,
+            phase_input.packet.evidence.clone(),
+            &phase_input.packet.content,
+        )? {
+            return Ok(secret_result);
+        }
 
-        // Execute pre-phase hook if configured
-        // Hooks run from invocation CWD so relative paths like ./scripts/... work
-        let mut hook_warnings: Vec<String> = Vec::new();
-        if let Some(ref hooks_config) = config.hooks
-            && let Some(hook_config) = hooks_config.get_pre_phase_hook(phase_id)
+        self.store_packet_context_files(phase_id, &phase_input.packet.content, config)?;
+
+        let llm = match self
+            .execute_llm_step(
+                phase_id,
+                config,
+                &phase_input.prompt,
+                &phase_input.packet.content,
+                phase_input.packet.evidence.clone(),
+            )
+            .await?
         {
-            let executor = HookExecutor::new(
-                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
-            );
-            let context = HookContext::new(self.spec_id(), phase_id, HookType::PrePhase);
-
-            match execute_and_process_hook(
-                &executor,
-                hook_config,
-                &context,
-                HookType::PrePhase,
-                phase_id,
-            )
-            .await
-            {
-                Ok(outcome) => {
-                    if let Some(warning) = outcome.warning() {
-                        hook_warnings.push(warning.to_warning_string());
-                    }
-                    if !outcome.should_continue() {
-                        // Pre-hook failed with on_fail=fail - abort phase but still create receipt
-                        let error_reason = format!(
-                            "Pre-phase hook failed: {}",
-                            outcome.error().map(|e| e.to_string()).unwrap_or_default()
-                        );
-
-                        // Create failure receipt for hook failure (audit trail requirement)
-                        let packet_evidence = PacketEvidence {
-                            files: vec![],
-                            max_bytes: 65536,
-                            max_lines: 1200,
-                        };
-                        let mut flags = HashMap::new();
-                        flags.insert("phase".to_string(), phase_id.as_str().to_string());
-                        flags.insert("hook_failure".to_string(), "pre_phase".to_string());
-
-                        // Use config values for truthful failure receipts (no hard-coded metadata)
-                        let configured_model =
-                            config.config.get("model").map_or("unknown", |s| s.as_str());
-                        let configured_runner = config
-                            .config
-                            .get("runner_mode")
-                            .map_or("unknown", |s| s.as_str());
-
-                        let receipt = self.receipt_manager().create_receipt_with_redactor(
-                            config.redactor.as_ref(),
-                            self.spec_id(),
-                            phase_id,
-                            exit_codes::codes::CLAUDE_FAILURE,
-                            vec![], // No outputs
-                            env!("CARGO_PKG_VERSION"),
-                            "unknown", // Claude hasn't run yet, so version is unknown
-                            configured_model,
-                            None,
-                            flags,
-                            packet_evidence,
-                            None,
-                            None,
-                            hook_warnings.clone(),
-                            None,
-                            configured_runner,
-                            None,
-                            Some(ErrorKind::ClaudeFailure),
-                            Some(error_reason.clone()),
-                            None,
-                            pipeline_info.clone(),
-                        );
-
-                        let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-                        return Ok(ExecutionResult {
-                            phase: phase_id,
-                            success: false,
-                            exit_code: exit_codes::codes::CLAUDE_FAILURE,
-                            artifact_paths: vec![],
-                            receipt_path: Some(receipt_path.into_std_path_buf()),
-                            error: Some(error_reason),
-                        });
-                    }
-                }
-                Err(e) => {
-                    // Hook execution error - treat as failure but still create receipt
-                    let error_reason = format!("Pre-phase hook error: {}", e);
-
-                    // Create failure receipt for hook error (audit trail requirement)
-                    let packet_evidence = PacketEvidence {
-                        files: vec![],
-                        max_bytes: 65536,
-                        max_lines: 1200,
-                    };
-                    let mut flags = HashMap::new();
-                    flags.insert("phase".to_string(), phase_id.as_str().to_string());
-                    flags.insert("hook_error".to_string(), "pre_phase".to_string());
-
-                    // Use config values for truthful failure receipts (no hard-coded metadata)
-                    let configured_model =
-                        config.config.get("model").map_or("unknown", |s| s.as_str());
-                    let configured_runner = config
-                        .config
-                        .get("runner_mode")
-                        .map_or("unknown", |s| s.as_str());
-
-                    let receipt = self.receipt_manager().create_receipt_with_redactor(
-                        config.redactor.as_ref(),
-                        self.spec_id(),
-                        phase_id,
-                        exit_codes::codes::CLAUDE_FAILURE,
-                        vec![], // No outputs
-                        env!("CARGO_PKG_VERSION"),
-                        "unknown", // Claude hasn't run yet, so version is unknown
-                        configured_model,
-                        None,
-                        flags,
-                        packet_evidence,
-                        None,
-                        None,
-                        vec![format!("hook_error:pre_phase:{}", e)],
-                        None,
-                        configured_runner,
-                        None,
-                        Some(ErrorKind::ClaudeFailure),
-                        Some(error_reason.clone()),
-                        None,
-                        pipeline_info.clone(),
-                    );
-
-                    let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-                    return Ok(ExecutionResult {
-                        phase: phase_id,
-                        success: false,
-                        exit_code: exit_codes::codes::CLAUDE_FAILURE,
-                        artifact_paths: vec![],
-                        receipt_path: Some(receipt_path.into_std_path_buf()),
-                        error: Some(error_reason),
-                    });
-                }
-            }
-        }
-
-        // Generate prompt
-        let prompt = phase.prompt(&phase_context);
-
-        // Step 3: Build packet (FR-ORC-003)
-        let packet = phase.make_packet(&phase_context).map_err(|e| {
-            XCheckerError::Phase(PhaseError::PacketCreationFailed {
-                phase: phase_id.as_str().to_string(),
-                reason: e.to_string(),
-            })
-        })?;
-
-        // Log packet hash and budget usage for visibility
-        let budget = packet.budget_usage();
-        tracing::info!(
-            target: "xchecker::packet",
-            spec_id = %self.spec_id(),
-            phase = %phase_id.as_str(),
-            packet_hash = %packet.hash(),
-            bytes_used = budget.bytes_used,
-            bytes_limit = budget.max_bytes,
-            lines_used = budget.lines_used,
-            lines_limit = budget.max_lines,
-            "Built packet for phase"
-        );
-
-        // Step 4: Scan for secrets (FR-ORC-003, FR-SEC)
-        let redactor = config.redactor.as_ref();
-
-        // Check for secrets in the packet content
-        if redactor.has_secrets(&packet.content, "packet")? {
-            let matches = redactor.scan_for_secrets(&packet.content, "packet")?;
-
-            // Create error receipt for secret detection (FR-SEC, FR-EXIT)
-            let packet_evidence = packet.evidence.clone();
-            let mut flags = HashMap::new();
-            flags.insert("phase".to_string(), phase_id.as_str().to_string());
-
-            let secret_patterns: Vec<String> =
-                matches.iter().map(|m| m.pattern_id.clone()).collect();
-            let error_reason = format!(
-                "Secret detected in packet. Matched patterns: {}",
-                secret_patterns.join(", ")
-            );
-
-            let receipt = self.receipt_manager().create_receipt_with_redactor(
-                config.redactor.as_ref(),
-                self.spec_id(),
-                phase_id,
-                exit_codes::codes::SECRET_DETECTED, // Exit code 8
-                vec![],                             // No successful outputs
-                env!("CARGO_PKG_VERSION"),
-                "0.8.1", // Default Claude CLI version
-                "haiku", // Default model
-                None,    // No model alias
-                flags,
-                packet_evidence,
-                None, // No stderr_tail
-                None, // No stderr_redacted
-                vec![format!("Secret detection prevented Claude invocation")],
-                None,     // No fallback
-                "native", // Default runner
-                None,     // No runner distro
-                Some(ErrorKind::SecretDetected),
-                Some(error_reason.clone()),
-                None, // No diff_context,
-                pipeline_info.clone(),
-            );
-
-            let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-            return Ok(ExecutionResult {
-                phase: phase_id,
-                success: false,
-                exit_code: exit_codes::codes::SECRET_DETECTED,
-                artifact_paths: vec![],
-                receipt_path: Some(receipt_path.into_std_path_buf()),
-                error: Some(error_reason),
-            });
-        }
-
-        // Store packet for debugging/preview
-        let _packet_preview_path = self
-            .artifact_manager()
-            .store_context_file(&format!("{}-packet", phase_id.as_str()), &packet.content)?;
-
-        // Write full debug packet if --debug-packet flag is set (FR-PKT-006, FR-PKT-007)
-        // Only write after secret scan passes; file is excluded from receipts
-        let debug_packet_enabled = config
-            .config
-            .get("debug_packet")
-            .is_some_and(|s| s == "true");
-
-        if debug_packet_enabled {
-            // Get context directory from artifact manager
-            let context_dir = self.artifact_manager().context_path();
-
-            // Create a temporary PacketBuilder just to call write_debug_packet
-            // (This is a bit awkward but maintains the existing API)
-            let temp_builder = PacketBuilder::new().map_err(|e| {
-                XCheckerError::Phase(PhaseError::PacketCreationFailed {
-                    phase: phase_id.as_str().to_string(),
-                    reason: format!("Failed to create PacketBuilder for debug packet: {e}"),
-                })
-            })?;
-
-            if let Err(e) =
-                temp_builder.write_debug_packet(&packet.content, phase_id.as_str(), &context_dir)
-            {
-                // Log warning but don't fail the operation (debug packet is optional)
-                eprintln!("Warning: Failed to write debug packet: {e}");
-            }
-        }
-
-        // Execute LLM (or simulate in dry-run mode)
-        let mut llm_fallback_warning: Option<String> = None;
-        let (claude_response, claude_exit_code, claude_metadata, llm_result) = if config.dry_run {
-            let simulated_llm = self.simulate_llm_result(phase_id);
-            let simulated_metadata = super::llm::ClaudeExecutionMetadata {
-                model_alias: None,
-                model_full_name: "haiku".to_string(),
-                claude_cli_version: "0.8.1".to_string(),
-                fallback_used: false,
-                runner: "simulated".to_string(),
-                runner_distro: None,
-                stderr_tail: None,
-            };
-            (
-                self.simulate_claude_response(phase_id, &prompt),
-                0,
-                Some(simulated_metadata),
-                Some(simulated_llm),
-            )
-        } else {
-            // Use new LLM backend abstraction (V11: Claude CLI only)
-            match self
-                .run_llm_invocation(&prompt, &packet.content, phase_id, config)
-                .await
-            {
-                Ok((response, exit_code, metadata, result, fallback_warning)) => {
-                    llm_fallback_warning = fallback_warning;
-                    (response, exit_code, metadata, result)
-                }
-                Err(e) => {
-                    let (xchecker_err, fallback_warning) =
-                        if let Some(invocation_err) = e.downcast_ref::<LlmInvocationError>() {
-                            (
-                                invocation_err.error(),
-                                invocation_err.fallback_warning().map(|s| s.to_string()),
-                            )
-                        } else if let Some(xchecker_err) = e.downcast_ref::<XCheckerError>() {
-                            (xchecker_err, None)
-                        } else {
-                            return Err(e);
-                        };
-
-                    llm_fallback_warning = fallback_warning;
-
-                    // Check if this is a budget exhaustion error by downcasting
-                    if let XCheckerError::Llm(llm_err) = xchecker_err {
-                        if matches!(llm_err, crate::llm::LlmError::BudgetExceeded { .. }) {
-                            // Handle budget exhaustion specially - create receipt with budget_exhausted flag
-                            let packet_evidence = packet.evidence.clone();
-                            let mut flags = HashMap::new();
-                            flags.insert("phase".to_string(), phase_id.as_str().to_string());
-
-                            // Use config values for truthful failure receipts (no hard-coded metadata)
-                            let configured_model =
-                                config.config.get("model").map_or("unknown", |s| s.as_str());
-                            let configured_runner = config
-                                .config
-                                .get("runner_mode")
-                                .map_or("unknown", |s| s.as_str());
-
-                            let mut warnings = vec![format!("LLM budget exhausted: {}", llm_err)];
-                            if let Some(ref warning) = llm_fallback_warning {
-                                warnings.push(warning.clone());
-                            }
-
-                            let mut receipt = self.receipt_manager().create_receipt_with_redactor(
-                                config.redactor.as_ref(),
-                                self.spec_id(),
-                                phase_id,
-                                exit_codes::codes::CLAUDE_FAILURE, // Exit code 70
-                                vec![],                            // No successful outputs
-                                env!("CARGO_PKG_VERSION"),
-                                "unknown", // Claude hasn't completed, so version is unknown
-                                configured_model,
-                                None, // No model alias
-                                flags,
-                                packet_evidence,
-                                None, // No stderr_tail
-                                None, // No stderr_redacted
-                                warnings,
-                                None, // No fallback
-                                configured_runner,
-                                None, // No runner distro
-                                Some(ErrorKind::ClaudeFailure),
-                                Some(llm_err.to_string()),
-                                None, // No diff_context
-                                pipeline_info.clone(),
-                            );
-
-                            // Attach LlmInfo with budget_exhausted flag
-                            receipt.llm = Some(LlmInfo::for_budget_exhaustion());
-
-                            let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-                            return Ok(ExecutionResult {
-                                phase: phase_id,
-                                success: false,
-                                exit_code: exit_codes::codes::CLAUDE_FAILURE,
-                                artifact_paths: vec![],
-                                receipt_path: Some(receipt_path.into_std_path_buf()),
-                                error: Some(llm_err.to_string()),
-                            });
-                        }
-
-                        let packet_evidence = packet.evidence.clone();
-                        let mut flags = HashMap::new();
-                        flags.insert("phase".to_string(), phase_id.as_str().to_string());
-
-                        // Use config values for truthful failure receipts (no hard-coded metadata)
-                        let configured_model =
-                            config.config.get("model").map_or("unknown", |s| s.as_str());
-                        let configured_runner = config
-                            .config
-                            .get("runner_mode")
-                            .map_or("unknown", |s| s.as_str());
-
-                        let (exit_code, error_kind) =
-                            exit_codes::error_to_exit_code_and_kind(xchecker_err);
-
-                        let invocation =
-                            self.build_llm_invocation(phase_id, &prompt, &packet.content, config);
-                        let provider = self
-                            .config_from_orchestrator_config(config)
-                            .llm
-                            .provider
-                            .unwrap_or_else(|| "claude-cli".to_string());
-
-                        let mut llm_info = LlmInfo {
-                            provider: Some(provider),
-                            model_used: if invocation.model.is_empty() {
-                                None
-                            } else {
-                                Some(invocation.model.clone())
-                            },
-                            tokens_input: None,
-                            tokens_output: None,
-                            timed_out: None,
-                            timeout_seconds: Some(invocation.timeout.as_secs()),
-                            budget_exhausted: None,
-                        };
-
-                        let mut warnings = Vec::new();
-                        match llm_err {
-                            crate::llm::LlmError::Timeout { duration } => {
-                                llm_info.timed_out = Some(true);
-                                llm_info.timeout_seconds = Some(duration.as_secs());
-                                warnings.push(format!("phase_timeout:{}", duration.as_secs()));
-                            }
-                            _ => {
-                                llm_info.timed_out = Some(false);
-                                warnings.push(format!("llm_error:{}", llm_err));
-                            }
-                        }
-                        if let Some(ref warning) = llm_fallback_warning {
-                            warnings.push(warning.clone());
-                        }
-
-                        let mut receipt = self.receipt_manager().create_receipt_with_redactor(
-                            config.redactor.as_ref(),
-                            self.spec_id(),
-                            phase_id,
-                            exit_code,
-                            vec![], // No successful outputs
-                            env!("CARGO_PKG_VERSION"),
-                            "unknown", // Claude hasn't completed, so version is unknown
-                            configured_model,
-                            None, // No model alias
-                            flags,
-                            packet_evidence,
-                            None, // No stderr_tail
-                            None, // No stderr_redacted
-                            warnings,
-                            None, // No fallback
-                            configured_runner,
-                            None, // No runner distro
-                            Some(error_kind),
-                            Some(llm_err.to_string()),
-                            None, // No diff_context
-                            pipeline_info.clone(),
-                        );
-
-                        receipt.llm = Some(llm_info);
-
-                        let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-                        return Ok(ExecutionResult {
-                            phase: phase_id,
-                            success: false,
-                            exit_code,
-                            artifact_paths: vec![],
-                            receipt_path: Some(receipt_path.into_std_path_buf()),
-                            error: Some(llm_err.to_string()),
-                        });
-                    }
-                    // For other errors, propagate normally
-                    return Err(e);
-                }
-            }
+            llm_step::LlmStepOutcome::Completed(llm) => llm,
+            llm_step::LlmStepOutcome::Failed(result) => return Ok(result),
         };
 
-        // Handle Claude CLI failure (R4.3)
-        if claude_exit_code != 0 {
-            // Save partial output as required by R4.3
-            let partial_filename = format!(
-                "{:02}-{}.partial.md",
-                self.get_phase_number(phase_id),
-                phase_id.as_str().to_lowercase()
-            );
-
-            let partial_result = self.artifact_manager().store_artifact(&Artifact {
-                name: partial_filename.clone(),
-                content: claude_response.clone(),
-                artifact_type: ArtifactType::Partial,
-                blake3_hash: blake3::hash(claude_response.as_bytes())
-                    .to_hex()
-                    .to_string(),
-            })?;
-            let partial_path = partial_result.path;
-
-            // Create failure receipt with stderr_tail and warnings (R4.3)
-            // Use the actual packet evidence from the packet that was created
-            let packet_evidence = packet.evidence.clone();
-
-            let mut flags = HashMap::new();
-            flags.insert("phase".to_string(), phase_id.as_str().to_string());
-
-            let (model_alias, model_full_name) = if let Some(metadata) = &claude_metadata {
-                (
-                    metadata.model_alias.clone(),
-                    metadata.model_full_name.clone(),
-                )
-            } else {
-                (None, "haiku".to_string())
-            };
-
-            let mut warnings = vec!["Phase execution failed with non-zero exit code".to_string()];
-            if let Some(ref warning) = llm_fallback_warning {
-                warnings.push(warning.clone());
-            }
-
-            let mut receipt = self.receipt_manager().create_receipt_with_redactor(
-                config.redactor.as_ref(),
-                self.spec_id(),
+        if llm.exit_code != 0 {
+            return self.write_nonzero_llm_result(
                 phase_id,
-                claude_exit_code,
-                vec![], // No successful outputs
-                env!("CARGO_PKG_VERSION"),
-                claude_metadata
-                    .as_ref()
-                    .map_or("0.8.1", |m| m.claude_cli_version.as_str()),
-                &model_full_name,
-                model_alias,
-                flags,
-                packet_evidence,
-                Some("Claude CLI execution failed".to_string()), // stderr_tail
-                None,                                            // stderr_redacted
-                warnings,
-                claude_metadata.as_ref().map(|m| m.fallback_used),
-                claude_metadata
-                    .as_ref()
-                    .map_or("native", |m| m.runner.as_str()),
-                claude_metadata
-                    .as_ref()
-                    .and_then(|m| m.runner_distro.clone()),
-                Some(ErrorKind::ClaudeFailure),
-                Some("Claude CLI execution failed".to_string()),
-                None, // No diff_context
-                pipeline_info.clone(),
+                config,
+                phase_input.packet.evidence.clone(),
+                llm,
             );
-
-            receipt.llm = llm_result.map(|result| result.into_llm_info());
-
-            let receipt_path = self.receipt_manager().write_receipt(&receipt)?;
-
-            // Create enhanced error with stderr information (R4.3)
-            let stderr_info = claude_metadata
-                .as_ref()
-                .and_then(|m| m.stderr_tail.clone())
-                .unwrap_or_else(|| "No stderr captured".to_string());
-
-            let enhanced_error = if !stderr_info.is_empty() && stderr_info != "No stderr captured" {
-                XCheckerError::Phase(PhaseError::ExecutionFailedWithStderr {
-                    phase: phase_id.as_str().to_string(),
-                    code: claude_exit_code,
-                    stderr_tail: stderr_info,
-                })
-            } else {
-                XCheckerError::Phase(PhaseError::PartialOutputSaved {
-                    phase: phase_id.as_str().to_string(),
-                    partial_path: format!("artifacts/{partial_filename}"),
-                })
-            };
-
-            return Ok(ExecutionResult {
-                phase: phase_id,
-                success: false,
-                exit_code: claude_exit_code,
-                artifact_paths: vec![partial_path.into_std_path_buf()], // Include partial artifact
-                receipt_path: Some(receipt_path.into_std_path_buf()),
-                error: Some(enhanced_error.to_string()),
-            });
         }
 
-        // Process Claude response
         let phase_result = phase
-            .postprocess(&claude_response, &phase_context)
+            .postprocess(&llm.response, &phase_input.context)
             .with_context(|| {
                 format!(
                     "Failed to postprocess response for phase: {}",
@@ -1242,184 +713,29 @@ impl PhaseOrchestrator {
                 )
             })?;
 
-        // Step 7: Write partial artifacts to .partial/ subdirectory (FR-ORC-004)
-        let mut artifact_paths = Vec::new();
-        let mut output_hashes = Vec::new();
-        let mut atomic_write_warnings = Vec::new();
-
-        for artifact in &phase_result.artifacts {
-            // Store to .partial/ staging directory first
-            let partial_result = self
-                .artifact_manager()
-                .store_partial_staged_artifact(artifact)
-                .with_context(|| format!("Failed to store partial artifact: {}", artifact.name))?;
-
-            // Collect atomic write warnings
-            for warning in &partial_result.atomic_write_result.warnings {
-                atomic_write_warnings.push(format!("{}: {}", artifact.name, warning));
-            }
-
-            // Create file hash for receipt (using final content)
-            // Determine file type from extension for proper canonicalization
-            let file_type = if let Some(ext) = std::path::Path::new(&artifact.name).extension() {
-                FileType::from_extension(ext.to_str().unwrap_or(""))
-            } else {
-                // Fallback to artifact type if no extension
-                match artifact.artifact_type {
-                    ArtifactType::Markdown => FileType::Markdown,
-                    ArtifactType::CoreYaml => FileType::Yaml,
-                    _ => FileType::Text,
-                }
-            };
-
-            let file_hash = self
-                .receipt_manager()
-                .create_file_hash(
-                    &format!("artifacts/{}", artifact.name),
-                    &artifact.content,
-                    file_type,
-                    phase_id.as_str(),
-                )
-                .map_err(|e| {
-                    XCheckerError::Phase(PhaseError::OutputValidationFailed {
-                        phase: phase_id.as_str().to_string(),
-                        reason: e.to_string(),
-                    })
-                })?;
-
-            output_hashes.push(file_hash);
-        }
-
-        // Step 8: Promote to final (atomic rename) (FR-ORC-004)
-        for artifact in &phase_result.artifacts {
-            let final_path = self
-                .artifact_manager()
-                .promote_staged_to_final(&artifact.name)
-                .with_context(|| {
-                    format!("Failed to promote artifact to final: {}", artifact.name)
-                })?;
-
-            artifact_paths.push(final_path.into_std_path_buf());
-        }
-
-        // Step 9: Create and write receipt (FR-ORC-005, FR-ORC-006)
-        // Use the actual packet evidence from the packet that was created
-        let packet_evidence = packet.evidence.clone();
-
-        let mut flags = HashMap::new();
-        flags.insert("phase".to_string(), phase_id.as_str().to_string());
-
-        let (model_alias, model_full_name) = if let Some(metadata) = &claude_metadata {
-            (
-                metadata.model_alias.clone(),
-                metadata.model_full_name.clone(),
-            )
-        } else {
-            (None, "haiku".to_string())
-        };
-
-        let mut warnings: Vec<String> = atomic_write_warnings
+        let stored_artifacts = self.store_success_artifacts(phase_id, &phase_result)?;
+        let warnings = stored_artifacts
+            .warnings
             .into_iter()
-            .chain(hook_warnings.iter().cloned())
+            .chain(hooks.warnings.into_iter())
             .collect();
-        if let Some(warning) = llm_fallback_warning {
-            warnings.push(warning);
-        }
-
-        let mut receipt = self.receipt_manager().create_receipt_with_redactor(
-            config.redactor.as_ref(),
-            self.spec_id(),
+        let receipt_path = self.write_success_result(
             phase_id,
-            0, // Success exit code
-            output_hashes,
-            env!("CARGO_PKG_VERSION"),
-            claude_metadata
-                .as_ref()
-                .map_or("0.8.1", |m| m.claude_cli_version.as_str()),
-            &model_full_name,
-            model_alias,
-            flags,
-            packet_evidence,
-            None,     // No stderr_tail for successful execution
-            None,     // No stderr_redacted for successful execution
-            warnings, // Include atomic write warnings, hook warnings, and LLM fallback warning
-            claude_metadata.as_ref().map(|m| m.fallback_used),
-            claude_metadata
-                .as_ref()
-                .map_or("native", |m| m.runner.as_str()),
-            claude_metadata
-                .as_ref()
-                .and_then(|m| m.runner_distro.clone()),
-            None, // No error_kind for successful execution
-            None, // No error_reason for successful execution
-            None, // No diff_context
-            pipeline_info.clone(),
-        );
-        // Set LLM info from the invocation result (V11+ multi-provider support)
-        receipt.llm = llm_result.map(|r| r.into_llm_info());
+            config,
+            phase_input.packet.evidence,
+            stored_artifacts.output_hashes,
+            warnings,
+            llm,
+        )?;
 
-        let receipt_path = self
-            .receipt_manager()
-            .write_receipt(&receipt)
-            .with_context(|| format!("Failed to write receipt for phase: {}", phase_id.as_str()))?;
-
-        // Execute post-phase hook if configured (runs on success)
-        // Hooks run from invocation CWD so relative paths like ./scripts/... work
-        // Note: Post-hook failures are treated as warnings, not phase failures
-        // (artifacts have already been created and receipt written)
-        if let Some(ref hooks_config) = config.hooks
-            && let Some(hook_config) = hooks_config.get_post_phase_hook(phase_id)
-        {
-            let executor = HookExecutor::new(
-                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
-            );
-            let context = HookContext::new(self.spec_id(), phase_id, HookType::PostPhase);
-
-            match execute_and_process_hook(
-                &executor,
-                hook_config,
-                &context,
-                HookType::PostPhase,
-                phase_id,
-            )
-            .await
-            {
-                Ok(outcome) => {
-                    // Log any warnings from successful or failed hooks
-                    if let Some(warning) = outcome.warning() {
-                        tracing::warn!(
-                            phase = %phase_id.as_str(),
-                            "Post-phase hook warning: {}",
-                            warning.to_warning_string()
-                        );
-                    }
-                    // Check if hook wanted to fail but we treat it as warning
-                    // (post-hooks run after artifacts are created, so we don't fail the phase)
-                    if !outcome.should_continue() {
-                        tracing::warn!(
-                            phase = %phase_id.as_str(),
-                            "Post-phase hook had on_fail=fail but phase artifacts already created; treating as warning"
-                        );
-                    }
-                }
-                Err(e) => {
-                    // Log hook execution errors but don't fail the phase
-                    // (artifacts are already created at this point)
-                    tracing::warn!(
-                        phase = %phase_id.as_str(),
-                        error = %e,
-                        "Post-phase hook execution error (treated as warning)"
-                    );
-                }
-            }
-        }
+        self.run_post_phase_hook(phase_id, config).await;
 
         Ok(ExecutionResult {
             phase: phase_id,
             success: true,
             exit_code: 0,
-            artifact_paths,
-            receipt_path: Some(receipt_path.into_std_path_buf()),
+            artifact_paths: stored_artifacts.paths,
+            receipt_path: Some(receipt_path),
             error: None,
         })
     }
