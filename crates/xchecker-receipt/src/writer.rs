@@ -97,7 +97,7 @@ impl ReceiptManager {
         }
 
         // Sort by emitted_at timestamp
-        receipts.sort_by(|a, b| a.emitted_at.cmp(&b.emitted_at));
+        receipts.sort_by_key(|receipt| receipt.emitted_at);
 
         Ok(receipts)
     }
