@@ -32,6 +32,7 @@ Solve specific problems.
 | [Security](guides/SECURITY.md) | Secret scanning, custom patterns, best practices |
 | [Debugging](guides/DEBUGGING.md) | Troubleshoot errors and inspect artifacts |
 | [CI Setup](guides/CI_SETUP.md) | Set up xchecker in GitHub Actions or GitLab CI |
+| [Verification](VERIFICATION.md) | README badge meanings, generated endpoints, and PR evidence boundaries |
 | [Platform Setup](guides/PLATFORM.md) | Windows, macOS, Linux, and WSL configuration |
 | [Workspaces](guides/WORKSPACE.md) | Manage multi-spec projects |
 | [Claude Code Integration](guides/CLAUDE_CODE.md) | Use xchecker from Claude Code |
