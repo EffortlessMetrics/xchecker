@@ -1,6 +1,7 @@
 [workspace]
 members = [
     ".",
+    "xtask",
     "crates/xchecker-gate",
     "crates/xchecker-phase-api",
     "crates/xchecker-utils",
