@@ -1,0 +1,141 @@
+name: RIPR PR Evidence
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: ripr-pr-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  ripr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install ripr
+        run: cargo install ripr --locked
+
+      - name: Fetch base branch
+        if: github.base_ref != ''
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Configure RIPR revisions
+        shell: bash
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          echo "RIPR_BASE=origin/${base_ref}" >> "$GITHUB_ENV"
+          echo "RIPR_HEAD=HEAD" >> "$GITHUB_ENV"
+
+      - name: RIPR PR evidence
+        run: cargo xtask ripr-pr
+
+      - name: RIPR review guidance
+        run: cargo xtask ripr-review-comments
+
+      - name: RIPR PR contract
+        if: always()
+        run: cargo xtask ripr-pr --check
+
+      - name: RIPR review contract
+        if: always()
+        run: cargo xtask ripr-review-comments --check
+
+      - name: Impacted evidence
+        id: impacted_evidence
+        shell: bash
+        run: |
+          cargo xtask impacted-evidence
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          impacted = json.loads(Path("target/xtask/impacted-evidence/latest.json").read_text())
+          ripr = impacted.get("ripr") or {}
+
+          print(f"requires_targeted_mutation={str(bool(impacted.get('requires_targeted_mutation'))).lower()}")
+          print(f"ripr_severe_gap={str(bool(ripr.get('requires_targeted_evidence'))).lower()}")
+          PY
+
+      - name: Targeted full-owner mutation
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'mutation/full-owner') }}
+        run: cargo xtask mutants-pr --changed --full-owner --dry-run
+
+      - name: Targeted mutation
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'mutation/full-owner') && (contains(github.event.pull_request.labels.*.name, 'mutation') || contains(github.event.pull_request.labels.*.name, 'release-risk') || steps.impacted_evidence.outputs.requires_targeted_mutation == 'true' || steps.impacted_evidence.outputs.ripr_severe_gap == 'true') }}
+        run: cargo xtask mutants-pr --changed --dry-run
+
+      - name: PR evidence summary
+        if: always()
+        run: |
+          {
+            echo "# PR Evidence Summary"
+            echo
+            echo "## Fast Gate"
+            echo
+            echo "| Check | Status |"
+            echo "| --- | --- |"
+            echo "| ripr-pr | see job status |"
+            echo "| ripr-review | see job status |"
+            echo "| impacted-evidence | see job status |"
+            echo
+            echo "## RIPR"
+            echo
+            if [ -f target/ripr/review/comments.md ]; then
+              cat target/ripr/review/comments.md
+            else
+              echo "No RIPR review guidance produced."
+            fi
+            echo
+            echo "## Targeted Mutation"
+            echo
+            echo "- Required: ${{ steps.impacted_evidence.outputs.requires_targeted_mutation == 'true' || steps.impacted_evidence.outputs.ripr_severe_gap == 'true' }}"
+            echo "- Step: label-routed dry-run when requested"
+            echo
+            echo "## Artifacts"
+            echo
+            echo "- ripr-pr: target/ripr/pr/"
+            echo "- ripr-review: target/ripr/review/"
+            echo "- impacted-evidence: target/xtask/impacted-evidence/"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: RIPR annotations
+        if: always()
+        run: python scripts/ripr-annotations.py
+
+      - name: Upload RIPR PR evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ripr-pr
+          path: target/ripr/pr
+          if-no-files-found: warn
+
+      - name: Upload RIPR review guidance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ripr-review
+          path: target/ripr/review
+          if-no-files-found: warn
+
+      - name: Upload impacted evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: impacted-evidence
+          path: target/xtask/impacted-evidence
+          if-no-files-found: warn
