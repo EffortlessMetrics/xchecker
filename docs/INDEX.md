@@ -82,4 +82,5 @@ For xchecker developers.
 
 | Document | Description |
 |----------|-------------|
+| [Verification](VERIFICATION.md) | README badge meanings, generated endpoints, and PR evidence boundaries |
 | [Roadmap](ROADMAP.md) | Now / Next / Later priorities |
