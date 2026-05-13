@@ -47,6 +47,7 @@ Look things up.
 | [Configuration Reference](reference/CONFIGURATION.md) | All config keys, env vars, and defaults |
 | [JSON Contracts](reference/CONTRACTS.md) | Schema versioning and stability guarantees |
 | [Schemas](reference/SCHEMAS.md) | JSON schema file index |
+| [Verification](VERIFICATION.md) | README badge meanings, generated endpoints, and PR evidence boundaries |
 | [Structured Logging](reference/STRUCTURED_LOGGING.md) | Log fields and filtering |
 
 ## Explanation
