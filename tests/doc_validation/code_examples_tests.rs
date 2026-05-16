@@ -730,10 +730,8 @@ impl ScanState {
             '\'' => self.in_single = true,
             '"' => self.in_double = true,
             '(' => self.paren_depth += 1,
-            ')' => {
-                if self.paren_depth > 0 {
-                    self.paren_depth -= 1;
-                }
+            ')' if self.paren_depth > 0 => {
+                self.paren_depth -= 1;
             }
             _ => {}
         }

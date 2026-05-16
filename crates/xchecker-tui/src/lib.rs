@@ -307,25 +307,17 @@ where
         {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
-                KeyCode::Up | KeyCode::Char('k') => {
-                    if !app.show_details {
-                        app.select_previous();
-                    }
+                KeyCode::Up | KeyCode::Char('k') if !app.show_details => {
+                    app.select_previous();
                 }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    if !app.show_details {
-                        app.select_next();
-                    }
+                KeyCode::Down | KeyCode::Char('j') if !app.show_details => {
+                    app.select_next();
                 }
-                KeyCode::Home => {
-                    if !app.show_details {
-                        app.select_first();
-                    }
+                KeyCode::Home if !app.show_details => {
+                    app.select_first();
                 }
-                KeyCode::End => {
-                    if !app.show_details {
-                        app.select_last();
-                    }
+                KeyCode::End if !app.show_details => {
+                    app.select_last();
                 }
                 KeyCode::Enter => app.toggle_details(),
                 KeyCode::Esc => {

@@ -5,21 +5,14 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use crossterm::style::{Color, Stylize};
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use std::time::Duration;
 
 // Stable public API imports from crate root
 // _Requirements: FR-CLI-2_
-use crate::{
-    CliArgs, Config, ExitCode, OrchestratorConfig, OrchestratorHandle, PhaseId, XCheckerError,
-    emit_jcs,
-};
+use crate::{CliArgs, Config, ExitCode, OrchestratorHandle, PhaseId, XCheckerError, emit_jcs};
 
 // Internal module imports (not part of stable public API)
 use crate::atomic_write::write_file_atomic;
@@ -30,50 +23,22 @@ use crate::redaction::SecretRedactor;
 use crate::source::SourceResolver;
 use crate::spec_id::sanitize_spec_id;
 
-/// Check if colored output should be used.
-///
-/// Returns true only if:
-/// - stdout is a terminal (TTY)
-/// - NO_COLOR environment variable is not set
-fn use_color() -> bool {
-    std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
-}
+mod error_context;
+mod locking;
+mod orchestrator_config;
+mod output;
+mod spinner;
 
-/// Return a styled check mark (✓) if colors are enabled, otherwise plain.
-fn styled_check() -> String {
-    if use_color() {
-        format!("{}", "✓".with(Color::Green).bold())
-    } else {
-        "✓".to_string()
-    }
-}
-
-/// Return a styled warning mark (⚠) if colors are enabled, otherwise plain.
-fn styled_warning() -> String {
-    if use_color() {
-        format!("{}", "⚠".with(Color::Yellow).bold())
-    } else {
-        "⚠".to_string()
-    }
-}
-
-/// Return styled success text if colors are enabled, otherwise plain.
-fn styled_success(text: &str) -> String {
-    if use_color() {
-        format!("{}", text.with(Color::Green).bold())
-    } else {
-        text.to_string()
-    }
-}
-
-/// Return styled info text (cyan) if colors are enabled, otherwise plain.
-fn styled_info(text: &str) -> String {
-    if use_color() {
-        format!("{}", text.with(Color::Cyan).bold())
-    } else {
-        text.to_string()
-    }
-}
+use error_context::enhance_error_context;
+use locking::{build_flow_context, check_lockfile_drift, detect_claude_cli_version};
+use orchestrator_config::build_orchestrator_config;
+#[cfg(test)]
+use orchestrator_config::create_default_config;
+use output::{
+    emit_resume_json, emit_spec_json, emit_status_json, emit_workspace_history_json,
+    emit_workspace_status_json, styled_check, styled_info, styled_success, styled_warning,
+};
+use spinner::SpinnerGuard;
 
 /// xchecker - Claude orchestration tool for spec generation
 #[derive(Parser)]
@@ -1367,19 +1332,6 @@ fn execute_spec_json_command(spec_id: &str, config: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Emit spec output as canonical JSON using JCS (RFC 8785)
-fn emit_spec_json(output: &crate::types::SpecOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit spec JSON")
-}
-
-/// Emit status output as canonical JSON using JCS (RFC 8785)
-/// Per FR-Claude Code-CLI (Requirements 4.1.2): Returns compact status summary
-fn emit_status_json(output: &crate::types::StatusJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit status JSON")
-}
-
 /// Execute the resume --json command (FR-Claude Code-CLI: Claude Code CLI Surfaces)
 /// Returns JSON with schema_version, spec_id, phase, current_inputs, next_steps
 /// Excludes full packet and raw artifacts per Requirements 4.1.3, 4.1.4
@@ -1534,13 +1486,6 @@ fn generate_next_steps_hint(
         }
         PhaseId::Final => "Run final phase to complete the spec generation workflow.".to_string(),
     }
-}
-
-/// Emit resume output as canonical JSON using JCS (RFC 8785)
-/// Per FR-Claude Code-CLI (Requirements 4.1.3): Returns resume context without full packet/artifacts
-fn emit_resume_json(output: &crate::types::ResumeJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit resume JSON")
 }
 
 /// Execute the status command
@@ -2483,230 +2428,6 @@ fn execute_clean_command(spec_id: &str, hard: bool, force: bool, _config: &Confi
     Ok(())
 }
 
-/// Create default configuration from Config struct and CLI args
-fn create_default_config(
-    verbose: bool,
-    config: &Config,
-    cli_args: &CliArgs,
-) -> HashMap<String, String> {
-    let mut config_map = HashMap::new();
-
-    if verbose {
-        config_map.insert("verbose".to_string(), "true".to_string());
-    }
-
-    // Use values from the configuration system
-    if let Some(packet_max_bytes) = config.defaults.packet_max_bytes {
-        config_map.insert("packet_max_bytes".to_string(), packet_max_bytes.to_string());
-    }
-
-    if let Some(packet_max_lines) = config.defaults.packet_max_lines {
-        config_map.insert("packet_max_lines".to_string(), packet_max_lines.to_string());
-    }
-
-    if let Some(max_turns) = config.defaults.max_turns {
-        config_map.insert("max_turns".to_string(), max_turns.to_string());
-    }
-
-    if let Some(model) = &config.defaults.model {
-        config_map.insert("model".to_string(), model.clone());
-    }
-
-    if let Some(output_format) = &config.defaults.output_format {
-        config_map.insert("output_format".to_string(), output_format.clone());
-    }
-
-    if let Some(phase_timeout) = config.defaults.phase_timeout {
-        config_map.insert("phase_timeout".to_string(), phase_timeout.to_string());
-    }
-
-    if let Some(stdout_cap_bytes) = config.defaults.stdout_cap_bytes {
-        config_map.insert("stdout_cap_bytes".to_string(), stdout_cap_bytes.to_string());
-    }
-
-    if let Some(stderr_cap_bytes) = config.defaults.stderr_cap_bytes {
-        config_map.insert("stderr_cap_bytes".to_string(), stderr_cap_bytes.to_string());
-    }
-
-    if let Some(lock_ttl_seconds) = config.defaults.lock_ttl_seconds {
-        config_map.insert("lock_ttl_seconds".to_string(), lock_ttl_seconds.to_string());
-    }
-
-    if let Some(debug_packet) = config.defaults.debug_packet
-        && debug_packet
-    {
-        config_map.insert("debug_packet".to_string(), "true".to_string());
-    }
-
-    if let Some(allow_links) = config.defaults.allow_links
-        && allow_links
-    {
-        config_map.insert("allow_links".to_string(), "true".to_string());
-    }
-
-    if let Some(runner_mode) = &config.runner.mode {
-        config_map.insert("runner_mode".to_string(), runner_mode.clone());
-    }
-
-    if let Some(runner_distro) = &config.runner.distro {
-        config_map.insert("runner_distro".to_string(), runner_distro.clone());
-    }
-
-    if let Some(claude_path) = &config.runner.claude_path {
-        config_map.insert("claude_path".to_string(), claude_path.clone());
-    }
-
-    if let Some(provider) = &config.llm.provider {
-        config_map.insert("llm_provider".to_string(), provider.clone());
-    }
-
-    if let Some(fallback_provider) = &config.llm.fallback_provider {
-        config_map.insert(
-            "llm_fallback_provider".to_string(),
-            fallback_provider.clone(),
-        );
-    }
-
-    if let Some(execution_strategy) = &config.llm.execution_strategy {
-        config_map.insert("execution_strategy".to_string(), execution_strategy.clone());
-    }
-
-    if let Some(prompt_template) = &config.llm.prompt_template {
-        config_map.insert("prompt_template".to_string(), prompt_template.clone());
-    }
-
-    if let Some(claude_config) = &config.llm.claude
-        && let Some(binary) = &claude_config.binary
-    {
-        config_map.insert("llm_claude_binary".to_string(), binary.clone());
-    }
-
-    if let Some(gemini_config) = &config.llm.gemini {
-        if let Some(binary) = &gemini_config.binary {
-            config_map.insert("llm_gemini_binary".to_string(), binary.clone());
-        }
-        if let Some(default_model) = &gemini_config.default_model {
-            config_map.insert(
-                "llm_gemini_default_model".to_string(),
-                default_model.clone(),
-            );
-        }
-    }
-
-    // Add new CLI arguments (R7.2, R7.4, R9.2)
-    if !cli_args.allow.is_empty() {
-        config_map.insert("allowed_tools".to_string(), cli_args.allow.join(","));
-    }
-
-    if !cli_args.deny.is_empty() {
-        config_map.insert("disallowed_tools".to_string(), cli_args.deny.join(","));
-    }
-
-    if cli_args.dangerously_skip_permissions {
-        config_map.insert(
-            "dangerously_skip_permissions".to_string(),
-            "true".to_string(),
-        );
-    }
-
-    if !cli_args.ignore_secret_pattern.is_empty() {
-        config_map.insert(
-            "ignore_secret_patterns".to_string(),
-            cli_args.ignore_secret_pattern.join("|"),
-        );
-    }
-
-    if !cli_args.extra_secret_pattern.is_empty() {
-        config_map.insert(
-            "extra_secret_patterns".to_string(),
-            cli_args.extra_secret_pattern.join("|"),
-        );
-    }
-
-    // Add debug_packet flag (FR-PKT-006, FR-PKT-007) for CLI-only overrides
-    if cli_args.debug_packet {
-        config_map.insert("debug_packet".to_string(), "true".to_string());
-    }
-
-    config_map
-}
-
-/// Build an OrchestratorConfig from CLI parameters.
-///
-/// This helper reduces duplication between execute_spec_command and execute_resume_command
-/// by combining create_default_config with the common additional parameters.
-///
-/// # Arguments
-/// * `dry_run` - Whether to run in simulation mode
-/// * `verbose` - Enable verbose logging
-/// * `apply_fixups` - Whether to apply fixups (true) or preview (false)
-/// * `config` - The loaded xchecker configuration
-/// * `cli_args` - CLI arguments passed by the user
-/// * `problem_statement` - Optional problem statement to include in phase prompts
-fn build_orchestrator_config(
-    dry_run: bool,
-    verbose: bool,
-    apply_fixups: bool,
-    config: &Config,
-    cli_args: &CliArgs,
-    problem_statement: Option<&str>,
-    redactor: Arc<SecretRedactor>,
-) -> OrchestratorConfig {
-    let mut config_map = create_default_config(verbose, config, cli_args);
-    config_map.insert("logger_enabled".to_string(), verbose.to_string());
-    config_map.insert("apply_fixups".to_string(), apply_fixups.to_string());
-
-    // Include problem statement in config for prompt construction (FR-PKT)
-    if let Some(ps) = problem_statement {
-        config_map.insert("problem_statement".to_string(), ps.to_string());
-    }
-
-    OrchestratorConfig {
-        dry_run,
-        config: config_map,
-        full_config: Some(config.clone()),
-        selectors: Some(config.selectors.clone()),
-        strict_validation: config.strict_validation(),
-        redactor,
-        hooks: Some(config.hooks.clone()),
-    }
-}
-
-/// Enhance error reporting for common failure scenarios
-fn enhance_error_context(error: &anyhow::Error) -> Option<Vec<String>> {
-    let error_str = error.to_string();
-
-    if error_str.contains("Failed to create orchestrator") {
-        Some(vec![
-            "Check that the current directory is writable".to_string(),
-            "Ensure sufficient disk space is available".to_string(),
-            "Verify directory permissions".to_string(),
-            "Try running from a different directory".to_string(),
-        ])
-    } else if error_str.contains("Failed to execute") {
-        Some(vec![
-            "Check the spec ID is valid and doesn't contain special characters".to_string(),
-            "Verify Claude CLI is installed and accessible".to_string(),
-            "Try running with --dry-run to test configuration".to_string(),
-            "Check your internet connection if using Claude API".to_string(),
-        ])
-    } else if error_str.contains("Permission denied") {
-        Some(vec![
-            "Check file and directory permissions".to_string(),
-            "Ensure you have write access to the current directory".to_string(),
-            "Try running from your home directory or a writable location".to_string(),
-        ])
-    } else if error_str.contains("No such file or directory") {
-        Some(vec![
-            "Verify the specified paths exist".to_string(),
-            "Check that you're running from the correct directory".to_string(),
-            "Ensure all required files are present".to_string(),
-        ])
-    } else {
-        None
-    }
-}
-
 /// Execute the test command for integration validation
 fn execute_test_command(components: bool, smoke: bool, verbose: bool) -> Result<()> {
     use crate::integration_tests;
@@ -3021,7 +2742,6 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
     // Check if spec already exists
     if spec_dir.exists() {
         println!("  Spec directory already exists: {}", spec_dir.display());
-
     } else {
         // Create directory structure (ignore benign races)
         crate::paths::ensure_dir_all(&artifacts_dir).with_context(|| {
@@ -3125,226 +2845,6 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
     println!("     xchecker resume {spec_id} --phase requirements");
 
     Ok(())
-}
-
-/// Detect Claude CLI version by running `claude --version`
-fn detect_claude_cli_version() -> Result<String> {
-    use crate::runner::CommandSpec;
-
-    let output = CommandSpec::new("claude")
-        .arg("--version")
-        .to_command()
-        .output()
-        .context("Failed to execute 'claude --version'")?;
-
-    if !output.status.success() {
-        return Err(anyhow::anyhow!(
-            "claude --version exited with non-zero status"
-        ));
-    }
-
-    let version_str = String::from_utf8(output.stdout)
-        .context("Failed to parse claude --version output as UTF-8")?;
-
-    // Parse version from output (format: "claude 0.8.1" or similar)
-    let version = version_str
-        .split_whitespace()
-        .last()
-        .ok_or_else(|| anyhow::anyhow!("Failed to parse version from output"))?
-        .to_string();
-
-    Ok(version)
-}
-
-fn build_flow_context(config: &Config) -> crate::lock::FlowContext {
-    let execution_strategy = config
-        .llm
-        .execution_strategy
-        .as_deref()
-        .unwrap_or("controlled");
-    let provider = config.llm.provider.as_deref().unwrap_or("unspecified");
-    let prompt_template = config.llm.prompt_template.as_deref().unwrap_or("default");
-    let model = config.defaults.model.as_deref().unwrap_or("haiku");
-
-    crate::lock::FlowContext {
-        flow_version: format!("xchecker-kernel@{}", env!("CARGO_PKG_VERSION")),
-        stage_graph_version: "requirements-design-tasks-review-fixup-final.v1".to_string(),
-        gate_set_version: "xchecker-default-gates.v1".to_string(),
-        prompt_pack_version: format!("builtin:{prompt_template}"),
-        adapter_version: format!("strategy={execution_strategy};provider={provider}"),
-        provider_policy: format!("provider={provider};model={model}"),
-        tool_context_version: "builtin-tool-context.v1".to_string(),
-    }
-}
-
-/// Check for lockfile drift and warn or fail based on `strict_lock` flag
-fn check_lockfile_drift(
-    spec_id: &str,
-    strict_lock: bool,
-    model_full_name: &str,
-    claude_cli_version: &str,
-    config: &Config,
-) -> Result<Option<crate::types::LockDrift>> {
-    use crate::lock::{FlowLock, RunContext, XCheckerLock};
-
-    // Try to load lockfile
-    let lock = match XCheckerLock::load(spec_id) {
-        Ok(Some(lock)) => Some(lock),
-        Ok(None) => None,
-        Err(e) => {
-            eprintln!("⚠ Warning: Failed to load lockfile: {e}");
-            None
-        }
-    };
-
-    let legacy_drift = if let Some(lock) = lock {
-        let context = RunContext {
-            model_full_name: model_full_name.to_string(),
-            claude_cli_version: claude_cli_version.to_string(),
-            schema_version: "1".to_string(),
-        };
-        lock.detect_drift(&context)
-    } else {
-        None
-    };
-
-    let flow_drift = match FlowLock::load(spec_id) {
-        Ok(Some(lock)) => lock.detect_drift(&build_flow_context(config)),
-        Ok(None) => None,
-        Err(e) => {
-            eprintln!("⚠ Warning: Failed to load flow lock: {e}");
-            None
-        }
-    };
-
-    if let Some(drift) = &legacy_drift {
-        eprintln!("\n⚠ Lockfile drift detected for spec '{spec_id}':");
-
-        if let Some(model_drift) = &drift.model_full_name {
-            eprintln!("  Model: {} → {}", model_drift.locked, model_drift.current);
-        }
-
-        if let Some(cli_drift) = &drift.claude_cli_version {
-            eprintln!("  Claude CLI: {} → {}", cli_drift.locked, cli_drift.current);
-        }
-
-        if let Some(schema_drift) = &drift.schema_version {
-            eprintln!(
-                "  Schema: {} → {}",
-                schema_drift.locked, schema_drift.current
-            );
-        }
-    }
-
-    if let Some(drift) = &flow_drift {
-        eprintln!("\n⚠ Flow lock drift detected for spec '{spec_id}':");
-
-        if let Some(flow_version) = &drift.flow_version {
-            eprintln!(
-                "  Flow version: {} → {}",
-                flow_version.locked, flow_version.current
-            );
-        }
-        if let Some(stage_graph) = &drift.stage_graph_version {
-            eprintln!(
-                "  Stage graph: {} → {}",
-                stage_graph.locked, stage_graph.current
-            );
-        }
-        if let Some(gate_set) = &drift.gate_set_version {
-            eprintln!(
-                "  Gate set: {} → {}",
-                gate_set.locked, gate_set.current
-            );
-        }
-        if let Some(prompt_pack) = &drift.prompt_pack_version {
-            eprintln!(
-                "  Prompt pack: {} → {}",
-                prompt_pack.locked, prompt_pack.current
-            );
-        }
-        if let Some(adapter) = &drift.adapter_version {
-            eprintln!("  Adapter: {} → {}", adapter.locked, adapter.current);
-        }
-        if let Some(provider_policy) = &drift.provider_policy {
-            eprintln!(
-                "  Provider policy: {} → {}",
-                provider_policy.locked, provider_policy.current
-            );
-        }
-        if let Some(tool_context) = &drift.tool_context_version {
-            eprintln!(
-                "  Tool context: {} → {}",
-                tool_context.locked, tool_context.current
-            );
-        }
-    }
-
-    if strict_lock && (legacy_drift.is_some() || flow_drift.is_some()) {
-        eprintln!("\n✗ Strict lock mode enabled: failing due to drift");
-        eprintln!("  To proceed, either:");
-        eprintln!(
-            "    - Update the lockfiles: rm .xchecker/specs/{spec_id}/lock.json .xchecker/specs/{spec_id}/flow.lock && xchecker init {spec_id} --create-lock"
-        );
-        eprintln!("    - Remove --strict-lock flag to allow drift with warning");
-
-        return Err(anyhow::anyhow!("Lock drift detected in strict mode"));
-    }
-
-    if legacy_drift.is_some() || flow_drift.is_some() {
-        eprintln!("\n  Continuing with drift (use --strict-lock to fail on drift)");
-    }
-
-    Ok(legacy_drift)
-}
-
-struct SpinnerGuard {
-    running: Arc<AtomicBool>,
-    handle: Option<thread::JoinHandle<()>>,
-}
-
-impl SpinnerGuard {
-    fn new() -> Self {
-        let running = Arc::new(AtomicBool::new(true));
-        let running_clone = running.clone();
-
-        // Hide cursor to prevent flickering
-        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
-
-        let handle = thread::spawn(move || {
-            let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-            let mut i = 0;
-            while running_clone.load(Ordering::Relaxed) {
-                print!("\r{} Running health checks...", frames[i]);
-                let _ = std::io::stdout().flush();
-                i = (i + 1) % frames.len();
-                thread::sleep(Duration::from_millis(80));
-            }
-            // Clear the line when done (use crossterm for portability)
-            let _ = crossterm::execute!(
-                std::io::stdout(),
-                crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
-            );
-            print!("\r");
-            let _ = std::io::stdout().flush();
-        });
-
-        Self {
-            running,
-            handle: Some(handle),
-        }
-    }
-}
-
-impl Drop for SpinnerGuard {
-    fn drop(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-        // Restore cursor
-        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Show);
-    }
 }
 
 #[cfg(test)]
@@ -4494,7 +3994,6 @@ packet_max_lines = 5000
         use crate::receipt::ReceiptManager;
         use crate::types::{PacketEvidence, PhaseId};
         use std::collections::HashMap;
-
         // Create a spec with a receipt
         let spec_id = "test-spec-with-receipt";
         let base_path = crate::paths::spec_root(spec_id);
@@ -4556,7 +4055,6 @@ packet_max_lines = 5000
         use crate::receipt::ReceiptManager;
         use crate::types::{PacketEvidence, PhaseId};
         use std::collections::HashMap;
-
         // Create a spec with a failed receipt
         let spec_id = "test-spec-with-failed-receipt";
         let base_path = crate::paths::spec_root(spec_id);
@@ -4618,7 +4116,6 @@ packet_max_lines = 5000
         use crate::receipt::ReceiptManager;
         use crate::types::{PacketEvidence, PhaseId};
         use std::collections::HashMap;
-
         // Create a spec with multiple receipts
         let spec_id = "test-spec-multiple-receipts";
         let base_path = crate::paths::spec_root(spec_id);
@@ -5568,12 +5065,6 @@ fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
     crate::fixup::pending_fixups_for_spec(spec_id).targets
 }
 
-/// Emit workspace status output as canonical JSON using JCS (RFC 8785)
-fn emit_workspace_status_json(output: &crate::types::WorkspaceStatusJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit workspace status JSON")
-}
-
 /// Execute the project history command
 /// Per FR-WORKSPACE (Requirements 4.3.5): Emits timeline of phase progression
 fn execute_project_history_command(spec_id: &str, json: bool) -> Result<()> {
@@ -5768,14 +5259,6 @@ fn execute_project_history_command(spec_id: &str, json: bool) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Emit workspace history output as canonical JSON using JCS (RFC 8785)
-fn emit_workspace_history_json(
-    output: &crate::types::WorkspaceHistoryJsonOutput,
-) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit workspace history JSON")
 }
 
 /// Execute the project TUI command
