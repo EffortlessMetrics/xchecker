@@ -462,7 +462,7 @@ impl SecretRedactor {
             .collect();
 
         // Sort by ID for deterministic behavior
-        all_patterns.sort_by(|(id1, _), (id2, _)| id1.cmp(id2));
+        all_patterns.sort_by_key(|(id, _)| *id);
 
         for (id, regex) in all_patterns {
             if self.is_pattern_ignored(id) {
