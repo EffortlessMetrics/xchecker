@@ -157,7 +157,7 @@ pub struct PromotionLock {
 }
 
 /// Drift pair showing locked vs current value
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DriftPair {
     /// Value from lockfile
     pub locked: String,
