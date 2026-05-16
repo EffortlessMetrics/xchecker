@@ -5,14 +5,21 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use crossterm::style::{Color, Stylize};
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use std::time::Duration;
+
+mod display;
+mod json_output;
+mod template;
+
+use display::{SpinnerGuard, styled_check, styled_info, styled_success, styled_warning};
+use json_output::{
+    emit_resume_json, emit_spec_json, emit_status_json, emit_workspace_history_json,
+    emit_workspace_status_json,
+};
+use template::execute_template_command;
 
 // Stable public API imports from crate root
 // _Requirements: FR-CLI-2_
@@ -29,51 +36,6 @@ use crate::logging::Logger;
 use crate::redaction::SecretRedactor;
 use crate::source::SourceResolver;
 use crate::spec_id::sanitize_spec_id;
-
-/// Check if colored output should be used.
-///
-/// Returns true only if:
-/// - stdout is a terminal (TTY)
-/// - NO_COLOR environment variable is not set
-fn use_color() -> bool {
-    std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
-}
-
-/// Return a styled check mark (✓) if colors are enabled, otherwise plain.
-fn styled_check() -> String {
-    if use_color() {
-        format!("{}", "✓".with(Color::Green).bold())
-    } else {
-        "✓".to_string()
-    }
-}
-
-/// Return a styled warning mark (⚠) if colors are enabled, otherwise plain.
-fn styled_warning() -> String {
-    if use_color() {
-        format!("{}", "⚠".with(Color::Yellow).bold())
-    } else {
-        "⚠".to_string()
-    }
-}
-
-/// Return styled success text if colors are enabled, otherwise plain.
-fn styled_success(text: &str) -> String {
-    if use_color() {
-        format!("{}", text.with(Color::Green).bold())
-    } else {
-        text.to_string()
-    }
-}
-
-/// Return styled info text (cyan) if colors are enabled, otherwise plain.
-fn styled_info(text: &str) -> String {
-    if use_color() {
-        format!("{}", text.with(Color::Cyan).bold())
-    } else {
-        text.to_string()
-    }
-}
 
 /// xchecker - Claude orchestration tool for spec generation
 #[derive(Parser)]
@@ -1367,19 +1329,6 @@ fn execute_spec_json_command(spec_id: &str, config: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Emit spec output as canonical JSON using JCS (RFC 8785)
-fn emit_spec_json(output: &crate::types::SpecOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit spec JSON")
-}
-
-/// Emit status output as canonical JSON using JCS (RFC 8785)
-/// Per FR-Claude Code-CLI (Requirements 4.1.2): Returns compact status summary
-fn emit_status_json(output: &crate::types::StatusJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit status JSON")
-}
-
 /// Execute the resume --json command (FR-Claude Code-CLI: Claude Code CLI Surfaces)
 /// Returns JSON with schema_version, spec_id, phase, current_inputs, next_steps
 /// Excludes full packet and raw artifacts per Requirements 4.1.3, 4.1.4
@@ -1534,13 +1483,6 @@ fn generate_next_steps_hint(
         }
         PhaseId::Final => "Run final phase to complete the spec generation workflow.".to_string(),
     }
-}
-
-/// Emit resume output as canonical JSON using JCS (RFC 8785)
-/// Per FR-Claude Code-CLI (Requirements 4.1.3): Returns resume context without full packet/artifacts
-fn emit_resume_json(output: &crate::types::ResumeJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit resume JSON")
 }
 
 /// Execute the status command
@@ -3021,7 +2963,6 @@ fn execute_init_command(spec_id: &str, create_lock: bool, config: &Config) -> Re
     // Check if spec already exists
     if spec_dir.exists() {
         println!("  Spec directory already exists: {}", spec_dir.display());
-
     } else {
         // Create directory structure (ignore benign races)
         crate::paths::ensure_dir_all(&artifacts_dir).with_context(|| {
@@ -3252,10 +3193,7 @@ fn check_lockfile_drift(
             );
         }
         if let Some(gate_set) = &drift.gate_set_version {
-            eprintln!(
-                "  Gate set: {} → {}",
-                gate_set.locked, gate_set.current
-            );
+            eprintln!("  Gate set: {} → {}", gate_set.locked, gate_set.current);
         }
         if let Some(prompt_pack) = &drift.prompt_pack_version {
             eprintln!(
@@ -3296,55 +3234,6 @@ fn check_lockfile_drift(
     }
 
     Ok(legacy_drift)
-}
-
-struct SpinnerGuard {
-    running: Arc<AtomicBool>,
-    handle: Option<thread::JoinHandle<()>>,
-}
-
-impl SpinnerGuard {
-    fn new() -> Self {
-        let running = Arc::new(AtomicBool::new(true));
-        let running_clone = running.clone();
-
-        // Hide cursor to prevent flickering
-        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Hide);
-
-        let handle = thread::spawn(move || {
-            let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-            let mut i = 0;
-            while running_clone.load(Ordering::Relaxed) {
-                print!("\r{} Running health checks...", frames[i]);
-                let _ = std::io::stdout().flush();
-                i = (i + 1) % frames.len();
-                thread::sleep(Duration::from_millis(80));
-            }
-            // Clear the line when done (use crossterm for portability)
-            let _ = crossterm::execute!(
-                std::io::stdout(),
-                crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine)
-            );
-            print!("\r");
-            let _ = std::io::stdout().flush();
-        });
-
-        Self {
-            running,
-            handle: Some(handle),
-        }
-    }
-}
-
-impl Drop for SpinnerGuard {
-    fn drop(&mut self) {
-        self.running.store(false, Ordering::Relaxed);
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-        // Restore cursor
-        let _ = crossterm::execute!(std::io::stdout(), crossterm::cursor::Show);
-    }
 }
 
 #[cfg(test)]
@@ -5568,12 +5457,6 @@ fn count_pending_fixups_for_spec(spec_id: &str) -> u32 {
     crate::fixup::pending_fixups_for_spec(spec_id).targets
 }
 
-/// Emit workspace status output as canonical JSON using JCS (RFC 8785)
-fn emit_workspace_status_json(output: &crate::types::WorkspaceStatusJsonOutput) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit workspace status JSON")
-}
-
 /// Execute the project history command
 /// Per FR-WORKSPACE (Requirements 4.3.5): Emits timeline of phase progression
 fn execute_project_history_command(spec_id: &str, json: bool) -> Result<()> {
@@ -5770,14 +5653,6 @@ fn execute_project_history_command(spec_id: &str, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// Emit workspace history output as canonical JSON using JCS (RFC 8785)
-fn emit_workspace_history_json(
-    output: &crate::types::WorkspaceHistoryJsonOutput,
-) -> Result<String> {
-    // Use emit_jcs from crate root for JCS canonicalization
-    emit_jcs(output).context("Failed to emit workspace history JSON")
-}
-
 /// Execute the project TUI command
 /// Per FR-WORKSPACE-TUI (Requirements 4.4.1, 4.4.2, 4.4.3): Interactive terminal UI
 fn execute_project_tui_command(workspace_override: Option<&std::path::Path>) -> Result<()> {
@@ -5790,85 +5665,4 @@ fn execute_project_tui_command(workspace_override: Option<&std::path::Path>) -> 
 
     // Run the TUI
     crate::tui::run_tui(&workspace_path)
-}
-
-/// Execute template management commands
-/// Per FR-TEMPLATES (Requirements 4.7.1, 4.7.2, 4.7.3)
-fn execute_template_command(cmd: TemplateCommands) -> Result<()> {
-    match cmd {
-        TemplateCommands::List => {
-            println!("Available templates:\n");
-
-            for t in xchecker_engine::templates::list_templates() {
-                println!("  {}", t.id);
-                println!("    Name: {}", t.name);
-                println!("    Description: {}", t.description);
-                println!("    Use case: {}", t.use_case);
-                if !t.prerequisites.is_empty() {
-                    println!("    Prerequisites: {}", t.prerequisites.join(", "));
-                }
-                println!();
-            }
-
-            println!("To initialize a spec from a template:");
-            println!("  xchecker template init <template> <spec-id>");
-
-            Ok(())
-        }
-        TemplateCommands::Init { template, spec_id } => {
-            // Sanitize spec ID
-            let sanitized_id = sanitize_spec_id(&spec_id).map_err(|e| {
-                XCheckerError::Config(ConfigError::InvalidValue {
-                    key: "spec_id".to_string(),
-                    value: format!("{e}"),
-                })
-            })?;
-
-            // Validate template
-            if !xchecker_engine::templates::is_valid_template(&template) {
-                let valid_templates = xchecker_engine::templates::BUILT_IN_TEMPLATES.join(", ");
-                return Err(XCheckerError::Config(ConfigError::InvalidValue {
-                    key: "template".to_string(),
-                    value: format!(
-                        "Unknown template '{}'. Valid templates: {}",
-                        template, valid_templates
-                    ),
-                })
-                .into());
-            }
-
-            // Initialize from template
-            xchecker_engine::templates::init_from_template(&template, &sanitized_id)?;
-
-            // Get template info for display
-            let template_info = xchecker_engine::templates::get_template(&template).unwrap();
-
-            println!(
-                "✓ Initialized spec '{}' from template '{}'",
-                sanitized_id, template
-            );
-            println!();
-            println!("Template: {}", template_info.name);
-            println!("Description: {}", template_info.description);
-            println!();
-            println!("Created files:");
-            println!(
-                "  - .xchecker/specs/{}/context/problem-statement.md",
-                sanitized_id
-            );
-            println!("  - .xchecker/specs/{}/README.md", sanitized_id);
-            println!();
-            println!("Next steps:");
-            println!("  1. Review the problem statement:");
-            println!(
-                "     cat .xchecker/specs/{}/context/problem-statement.md",
-                sanitized_id
-            );
-            println!("  2. Customize the problem statement for your needs");
-            println!("  3. Run the requirements phase:");
-            println!("     xchecker resume {} --phase requirements", sanitized_id);
-
-            Ok(())
-        }
-    }
 }
