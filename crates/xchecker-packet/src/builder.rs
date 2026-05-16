@@ -323,7 +323,7 @@ impl PacketBuilder {
         let mut upstream_results = Vec::new();
         let mut other_results = Vec::new();
 
-        for (candidate, result) in candidates.iter().zip(process_results.into_iter()) {
+        for (candidate, result) in candidates.iter().zip(process_results) {
             if candidate.priority == Priority::Upstream {
                 upstream_results.push((candidate, result));
             } else {
