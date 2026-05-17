@@ -157,7 +157,7 @@ pub struct PromotionLock {
 }
 
 /// Drift pair showing locked vs current value
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DriftPair {
     /// Value from lockfile
     pub locked: String,
@@ -1788,7 +1788,9 @@ mod tests {
         requirements.parent_receipt_path = Some("receipts/requirements.json".to_string());
         requirements.parent_packet_lineage = vec!["packet-req-1".to_string()];
         requirements.warnings = vec!["minor-style-warning".to_string()];
-        requirements.save().expect("Failed to save requirements promotion");
+        requirements
+            .save()
+            .expect("Failed to save requirements promotion");
 
         let mut design = PromotionLock::new(
             spec_id.to_string(),
@@ -1801,7 +1803,8 @@ mod tests {
             }],
         );
         design.approved_by = Some("policy-engine".to_string());
-        design.parent_packet_lineage = vec!["packet-req-1".to_string(), "packet-design-1".to_string()];
+        design.parent_packet_lineage =
+            vec!["packet-req-1".to_string(), "packet-design-1".to_string()];
         design.save().expect("Failed to save design promotion");
 
         let loaded = PromotionLock::load(spec_id, "requirements")

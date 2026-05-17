@@ -575,7 +575,7 @@ async fn test_multi_phase_workflow_with_dependencies() -> Result<()> {
     }
 
     // Sort by emitted_at timestamp
-    receipts.sort_by(|a, b| a.emitted_at.cmp(&b.emitted_at));
+    receipts.sort_by_key(|receipt| receipt.emitted_at);
 
     assert_eq!(
         receipts[0].phase, "requirements",
