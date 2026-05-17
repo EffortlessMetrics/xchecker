@@ -294,6 +294,7 @@ impl FixupParser {
             let context_lines: Vec<&str> = hunk_lines
                 .iter()
                 .skip(1) // Skip @@ header
+                .filter(|line| !is_no_newline_marker(line))
                 .filter(|line| {
                     // Include context lines (starting with ' ') and removed lines (starting with '-')
                     // but NOT added lines (starting with '+') as those don't exist in the original file
@@ -376,6 +377,8 @@ impl FixupParser {
                 } else if line.starts_with(' ') {
                     // Context line - just advance
                     file_idx += 1;
+                } else if is_no_newline_marker(line) {
+                    // Unified diff metadata for the preceding line, not file content.
                 } else if !line.starts_with("@@") {
                     // Context line without leading space
                     file_idx += 1;
@@ -388,7 +391,11 @@ impl FixupParser {
             cumulative_offset += additions - deletions;
         }
 
-        Ok(lines.join("\n") + "\n")
+        let mut result = lines.join("\n");
+        if diff_new_content_has_trailing_newline(diff) {
+            result.push('\n');
+        }
+        Ok(result)
     }
 
     /// Compute BLAKE3 hash of content
@@ -616,6 +623,38 @@ impl FixupParser {
     }
 }
 
+fn is_no_newline_marker(line: &str) -> bool {
+    line == r"\ No newline at end of file"
+}
+
+fn diff_line_contributes_to_new_file(line: &str) -> bool {
+    (line.starts_with('+') && !line.starts_with("+++"))
+        || line.starts_with(' ')
+        || (!line.starts_with('-') && !line.starts_with("@@"))
+}
+
+fn diff_new_content_has_trailing_newline(diff: &UnifiedDiff) -> bool {
+    let mut new_content_has_trailing_newline = true;
+
+    for hunk in &diff.hunks {
+        let mut previous_diff_line: Option<&str> = None;
+        for line in hunk.content.lines().skip(1) {
+            if is_no_newline_marker(line) {
+                if previous_diff_line.is_some_and(diff_line_contributes_to_new_file) {
+                    new_content_has_trailing_newline = false;
+                }
+            } else {
+                previous_diff_line = Some(line);
+                if diff_line_contributes_to_new_file(line) {
+                    new_content_has_trailing_newline = true;
+                }
+            }
+        }
+    }
+
+    new_content_has_trailing_newline
+}
+
 /// Normalize line endings to LF (FR-FIX-010, FR-FS-004, FR-FS-005)
 ///
 /// This function converts all line ending styles (CRLF, CR, LF) to LF.
@@ -678,5 +717,62 @@ FIXUP PLAN:
         let (added, removed) = parser.calculate_change_stats(&diffs[0]);
         assert_eq!(added, 2); // +let x = 1; and +let z = 4;
         assert_eq!(removed, 1); // -let z = 3;
+    }
+
+    #[test]
+    fn apply_diff_handles_no_newline_marker_on_replacement() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_file = temp_dir.path().join("no_newline.txt");
+        std::fs::write(&target_file, "old").unwrap();
+
+        let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf()).unwrap();
+        let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/no_newline.txt
++++ b/no_newline.txt
+@@ -1 +1 @@
+-old
+\ No newline at end of file
++new
+\ No newline at end of file
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        let result = parser.apply_changes(&diffs).unwrap();
+
+        assert_eq!(result.applied_files.len(), 1);
+        assert!(result.failed_files.is_empty());
+        assert_eq!(std::fs::read_to_string(target_file).unwrap(), "new");
+    }
+
+    #[test]
+    fn apply_diff_keeps_newline_when_marker_only_describes_old_line() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_file = temp_dir.path().join("adds_newline.txt");
+        std::fs::write(&target_file, "old").unwrap();
+
+        let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf()).unwrap();
+        let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/adds_newline.txt
++++ b/adds_newline.txt
+@@ -1 +1 @@
+-old
+\ No newline at end of file
++new
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        let result = parser.apply_changes(&diffs).unwrap();
+
+        assert_eq!(result.applied_files.len(), 1);
+        assert!(result.failed_files.is_empty());
+        assert_eq!(std::fs::read_to_string(target_file).unwrap(), "new\n");
     }
 }
