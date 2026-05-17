@@ -306,3 +306,130 @@ impl Config {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{AnthropicConfig, Config, OpenRouterConfig};
+
+    fn valid_config() -> Config {
+        let mut config = Config::minimal_for_testing();
+        config.llm.provider = Some("claude-cli".to_string());
+        config.llm.execution_strategy = Some("controlled".to_string());
+        config
+    }
+
+    fn invalid_key(result: Result<(), XCheckerError>) -> String {
+        match result.expect_err("configuration should be invalid") {
+            XCheckerError::Config(ConfigError::InvalidValue { key, .. }) => key,
+            XCheckerError::Config(ConfigError::MissingRequired(key)) => key,
+            other => panic!("expected config validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validation_accepts_documented_numeric_boundaries() {
+        let mut config = valid_config();
+        config.defaults.packet_max_bytes = Some(1);
+        config.defaults.packet_max_lines = Some(1);
+        config.defaults.max_turns = Some(1);
+        config.defaults.phase_timeout = Some(5);
+        config.defaults.stdout_cap_bytes = Some(1024);
+        config.defaults.stderr_cap_bytes = Some(1024);
+        config.defaults.lock_ttl_seconds = Some(60);
+        config.validate().unwrap();
+
+        config.defaults.packet_max_bytes = Some(10_000_000);
+        config.defaults.packet_max_lines = Some(100_000);
+        config.defaults.max_turns = Some(50);
+        config.defaults.phase_timeout = Some(7200);
+        config.defaults.stdout_cap_bytes = Some(100_000_000);
+        config.defaults.stderr_cap_bytes = Some(10_000_000);
+        config.defaults.lock_ttl_seconds = Some(86_400);
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn validation_rejects_numeric_values_outside_documented_boundaries() {
+        macro_rules! assert_invalid_default {
+            ($expected_key:literal, $field:ident, $value:expr) => {{
+                let mut config = valid_config();
+                config.defaults.$field = Some($value);
+                assert_eq!(invalid_key(config.validate()), $expected_key);
+            }};
+        }
+
+        assert_invalid_default!("packet_max_bytes", packet_max_bytes, 0);
+        assert_invalid_default!("packet_max_bytes", packet_max_bytes, 10_000_001);
+        assert_invalid_default!("packet_max_lines", packet_max_lines, 0);
+        assert_invalid_default!("packet_max_lines", packet_max_lines, 100_001);
+        assert_invalid_default!("max_turns", max_turns, 0);
+        assert_invalid_default!("max_turns", max_turns, 51);
+        assert_invalid_default!("phase_timeout", phase_timeout, 4);
+        assert_invalid_default!("phase_timeout", phase_timeout, 7201);
+        assert_invalid_default!("stdout_cap_bytes", stdout_cap_bytes, 1023);
+        assert_invalid_default!("stdout_cap_bytes", stdout_cap_bytes, 100_000_001);
+        assert_invalid_default!("stderr_cap_bytes", stderr_cap_bytes, 1023);
+        assert_invalid_default!("stderr_cap_bytes", stderr_cap_bytes, 10_000_001);
+        assert_invalid_default!("lock_ttl_seconds", lock_ttl_seconds, 59);
+        assert_invalid_default!("lock_ttl_seconds", lock_ttl_seconds, 86_401);
+    }
+
+    #[test]
+    fn validation_requires_models_for_http_primary_providers() {
+        let mut openrouter = valid_config();
+        openrouter.llm.provider = Some("openrouter".to_string());
+        assert_eq!(invalid_key(openrouter.validate()), "llm.openrouter.model");
+
+        openrouter.llm.openrouter = Some(OpenRouterConfig {
+            api_key_env: None,
+            base_url: None,
+            model: Some(String::new()),
+            max_tokens: None,
+            temperature: None,
+            budget: None,
+        });
+        assert_eq!(invalid_key(openrouter.validate()), "llm.openrouter.model");
+
+        openrouter.llm.openrouter.as_mut().unwrap().model = Some("openai/gpt-5.1".to_string());
+        openrouter.validate().unwrap();
+
+        let mut anthropic = valid_config();
+        anthropic.llm.provider = Some("anthropic".to_string());
+        assert_eq!(invalid_key(anthropic.validate()), "llm.anthropic.model");
+
+        anthropic.llm.anthropic = Some(AnthropicConfig {
+            api_key_env: None,
+            base_url: None,
+            model: Some("claude-sonnet-4-5".to_string()),
+            max_tokens: None,
+            temperature: None,
+        });
+        anthropic.validate().unwrap();
+    }
+
+    #[test]
+    fn validation_requires_models_for_http_fallback_providers() {
+        let mut config = valid_config();
+        config.llm.fallback_provider = Some("anthropic".to_string());
+        assert_eq!(invalid_key(config.validate()), "llm.anthropic.model");
+
+        config.llm.anthropic = Some(AnthropicConfig {
+            api_key_env: None,
+            base_url: None,
+            model: Some("claude-haiku-4-5".to_string()),
+            max_tokens: None,
+            temperature: None,
+        });
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn validation_checks_prompt_template_against_fallback_provider() {
+        let mut config = valid_config();
+        config.llm.prompt_template = Some("claude-optimized".to_string());
+        config.llm.fallback_provider = Some("gemini-cli".to_string());
+
+        assert_eq!(invalid_key(config.validate()), "llm.prompt_template");
+    }
+}
