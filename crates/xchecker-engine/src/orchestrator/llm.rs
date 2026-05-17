@@ -489,9 +489,154 @@ impl PhaseOrchestrator {
 
 #[cfg(test)]
 mod tests {
-    use super::build_messages_from_template;
+    use super::{apply_overrides_from_map, build_messages_from_template};
     use crate::config::PromptTemplate;
+    use crate::config::{
+        ClaudeConfig, Config, Defaults, HooksConfig, LlmConfig, PhasesConfig, RunnerConfig,
+        SecurityConfig, Selectors,
+    };
     use crate::llm::Role;
+    use std::collections::HashMap;
+
+    fn base_config() -> Config {
+        Config {
+            defaults: Defaults::default(),
+            selectors: Selectors::default(),
+            runner: RunnerConfig::default(),
+            llm: LlmConfig {
+                provider: None,
+                fallback_provider: None,
+                claude: None,
+                gemini: None,
+                openrouter: None,
+                anthropic: None,
+                execution_strategy: None,
+                prompt_template: None,
+            },
+            phases: PhasesConfig::default(),
+            hooks: HooksConfig::default(),
+            security: SecurityConfig::default(),
+            source_attribution: HashMap::new(),
+        }
+    }
+
+    fn overrides(entries: &[(&str, &str)]) -> HashMap<String, String> {
+        entries
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn apply_overrides_prefers_explicit_claude_binary_over_legacy_aliases() {
+        let mut config = base_config();
+        let overrides = overrides(&[
+            ("claude_cli_path", "/bin/oldest-claude"),
+            ("claude_path", "/bin/legacy-claude"),
+            ("llm_claude_binary", "/bin/preferred-claude"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("/bin/preferred-claude")
+        );
+        assert_eq!(
+            config.runner.claude_path.as_deref(),
+            Some("/bin/preferred-claude")
+        );
+    }
+
+    #[test]
+    fn apply_overrides_uses_legacy_claude_path_before_oldest_alias() {
+        let mut config = base_config();
+        let overrides = overrides(&[
+            ("claude_cli_path", "/bin/oldest-claude"),
+            ("claude_path", "/bin/legacy-claude"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("/bin/legacy-claude")
+        );
+        assert_eq!(
+            config.runner.claude_path.as_deref(),
+            Some("/bin/legacy-claude")
+        );
+    }
+
+    #[test]
+    fn apply_overrides_preserves_existing_values_for_invalid_numeric_overrides() {
+        let mut config = base_config();
+        config.defaults.max_turns = Some(4);
+        config.defaults.phase_timeout = Some(300);
+        let overrides = overrides(&[("max_turns", "many"), ("phase_timeout", "slow")]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(config.defaults.max_turns, Some(4));
+        assert_eq!(config.defaults.phase_timeout, Some(300));
+    }
+
+    #[test]
+    fn apply_overrides_populates_phase_overrides_independently() {
+        let mut config = base_config();
+        let overrides = overrides(&[
+            ("phases.design.model", "sonnet"),
+            ("phases.design.max_turns", "8"),
+            ("phases.design.phase_timeout", "900"),
+            ("phases.tasks.max_turns", "invalid"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        let design = config
+            .phases
+            .design
+            .expect("design phase override is created");
+        assert_eq!(design.model.as_deref(), Some("sonnet"));
+        assert_eq!(design.max_turns, Some(8));
+        assert_eq!(design.phase_timeout, Some(900));
+        assert!(
+            config.phases.tasks.is_none(),
+            "invalid-only phase overrides should not create an empty phase config"
+        );
+    }
+
+    #[test]
+    fn apply_overrides_updates_existing_claude_config_in_place() {
+        let mut config = base_config();
+        config.llm.claude = Some(ClaudeConfig {
+            binary: Some("/bin/original-claude".to_string()),
+        });
+        let overrides = overrides(&[("claude_cli_path", "/bin/replacement-claude")]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("/bin/replacement-claude")
+        );
+        assert_eq!(
+            config.runner.claude_path.as_deref(),
+            Some("/bin/replacement-claude")
+        );
+    }
 
     #[test]
     fn build_messages_default_includes_packet() {
