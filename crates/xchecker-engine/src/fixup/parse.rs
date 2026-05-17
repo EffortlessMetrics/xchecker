@@ -138,15 +138,15 @@ impl FixupParser {
         let fixup_plan_regex = Regex::new(r"(?i)FIXUP PLAN:").unwrap();
         let needs_fixups_regex = Regex::new(r"(?i)needs fixups").unwrap();
 
-        if let Some(mat) = fixup_plan_regex.find(content) {
-            return Some(content[mat.end()..].to_string());
-        }
+        let earliest_marker = [
+            fixup_plan_regex.find(content),
+            needs_fixups_regex.find(content),
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|mat| mat.start());
 
-        if let Some(mat) = needs_fixups_regex.find(content) {
-            return Some(content[mat.end()..].to_string());
-        }
-
-        None
+        earliest_marker.map(|mat| content[mat.end()..].to_string())
     }
 
     /// Parse unified diff blocks from fixup content.
@@ -170,7 +170,7 @@ impl FixupParser {
 
         // Regex to match fenced diff blocks: ```diff ... ```
         // Use (?s) flag to make . match newlines
-        let diff_block_regex = Regex::new(r"(?s)```diff\n(.*?)\n```").unwrap();
+        let diff_block_regex = Regex::new(r"(?s)```diff\r?\n(.*?)\r?\n```").unwrap();
 
         for (block_index, captures) in diff_block_regex.captures_iter(content).enumerate() {
             let diff_content = captures
@@ -231,11 +231,7 @@ impl FixupParser {
             })?;
 
         // Remove a/ and b/ prefixes if present (common in git diffs)
-        let target_file = if target_file.starts_with("a/") || target_file.starts_with("b/") {
-            &target_file[2..]
-        } else {
-            target_file
-        };
+        let target_file = normalize_diff_target(target_file);
 
         // Parse hunks
         let hunks = self.parse_hunks(&lines[header_end..], block_index)?;
@@ -339,15 +335,30 @@ impl FixupParser {
     }
 }
 
+fn normalize_diff_target(target_file: &str) -> &str {
+    let target_file = target_file
+        .split_once('\t')
+        .map_or(target_file, |(path, _)| path);
+
+    target_file
+        .strip_prefix("a/")
+        .or_else(|| target_file.strip_prefix("b/"))
+        .unwrap_or(target_file)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    fn preview_parser(temp_dir: &TempDir) -> FixupParser {
+        FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap()
+    }
+
     #[test]
     fn test_detect_fixup_markers() {
         let temp_dir = TempDir::new().unwrap();
-        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+        let parser = preview_parser(&temp_dir);
 
         // Test FIXUP PLAN: marker
         let content1 = "Some review content\nFIXUP PLAN:\nHere are the fixes needed...";
@@ -360,6 +371,32 @@ mod tests {
         // Test no markers
         let content3 = "This is a clean review with no issues found.";
         assert!(!parser.has_fixup_markers(content3));
+    }
+
+    #[test]
+    fn test_detect_fixup_markers_returns_content_after_earliest_marker() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = preview_parser(&temp_dir);
+
+        let content = "Review says this needs fixups before the detailed FIXUP PLAN:\n```diff\n...";
+
+        assert_eq!(
+            parser.detect_fixup_markers(content).as_deref(),
+            Some(" before the detailed FIXUP PLAN:\n```diff\n...")
+        );
+    }
+
+    #[test]
+    fn test_normalize_diff_target_strips_git_prefix_and_timestamp() {
+        assert_eq!(
+            normalize_diff_target("b/src/main.rs\t2026-05-16 12:00:00 +0000"),
+            "src/main.rs"
+        );
+        assert_eq!(normalize_diff_target("a/src/lib.rs"), "src/lib.rs");
+        assert_eq!(
+            normalize_diff_target("docs/spec file.md"),
+            "docs/spec file.md"
+        );
     }
 
     #[test]
@@ -495,6 +532,26 @@ fn main() {
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0].target_file, "src/main.rs");
         assert_eq!(diffs[0].hunks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_crlf_diff_block_with_timestamped_headers() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = preview_parser(&temp_dir);
+
+        let content = "FIXUP PLAN:\r\n\r\n```diff\r\n--- a/src/main.rs\t2026-05-16 12:00:00 +0000\r\n+++ b/src/main.rs\t2026-05-16 12:01:00 +0000\r\n@@ -1,3 +1,3 @@\r\n fn main() {\r\n-    println!(\"old\");\r\n+    println!(\"new\");\r\n }\r\n```";
+
+        let diffs = parser.parse_diffs(content).unwrap();
+
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0].target_file, "src/main.rs");
+        assert_eq!(diffs[0].path, "src/main.rs");
+        assert_eq!(diffs[0].hunks.len(), 1);
+        assert_eq!(
+            diffs[0].hunks[0].remove_lines,
+            vec!["    println!(\"old\");"]
+        );
+        assert_eq!(diffs[0].hunks[0].add_lines, vec!["    println!(\"new\");"]);
     }
 
     #[test]
