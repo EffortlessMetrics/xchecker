@@ -766,6 +766,99 @@ FIXUP PLAN:
     assert!(new_content.contains("added second"));
 }
 
+/// Test: diff fences may use CRLF line endings and whitespace around language tag.
+#[test]
+fn test_parse_diff_fence_with_crlf_and_spaced_language_tag() {
+    let (_temp_dir, base_dir) = setup_test_env();
+    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone()).unwrap();
+
+    let content = "FIXUP PLAN:\r\n\r\n``` diff \r\n--- a/crlf.txt\r\n+++ b/crlf.txt\r\n@@ -1,1 +1,2 @@\r\n line 1\r\n+line 2\r\n```\r\n";
+
+    let diffs = parser.parse_diffs(content).unwrap();
+    assert_eq!(diffs.len(), 1);
+    assert_eq!(diffs[0].target_file, "crlf.txt");
+    assert_eq!(diffs[0].hunks.len(), 1);
+}
+
+/// Test: unified diff headers may include tab-separated timestamps.
+#[test]
+fn test_parse_diff_header_strips_tab_separated_metadata() {
+    let (_temp_dir, base_dir) = setup_test_env();
+    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone()).unwrap();
+
+    let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/src/file with spaces.rs	2026-05-16 00:00:00.000000000 +0000
++++ b/src/file with spaces.rs	2026-05-16 00:00:01.000000000 +0000
+@@ -1,1 +1,2 @@
+ line 1
++line 2
+```
+"#;
+
+    let diffs = parser.parse_diffs(content).unwrap();
+    assert_eq!(diffs[0].target_file, "src/file with spaces.rs");
+}
+
+/// Test: header-only diff blocks are invalid instead of silently parsing as no-op diffs.
+#[test]
+fn test_parse_rejects_header_only_diff_block() {
+    let (_temp_dir, base_dir) = setup_test_env();
+    let parser = FixupParser::new(FixupMode::Preview, base_dir.clone()).unwrap();
+
+    let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/noop.txt
++++ b/noop.txt
+```
+"#;
+
+    let result = parser.parse_diffs(content);
+    assert!(
+        result.is_err(),
+        "header-only diff should not parse as a valid diff"
+    );
+}
+
+/// Test: fuzzy matching must not delete an unrelated line when surrounding context mostly matches.
+#[test]
+fn test_partial_fuzzy_match_does_not_delete_mismatched_old_line() {
+    let (_temp_dir, base_dir) = setup_test_env();
+
+    let test_file = base_dir.join("partial_match.txt");
+    let original_content = "alpha\nbeta\nactual target\ndelta\nepsilon\n";
+    fs::write(&test_file, original_content).unwrap();
+
+    let parser = FixupParser::new(FixupMode::Apply, base_dir.clone()).unwrap();
+
+    let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/partial_match.txt
++++ b/partial_match.txt
+@@ -1,5 +1,5 @@
+ alpha
+ beta
+-expected target
++replacement target
+ delta
+ epsilon
+```
+"#;
+
+    let diffs = parser.parse_diffs(content).unwrap();
+    let result = parser.apply_changes(&diffs).unwrap();
+
+    assert_eq!(result.failed_files, vec!["partial_match.txt".to_string()]);
+    let new_content = fs::read_to_string(&test_file).unwrap();
+    assert_eq!(new_content, original_content);
+}
+
 /// Test: Verify FuzzyMatchFailed error contains useful information
 #[test]
 fn test_fuzzy_match_failed_error_message() {

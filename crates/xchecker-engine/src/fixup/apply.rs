@@ -368,11 +368,26 @@ impl FixupParser {
                     file_idx += 1;
                     additions += 1;
                 } else if line.starts_with('-') && !line.starts_with("---") {
-                    // Remove line
-                    if file_idx < lines.len() {
-                        lines.remove(file_idx);
-                        deletions += 1;
+                    // Remove line only when the current file line matches the
+                    // diff's expected old line. Fuzzy matching can choose a
+                    // nearby context with a high score; this guard prevents a
+                    // partial match from deleting unrelated content.
+                    let expected_old_line = &line[1..];
+                    if file_idx >= lines.len()
+                        || !self.lines_match(&lines[file_idx], expected_old_line)
+                    {
+                        return Err(FixupError::DiffParsingFailed {
+                            reason: format!(
+                                "Hunk for '{}' expected to remove '{}' at line {}, but found '{}'",
+                                diff.target_file,
+                                expected_old_line,
+                                file_idx + 1,
+                                lines.get(file_idx).map_or("<end of file>", String::as_str)
+                            ),
+                        });
                     }
+                    lines.remove(file_idx);
+                    deletions += 1;
                 } else if line.starts_with(' ') {
                     // Context line - just advance
                     file_idx += 1;
