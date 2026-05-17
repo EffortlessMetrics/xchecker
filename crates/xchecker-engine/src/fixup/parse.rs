@@ -168,9 +168,10 @@ impl FixupParser {
     fn extract_diff_blocks(&self, content: &str) -> Result<Vec<UnifiedDiff>, FixupError> {
         let mut diffs = Vec::new();
 
-        // Regex to match fenced diff blocks: ```diff ... ```
-        // Use (?s) flag to make . match newlines
-        let diff_block_regex = Regex::new(r"(?s)```diff\n(.*?)\n```").unwrap();
+        // Regex to match fenced diff blocks like ```diff ... ```. Be lenient about
+        // common markdown/LLM variants: CRLF line endings, leading/trailing spaces
+        // around the language tag, and mixed-case `diff`.
+        let diff_block_regex = Regex::new(r"(?is)```[ \t]*diff[ \t]*\r?\n(.*?)\r?\n```").unwrap();
 
         for (block_index, captures) in diff_block_regex.captures_iter(content).enumerate() {
             let diff_content = captures
@@ -230,19 +231,21 @@ impl FixupParser {
                 reason: "No --- or +++ headers found".to_string(),
             })?;
 
-        // Remove a/ and b/ prefixes if present (common in git diffs)
-        let target_file = if target_file.starts_with("a/") || target_file.starts_with("b/") {
-            &target_file[2..]
-        } else {
-            target_file
-        };
+        let target_file = normalize_diff_header_path(target_file);
 
         // Parse hunks
         let hunks = self.parse_hunks(&lines[header_end..], block_index)?;
 
+        if hunks.is_empty() {
+            return Err(FixupError::InvalidDiffFormat {
+                block_index,
+                reason: "No hunk headers found".to_string(),
+            });
+        }
+
         Ok(UnifiedDiff {
-            path: target_file.to_string(),
-            target_file: target_file.to_string(),
+            path: target_file.clone(),
+            target_file,
             diff_content: diff_content.to_string(),
             hunks,
         })
@@ -336,6 +339,20 @@ impl FixupParser {
         }
 
         Ok(hunks)
+    }
+}
+
+fn normalize_diff_header_path(path: &str) -> String {
+    // Unified diff headers may append metadata after a tab, for example:
+    // `--- a/file.rs\t2026-05-16 00:00:00`. Keep spaces intact so paths
+    // containing spaces are not truncated.
+    let path = path.split('\t').next().unwrap_or(path).trim();
+
+    // Remove a/ and b/ prefixes if present (common in git diffs).
+    if path.starts_with("a/") || path.starts_with("b/") {
+        path[2..].to_string()
+    } else {
+        path.to_string()
     }
 }
 
@@ -580,9 +597,9 @@ some content
 ```
 "#;
 
-        let diffs = parser.parse_diffs(content).unwrap();
-        assert_eq!(diffs.len(), 1);
-        assert_eq!(diffs[0].hunks.len(), 0);
+        let result = parser.parse_diffs(content);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), FixupError::NoValidDiffBlocks));
     }
 
     #[test]

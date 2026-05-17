@@ -82,7 +82,7 @@ impl FixupParser {
     }
 
     /// Compare two lines with whitespace normalization
-    fn lines_match(&self, file_line: &str, context_line: &str) -> bool {
+    pub(super) fn lines_match(&self, file_line: &str, context_line: &str) -> bool {
         // Exact match
         if file_line == context_line {
             return true;
