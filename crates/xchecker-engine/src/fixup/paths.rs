@@ -57,8 +57,14 @@ pub fn validate_fixup_target(
 
     let sandbox_root = SandboxRoot::new(repo_root, config).map_err(map_root_err)?;
     let sandbox_path = sandbox_root.join(path).map_err(map_join_err)?;
-    if !sandbox_path.as_path().exists() {
+    let target_path = sandbox_path.as_path();
+    if !target_path.exists() {
         return Err(FixupError::TargetFileNotFound {
+            path: path.display().to_string(),
+        });
+    }
+    if !target_path.is_file() {
+        return Err(FixupError::TargetNotRegularFile {
             path: path.display().to_string(),
         });
     }
@@ -442,6 +448,36 @@ mod tests {
         let upper_case = std::path::Path::new("TEST.TXT");
         let result2 = validate_fixup_target(upper_case, repo_root, false);
         assert!(result2.is_ok());
+    }
+
+    #[test]
+    fn test_validate_fixup_target_rejects_directory_targets() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo_root = temp_dir.path();
+        let src_dir = repo_root.join("src");
+        fs::create_dir(&src_dir).unwrap();
+
+        let result = validate_fixup_target(std::path::Path::new("src"), repo_root, false);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            FixupError::TargetNotRegularFile { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_fixup_target_rejects_repo_root_targets() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo_root = temp_dir.path();
+
+        for target in ["", "."] {
+            let result = validate_fixup_target(std::path::Path::new(target), repo_root, false);
+            assert!(result.is_err(), "expected {target:?} to be rejected");
+            assert!(matches!(
+                result.unwrap_err(),
+                FixupError::TargetNotRegularFile { .. }
+            ));
+        }
     }
 
     #[test]

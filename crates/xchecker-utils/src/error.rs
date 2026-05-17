@@ -1124,6 +1124,9 @@ pub enum FixupError {
     #[error("Target file not found: {path}")]
     TargetFileNotFound { path: String },
 
+    #[error("Target path is not a regular file: {path}")]
+    TargetNotRegularFile { path: String },
+
     #[error("Failed to create temporary copy of {file}: {reason}")]
     TempCopyFailed { file: String, reason: String },
 
@@ -1188,6 +1191,9 @@ impl UserFriendlyError for FixupError {
             Self::TargetFileNotFound { path } => {
                 format!("Target file '{path}' does not exist")
             }
+            Self::TargetNotRegularFile { path } => {
+                format!("Target path '{path}' is not a regular file")
+            }
             Self::TempCopyFailed { file, reason } => {
                 format!("Could not create temporary copy of '{file}': {reason}")
             }
@@ -1248,6 +1254,9 @@ impl UserFriendlyError for FixupError {
             }
             Self::TargetFileNotFound { .. } => {
                 Some("Fixup targets must exist in the repository before changes can be applied.".to_string())
+            }
+            Self::TargetNotRegularFile { .. } => {
+                Some("Fixup targets must be regular files; directories and other special file types cannot be patched.".to_string())
             }
             Self::TempCopyFailed { .. } => {
                 Some("Temporary copies are created to safely test changes before applying them.".to_string())
@@ -1312,6 +1321,12 @@ impl UserFriendlyError for FixupError {
                 "The file may have been deleted or moved since the review phase".to_string(),
                 "Check the file path is correct and relative to the repository root".to_string(),
                 "Run the review phase again to generate fresh fixup plans".to_string(),
+            ],
+            Self::TargetNotRegularFile { path } => vec![
+                format!("Use a regular file path instead of '{}'", path),
+                "Directories cannot be used as fixup targets".to_string(),
+                "Check the diff header's +++ path and regenerate the fixup plan if needed"
+                    .to_string(),
             ],
             Self::TempCopyFailed { file, reason } => vec![
                 "Check available disk space for temporary files".to_string(),
@@ -1386,9 +1401,9 @@ impl UserFriendlyError for FixupError {
                 ErrorCategory::Security
             }
             Self::SymlinkNotAllowed(_) | Self::HardlinkNotAllowed(_) => ErrorCategory::Security,
-            Self::TargetFileNotFound { .. } | Self::TempCopyFailed { .. } => {
-                ErrorCategory::FileSystem
-            }
+            Self::TargetFileNotFound { .. }
+            | Self::TargetNotRegularFile { .. }
+            | Self::TempCopyFailed { .. } => ErrorCategory::FileSystem,
             Self::CanonicalizationError(_) => ErrorCategory::FileSystem,
             Self::GitApplyValidationFailed { .. } | Self::GitApplyExecutionFailed { .. } => {
                 ErrorCategory::PhaseExecution
