@@ -124,6 +124,28 @@ impl FixupParser {
         })
     }
 
+    /// Validate and resolve an existing regular-file target within the sandbox.
+    pub(super) fn validate_existing_target_file(
+        &self,
+        target_file: &str,
+    ) -> Result<SandboxPath, FixupError> {
+        let sandbox_path = self.validate_target_path(target_file)?;
+        let target_path = sandbox_path.as_path();
+
+        if !target_path.exists() {
+            return Err(FixupError::TargetFileNotFound {
+                path: target_file.to_string(),
+            });
+        }
+        if !target_path.is_file() {
+            return Err(FixupError::TargetNotRegularFile {
+                path: target_file.to_string(),
+            });
+        }
+
+        Ok(sandbox_path)
+    }
+
     /// Detect if review output contains fixup markers.
     #[must_use]
     pub fn has_fixup_markers(&self, content: &str) -> bool {

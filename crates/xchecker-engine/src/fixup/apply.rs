@@ -161,16 +161,10 @@ impl FixupParser {
     fn apply_single_diff_atomic(&self, diff: &UnifiedDiff) -> Result<AppliedFile, FixupError> {
         use std::fs;
 
-        // Validate and get the sandboxed target path
-        // This ensures the path is within the sandbox root and passes all security checks
-        let sandbox_path = self.validate_target_path(&diff.target_file)?;
+        // Validate and get the sandboxed target path.
+        // This ensures the path is within the sandbox root, exists, and is a regular file.
+        let sandbox_path = self.validate_existing_target_file(&diff.target_file)?;
         let target_path = sandbox_path.as_path();
-
-        if !target_path.exists() {
-            return Err(FixupError::TargetFileNotFound {
-                path: diff.target_file.clone(),
-            });
-        }
 
         let mut file_warnings = Vec::new();
 
@@ -446,15 +440,9 @@ impl FixupParser {
     ///
     /// The target path is validated through `SandboxRoot::join()` before any file operations.
     fn validate_diff_with_git_apply(&self, diff: &UnifiedDiff) -> Result<Vec<String>, FixupError> {
-        // Validate and get the sandboxed target path
-        let sandbox_path = self.validate_target_path(&diff.target_file)?;
+        // Validate and get the sandboxed target path.
+        let sandbox_path = self.validate_existing_target_file(&diff.target_file)?;
         let target_path = sandbox_path.as_path();
-
-        if !target_path.exists() {
-            return Err(FixupError::TargetFileNotFound {
-                path: diff.target_file.clone(),
-            });
-        }
 
         // Create temporary directory and copy target file
         let temp_dir = TempDir::new().map_err(|e| FixupError::TempCopyFailed {
@@ -516,15 +504,8 @@ impl FixupParser {
     ///
     /// The target path is validated through `SandboxRoot::join()` before any file operations.
     fn apply_single_diff(&self, diff: &UnifiedDiff) -> Result<bool, FixupError> {
-        // Validate and get the sandboxed target path
-        let sandbox_path = self.validate_target_path(&diff.target_file)?;
-        let target_path = sandbox_path.as_path();
-
-        if !target_path.exists() {
-            return Err(FixupError::TargetFileNotFound {
-                path: diff.target_file.clone(),
-            });
-        }
+        // Validate and get the sandboxed target path.
+        self.validate_existing_target_file(&diff.target_file)?;
 
         // Write diff to temporary file
         let temp_dir = TempDir::new().map_err(|e| FixupError::TempCopyFailed {
@@ -678,5 +659,36 @@ FIXUP PLAN:
         let (added, removed) = parser.calculate_change_stats(&diffs[0]);
         assert_eq!(added, 2); // +let x = 1; and +let z = 4;
         assert_eq!(removed, 1); // -let z = 3;
+    }
+    #[test]
+    fn test_preview_rejects_directory_target_before_git_apply() {
+        let temp_dir = TempDir::new().unwrap();
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir).unwrap();
+        let parser = FixupParser::new(FixupMode::Preview, temp_dir.path().to_path_buf()).unwrap();
+
+        let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/src
++++ b/src
+@@ -1 +1 @@
+-old
++new
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        let preview = parser.preview_changes(&diffs).unwrap();
+
+        assert!(!preview.all_valid);
+        assert!(
+            preview
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("Target path is not a regular file: src"))
+        );
+        assert_eq!(preview.change_summary["src"].validation_passed, false);
     }
 }
