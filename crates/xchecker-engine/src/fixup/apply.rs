@@ -297,11 +297,11 @@ impl FixupParser {
                 .filter(|line| {
                     // Include context lines (starting with ' ') and removed lines (starting with '-')
                     // but NOT added lines (starting with '+') as those don't exist in the original file
-                    line.starts_with(' ')
-                        || line.starts_with('-')
-                        || (!line.starts_with('+') && !line.starts_with("@@"))
+                    !is_no_newline_marker(line)
+                        && (line.starts_with(' ')
+                            || line.starts_with('-')
+                            || (!line.starts_with('+') && !line.starts_with("@@")))
                 })
-                .filter(|line| !line.starts_with("---")) // Exclude --- header
                 .map(|line| {
                     // Strip the prefix character (' ' or '-')
                     if line.starts_with(' ') || line.starts_with('-') {
@@ -357,18 +357,21 @@ impl FixupParser {
             while hunk_idx < hunk_lines.len() {
                 let line = hunk_lines[hunk_idx];
 
-                if line.starts_with('+') && !line.starts_with("+++") {
-                    // Add line
-                    let new_line = line[1..].to_string();
+                if is_no_newline_marker(line) {
+                    // Metadata emitted by unified diffs for files without a trailing newline.
+                    // It is not a file line and must not affect matching or output.
+                } else if let Some(new_line) = line.strip_prefix('+') {
+                    // Add line. File header lines are not present inside parsed hunk content, so
+                    // hunk lines like `+++literal` represent a real line beginning with `++`.
                     if file_idx <= lines.len() {
-                        lines.insert(file_idx, new_line);
+                        lines.insert(file_idx, new_line.to_string());
                     } else {
-                        lines.push(new_line);
+                        lines.push(new_line.to_string());
                     }
                     file_idx += 1;
                     additions += 1;
-                } else if line.starts_with('-') && !line.starts_with("---") {
-                    // Remove line
+                } else if line.starts_with('-') {
+                    // Remove line. Likewise, `---literal` in a hunk means remove `--literal`.
                     if file_idx < lines.len() {
                         lines.remove(file_idx);
                         deletions += 1;
@@ -604,9 +607,12 @@ impl FixupParser {
 
         for hunk in &diff.hunks {
             for line in hunk.content.lines() {
-                if line.starts_with('+') && !line.starts_with("+++") {
+                if is_no_newline_marker(line) {
+                    continue;
+                }
+                if line.starts_with('+') {
                     lines_added += 1;
-                } else if line.starts_with('-') && !line.starts_with("---") {
+                } else if line.starts_with('-') {
                     lines_removed += 1;
                 }
             }
@@ -614,6 +620,10 @@ impl FixupParser {
 
         (lines_added, lines_removed)
     }
+}
+
+fn is_no_newline_marker(line: &str) -> bool {
+    line == r"\ No newline at end of file"
 }
 
 /// Normalize line endings to LF (FR-FIX-010, FR-FS-004, FR-FS-005)
@@ -649,6 +659,60 @@ pub fn normalize_line_endings_for_diff(content: &str) -> String {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn test_apply_diff_handles_no_newline_marker() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf()).unwrap();
+
+        let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/test.txt
++++ b/test.txt
+@@ -1,2 +1,2 @@
+ one
+-two
++TWO
+\ No newline at end of file
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        let updated = parser.apply_diff_to_content("one\ntwo", &diffs[0]).unwrap();
+
+        assert_eq!(updated, "one\nTWO\n");
+    }
+
+    #[test]
+    fn test_apply_diff_preserves_lines_that_look_like_diff_headers() {
+        let temp_dir = TempDir::new().unwrap();
+        let parser = FixupParser::new(FixupMode::Apply, temp_dir.path().to_path_buf()).unwrap();
+
+        let content = r#"
+FIXUP PLAN:
+
+```diff
+--- a/test.txt
++++ b/test.txt
+@@ -1,3 +1,3 @@
+ keep
+---old
++++new
+ end
+```
+"#;
+
+        let diffs = parser.parse_diffs(content).unwrap();
+        let updated = parser
+            .apply_diff_to_content("keep\n--old\nend\n", &diffs[0])
+            .unwrap();
+        let (added, removed) = parser.calculate_change_stats(&diffs[0]);
+
+        assert_eq!(updated, "keep\n++new\nend\n");
+        assert_eq!((added, removed), (1, 1));
+    }
 
     #[test]
     fn test_calculate_change_stats() {
