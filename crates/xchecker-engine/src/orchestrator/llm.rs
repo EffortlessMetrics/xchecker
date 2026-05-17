@@ -489,9 +489,42 @@ impl PhaseOrchestrator {
 
 #[cfg(test)]
 mod tests {
-    use super::build_messages_from_template;
-    use crate::config::PromptTemplate;
+    use super::{apply_overrides_from_map, build_messages_from_template};
+    use crate::config::{
+        ClaudeConfig, Config, Defaults, HooksConfig, LlmConfig, PhaseConfig, PhasesConfig,
+        PromptTemplate, RunnerConfig, SecurityConfig, Selectors,
+    };
     use crate::llm::Role;
+    use std::collections::HashMap;
+
+    fn base_config() -> Config {
+        Config {
+            defaults: Defaults::default(),
+            selectors: Selectors::default(),
+            runner: RunnerConfig::default(),
+            llm: LlmConfig {
+                provider: None,
+                fallback_provider: None,
+                claude: None,
+                gemini: None,
+                openrouter: None,
+                anthropic: None,
+                execution_strategy: None,
+                prompt_template: None,
+            },
+            phases: PhasesConfig::default(),
+            hooks: HooksConfig::default(),
+            security: SecurityConfig::default(),
+            source_attribution: HashMap::new(),
+        }
+    }
+
+    fn overrides(entries: &[(&str, &str)]) -> HashMap<String, String> {
+        entries
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+            .collect()
+    }
 
     #[test]
     fn build_messages_default_includes_packet() {
@@ -540,5 +573,142 @@ mod tests {
         );
         assert_eq!(messages[1].role, Role::User);
         assert_eq!(messages[1].content, "Write summary");
+    }
+
+    #[test]
+    fn apply_overrides_prefers_llm_claude_binary_over_legacy_aliases() {
+        let mut config = base_config();
+        config.llm.claude = Some(ClaudeConfig {
+            binary: Some("from-config".to_string()),
+        });
+        config.runner.claude_path = Some("from-runner".to_string());
+        let overrides = overrides(&[
+            ("claude_cli_path", "oldest-alias"),
+            ("claude_path", "legacy-alias"),
+            ("llm_claude_binary", "preferred-binary"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("preferred-binary")
+        );
+        assert_eq!(
+            config.runner.claude_path.as_deref(),
+            Some("preferred-binary")
+        );
+    }
+
+    #[test]
+    fn apply_overrides_prefers_claude_path_over_oldest_alias() {
+        let mut config = base_config();
+        let overrides = overrides(&[
+            ("claude_cli_path", "oldest-alias"),
+            ("claude_path", "legacy-alias"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("legacy-alias")
+        );
+        assert_eq!(config.runner.claude_path.as_deref(), Some("legacy-alias"));
+    }
+
+    #[test]
+    fn apply_overrides_uses_oldest_claude_alias_when_it_is_the_only_binary_override() {
+        let mut config = base_config();
+        let overrides = overrides(&[("claude_cli_path", "oldest-alias")]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(
+            config
+                .llm
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.binary.as_deref()),
+            Some("oldest-alias")
+        );
+        assert_eq!(config.runner.claude_path.as_deref(), Some("oldest-alias"));
+    }
+
+    #[test]
+    fn apply_overrides_ignores_invalid_numeric_values_without_clearing_existing_config() {
+        let mut config = base_config();
+        config.defaults.max_turns = Some(4);
+        config.defaults.phase_timeout = Some(120);
+        config.phases.design = Some(PhaseConfig {
+            model: Some("configured-design".to_string()),
+            max_turns: Some(3),
+            phase_timeout: Some(45),
+        });
+        let overrides = overrides(&[
+            ("max_turns", "not-a-number"),
+            ("phase_timeout", "also-invalid"),
+            ("phases.design.max_turns", "invalid"),
+            ("phases.design.phase_timeout", "invalid"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        assert_eq!(config.defaults.max_turns, Some(4));
+        assert_eq!(config.defaults.phase_timeout, Some(120));
+        let design = config
+            .phases
+            .design
+            .as_ref()
+            .expect("design override remains");
+        assert_eq!(design.model.as_deref(), Some("configured-design"));
+        assert_eq!(design.max_turns, Some(3));
+        assert_eq!(design.phase_timeout, Some(45));
+    }
+
+    #[test]
+    fn apply_overrides_populates_phase_and_gemini_nested_config() {
+        let mut config = base_config();
+        let overrides = overrides(&[
+            ("llm_gemini_binary", "gemini-bin"),
+            ("llm_gemini_default_model", "gemini-pro"),
+            ("phases.requirements.model", "haiku"),
+            ("phases.requirements.max_turns", "2"),
+            ("phases.requirements.phase_timeout", "30"),
+            ("phases.final.model", "sonnet"),
+        ]);
+
+        apply_overrides_from_map(&mut config, &overrides);
+
+        let gemini = config.llm.gemini.as_ref().expect("gemini config created");
+        assert_eq!(gemini.binary.as_deref(), Some("gemini-bin"));
+        assert_eq!(gemini.default_model.as_deref(), Some("gemini-pro"));
+        assert!(gemini.profiles.is_none());
+
+        let requirements = config
+            .phases
+            .requirements
+            .as_ref()
+            .expect("requirements phase override created");
+        assert_eq!(requirements.model.as_deref(), Some("haiku"));
+        assert_eq!(requirements.max_turns, Some(2));
+        assert_eq!(requirements.phase_timeout, Some(30));
+
+        let final_phase = config
+            .phases
+            .final_
+            .as_ref()
+            .expect("final phase override created");
+        assert_eq!(final_phase.model.as_deref(), Some("sonnet"));
+        assert_eq!(final_phase.max_turns, None);
+        assert_eq!(final_phase.phase_timeout, None);
     }
 }
